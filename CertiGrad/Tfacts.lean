@@ -263,8 +263,15 @@ axiom integral_continuous : ∀ {ishape tshape fshape : S} (f : T ishape → T t
 -- axiom tmulT_scalar {shape : S} : ∀ (x : T (shape ++ [])) (y : TReal), tmulT x y = y • (eq.rec_on (append_nil shape) x)
 -- axiom D_scalar {shape : S} (f : T shape → TReal) (θ : T shape) : (eq.rec_on (append_nil shape) (D f θ) : T shape) = ∇ f θ
 
--- axiom tmulT_scalar {shape : S} : ∀ (x : T (shape ++ [])) (y : TReal), tmulT x y = y • (eq.rec_on (List.append_nil shape) x)
--- axiom D_scalar {shape : S} (f : T shape → TReal) (θ : T shape) : (eq.rec_on (List.append_nil shape) (D f θ) : T shape) = ∇ f θ
+-- #check @Eq.recOn
+-- #check @Eq.rec_eq_cast
+
+axiom tmulT_scalar {shape : S} : ∀ (x : T (shape ++ [])) (y : TReal), tmulT x y = y • (Eq.recOn (motive := fun s h => T s) (List.append_nil shape) x)
+-- (Eq.rec_eq_cast (List.append_nil shape) x)
+-- T shape = T (shape ++ [])
+--(Eq.recOn (motive := fun _, _ => T shape) (List.append_nil shape) x)
+
+axiom D_scalar {shape : S} (f : T shape → TReal) (θ : T shape) : (Eq.recOn (motive := fun s h => T s) (List.append_nil shape) (D f θ) : T shape) = ∇ f θ
 
 
 -- dintegral
