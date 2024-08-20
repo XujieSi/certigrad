@@ -36,8 +36,8 @@ namespace T
 axiom const (α : TReal) (shape : S) : T shape
 axiom eps (shape : S) : T shape
 
-axiom zero (shape : S) : T shape
-axiom one (shape : S) : T shape
+axiom zero {shape : S} : T shape
+axiom one {shape : S} : T shape
 axiom pi (shape : S) : T shape
 
 axiom neg {shape : S} (x : T shape) : T shape
@@ -83,9 +83,12 @@ noncomputable instance {shape : S} : Inv (T shape) where
 -- instance (shape : S) : Zero (T shape) := ⟨T.zero shape⟩
 -- instance (shape : S) : One (T shape) := ⟨T.one shape⟩
 
-noncomputable instance (shape : S) : OfNat (T shape) 0 := ⟨T.zero shape⟩
-noncomputable instance (shape : S) : OfNat (T shape) 1 := ⟨T.one shape⟩
+-- noncomputable instance (shape : S) : OfNat (T shape) 0 := ⟨T.zero shape⟩
+-- noncomputable instance (shape : S) : OfNat (T shape) 1 := ⟨T.one shape⟩
 -- noncomputable instance  : OfNat (T []) n := ⟨T.of_nat n⟩
+
+noncomputable instance : OfNat TReal 0 := ⟨T.zero⟩ -- both zeros have to the same, otherwise, many proofs will be problematic
+noncomputable instance : OfNat TReal 1 := ⟨T.one⟩
 noncomputable instance : OfNat TReal n := ⟨T.of_nat n⟩
 
 noncomputable instance (shape : S) : Neg (T shape) := ⟨T.neg⟩
@@ -102,13 +105,13 @@ namespace IL
 -- Instance Lemmas
 axiom add_comm {shape : S} : ∀ (x y : T shape), x + y = y + x
 axiom add_assoc {shape : S} : ∀ (x y z : T shape), x + y + z = x + (y + z)
-axiom zero_add {shape : S} : ∀ (x : T shape), 0 + x = x
-axiom add_zero {shape : S} : ∀ (x : T shape), x + 0 = x
-axiom add_left_neg {shape : S} : ∀ (x : T shape), -x + x = 0
+axiom zero_add {shape : S} : ∀ (x : T shape), zero + x = x
+axiom add_zero {shape : S} : ∀ (x : T shape), x + zero = x
+axiom add_left_neg {shape : S} : ∀ (x : T shape), -x + x = zero
 axiom mul_comm {shape : S} : ∀ (x y : T shape), x * y = y * x
 axiom mul_assoc  {shape : S} : ∀ (x y z : T shape), x * y * z = x * (y * z)
-axiom one_mul {shape : S} : ∀ (x : T shape), 1 * x = x
-axiom mul_one {shape : S} : ∀ (x : T shape), x * 1 = x
+axiom one_mul {shape : S} : ∀ (x : T shape), one * x = x
+axiom mul_one {shape : S} : ∀ (x : T shape), x * one = x
 axiom left_distrib {shape : S} : ∀ (x y z : T shape), x * (y + z) = x * y + x * z
 axiom right_distrib {shape : S} : ∀ (x y z : T shape), (x + y) * z = x * z + y * z
 axiom le_refl {shape : S} : ∀ (x : T shape), x ≤ x
@@ -120,20 +123,20 @@ axiom le_antisymm {shape : S} : ∀ (x y : T shape), x ≤ y → y ≤ x → x =
 -- axiom lt_irrefl {shape : S} : ∀ (x : T shape), ¬x < x
 axiom add_le_add_left {shape : S} : ∀ (x y : T shape), x ≤ y → ∀ (z : T shape), z + x ≤ z + y
 axiom add_lt_add_left {shape : S} : ∀ (x y : T shape), x < y → ∀ (z : T shape), z + x < z + y
-axiom zero_ne_one {shape : S} : (0 : T shape) ≠ (1 : T shape)
-axiom mul_nonneg {shape : S} : ∀ (x y : T shape), 0 ≤ x → 0 ≤ y → 0 ≤ x * y
-axiom mul_pos {shape : S} : ∀ (x y : T shape), 0 < x → 0 < y → 0 < x * y
+axiom zero_ne_one {shape : S} : (zero : T shape) ≠ (one : T shape)
+axiom mul_nonneg {shape : S} : ∀ (x y : T shape), zero ≤ x → zero ≤ y → zero ≤ x * y
+axiom mul_pos {shape : S} : ∀ (x y : T shape), zero < x → zero < y → zero < x * y
 -- axiom le_iff_lt_or_eq {shape : S} : ∀ (x y : T shape), x ≤ y ↔ x < y ∨ x = y
 
 axiom lt_iff_le_not_le {shape : S} : ∀ (a b : T shape), a < b ↔ a ≤ b ∧ ¬b ≤ a
 
-axiom zero_mul {shape : S} : ∀ (x : T shape), 0 * x = 0
-axiom mul_zero {shape : S} : ∀ (x : T shape), x * 0 = 0
-axiom zero_le_one {shape : S} : (0 : T shape) ≤ (1 : T shape)
+axiom zero_mul {shape : S} : ∀ (x : T shape), zero * x = zero
+axiom mul_zero {shape : S} : ∀ (x : T shape), x * zero = zero
+axiom zero_le_one {shape : S} : (zero : T shape) ≤ (one : T shape)
 
 noncomputable def nsmul {shape : S} (n : Nat) (m : T shape) : (T shape) :=
   match n with
-  | 0 => 0
+  | 0 => zero
   | n + 1 => add (nsmul n m) m
 
 -- axiom zsmul {shape : S}: Int → (T shape) → (T shape)
@@ -161,8 +164,10 @@ end IL
 -- }
 
 noncomputable instance (shape : S) : OrderedCommRing (T shape) where
-  zero := T.zero shape
-  one := T.one shape
+  -- zero := T.zero shape
+  -- one := T.one shape
+  zero := T.zero
+  one := T.one
   add := T.add
   neg := T.neg
   mul := T.mul
@@ -279,7 +284,8 @@ noncomputable instance {shape : S} : ToString (T shape) where
   toString := T.toString
 
 -- @[inline] instance {shape : S} : inhabited (T shape) := ⟨T.zero shape⟩ -- ⟨silent_fail _⟩ --⟨T.zero shape⟩ (switch back once no course-of-values)
-noncomputable instance {shape : S} : Inhabited (T shape) := ⟨T.zero shape⟩
+-- noncomputable instance {shape : S} : Inhabited (T shape) := ⟨T.zero shape⟩
+noncomputable instance {shape : S} : Inhabited (T shape) := ⟨T.zero⟩
 
 -- @[inline] noncomputable instance {shape : S} : has_smul (TReal) (T shape) := ⟨scalar_mul⟩
 
@@ -303,6 +309,8 @@ noncomputable def mvn_pdf {shape : S} (μ σ x : T shape) : TReal :=
 -- def mvn_logpdf {shape : S} (μ σ x : T shape) : TReal :=
 --   (- 2⁻¹) * sum (square ((x - μ) / σ) + log (2 * pi shape) + log (square σ))
 
+-- noncomputable def t1 : TReal := 2
+
 noncomputable def mvn_logpdf {shape : S} (μ σ x : T shape) : TReal :=
   (- 2⁻¹) * sum (square ((x - μ) / σ) + log ( (2:TReal) • pi shape) + log (square σ))
 
@@ -325,6 +333,10 @@ noncomputable def bernoulli_neglogpdf {shape : S} (p z : T shape) : TReal :=
 
 -- def force {shape₁ : S} (x : T shape₁) (shape₂ : S) : T shape₂ :=
 --   if H : shape₁ = shape₂ then eq.rec_on H x else T.error ("force-failed: " ++ _root_.to_string shape₁ ++ " != " ++ _root_.to_string shape₂)
+
+-- def force {shape₁ : S} (x : T shape₁) (shape₂ : S) : T shape₂ :=
+--   if H : shape₁ = shape₂ then eq.rec_on H x
+--   else T.error ("force-failed: " ++ toString shape₁ ++ " != " ++ toString shape₂)
 
 end T
 end certigrad
