@@ -65,6 +65,11 @@ axiom smul_div {shape : S} (α : TReal) (x y : T shape) : α • (x / y) = (α �
 axiom smul_scale : ∀ (α : TReal) (shape : S) (x : T shape), (α • 1) * x = α • x
 axiom smul_scalar : ∀ (α x : TReal), (α • x) = α * x
 
+lemma minus_eq_add_neg :  ∀ {shape : S} (x y : T shape), x - y = x + (-y) := by
+  intro S x y
+  rfl
+
+
 -- sum
 axiom sum_empty_vec (x : T [0]) : sum x = 0
 axiom sum_mat_no_cols {nrows : Nat} (x : T [nrows, 0]) : sum x = 0
@@ -117,8 +122,34 @@ axiom pi_pos {shape : S} : pi shape > 0
 axiom inv_pos {shape : S} {x : T shape} : x > 0 → x⁻¹ > 0
 axiom div_pos_pos {shape : S} {x y : T shape} : x > 0 → y > 0 → x / y > 0
 axiom add_pos_of_pos_pos {shape : S} {x y : T shape} : x > 0 → y > 0 → x + y > 0
--- theorem two_pos {shape : S} : (2 : T shape) > 0 := one_plus_pos one_pos
+
+-- theorem two_pos {shape : S} : (2 : T shape) > 0 := by
+--   have H := @add_pos_of_pos_pos (shape := shape) (x := 1) (y := 1) one_pos one_pos
+--   have H2 : (1 : T shape) + (1 : T shape) = (2 : T shape) := by simp [IL.nsmul]
+
 -- theorem two_pi_pos {shape : S} : 2 * pi shape > 0 := mul_pos_of_pos_pos two_pos pi_pos
+
+-- have H : IL.nsmul 1 (pi shape) = pi shape := by
+--   simp [IL.nsmul]
+--   apply zero_add
+
+theorem two_pi_pos {shape : S} : 2 • pi shape > 0 := by
+  have H := @add_pos_of_pos_pos (shape := shape) (x := pi shape) (y := pi shape) pi_pos pi_pos
+  have H3 : IL.nsmul 2 (pi shape) = 2 • pi shape := by rfl
+  have H4 : zero.add (pi shape) = pi shape := by apply zero_add
+  have H2 : 2 • pi shape = pi shape + pi shape := by
+    rw [← H3]
+    simp [IL.nsmul]
+    rw [H4]
+    rfl
+    -- -- simp [zero_add]
+    -- rw [add_zero]
+    -- simp zero_add
+    -- apply zero_add
+  --   unfold IL.nsmul
+  rw [H2]
+  assumption
+
 theorem msigmoid_pos {shape : S} {x : T shape} : 0 < 1 - sigmoid x := lt1_alt sigmoid_lt1
 
 -- div
