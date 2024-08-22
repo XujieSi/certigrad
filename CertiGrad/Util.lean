@@ -4,6 +4,9 @@
 import Lean
 -- import Init.Core
 
+import Mathlib.Algebra.Group.ZeroOne
+import Mathlib.Data.Num.Basic
+import Mathlib.Algebra.NeZero
 
 -- meta constant io.mkdir (s : string) [io.interface] : io nat
 
@@ -20,10 +23,82 @@ def pextf {P : Prop} : ¬ P → (P = False) := λ Hnp => propext (Iff.intro (λ 
 
 -- namespace nat
 
--- -- theorem bit1_ne_bit0_eq {n m : ℕ} : (bit1 n ≠ bit0 m) = true := pextt (nat.bit1_ne_bit0 _ _)
--- -- theorem bit0_ne_bit1_eq {n m : ℕ} : (bit0 n ≠ bit1 m) = true := pextt (nat.bit0_ne_bit1 _ _)
+-- the original formalization uses a different number system
+-- PosNum and Num, rather than Nat
 
--- theorem bit0_inj_eq {n m : ℕ} : (bit0 n ≠ bit0 m) = (n ≠ m) :=
+-- theorem xxx : 1 + (0 : Nat) = (1 : ℕ) := by
+-- open Num
+
+-- theorem s0 : 0 + (n : Nat) = n := by
+--   induction n with
+--   | zero => rfl
+--   | succ n' ih => simp
+
+theorem bit1_ne_bit0 : ∀ (n m : Num), n.bit1 ≠ m.bit0
+  | 0, m, h => by
+    -- cases h
+    unfold Num.bit1 at h
+    simp at h
+    induction m
+    case zero => simp [Num.bit0] at h
+    case pos k =>
+      simp [Num.bit0] at h
+      cases h
+  | Num.pos n', 0, h => by
+      cases h
+  | Num.pos n', Num.pos m', h => by
+      cases h
+
+  -- intro n m h
+  -- cases h
+
+    -- unfold Num.bit0 at h
+    -- with
+    -- | zero => simp [Num.bit0] at h
+    -- | pos k => unfold Num.bit0 at h
+
+--     cases m
+--     . simp at h
+--     .
+
+--     induction m
+--     . unfold Num.bit0 at h
+--       simp at h
+--     . unfold Num.bit0 at h
+--       simp at h
+--       unfold PosNum.bit0 at h
+--       destruct h
+
+--   | (n+1), 0, h =>
+
+theorem bit0_ne_bit1 : ∀ (n m : Num), n.bit0 ≠ m.bit1 := by
+  intro n m
+  apply Ne.symm (bit1_ne_bit0 m n)
+
+theorem bit1_ne_bit0_eq {n m : Num} : (n.bit1 ≠ m.bit0) = True := pextt (bit1_ne_bit0 _ _)
+theorem bit0_ne_bit1_eq {n m : Num} : (n.bit0 ≠ m.bit1) = True := pextt (bit0_ne_bit1 _ _)
+
+theorem bit0_inj : ∀ (n m : Num), n.bit0 = m.bit0 → n = m
+  | 0, 0, h => by rfl
+  | 0, Num.pos m', h => by cases h
+  | Num.pos n', Num.pos m', h => by
+    simp [Num.bit0] at h
+    rw [h]
+
+theorem bit0_inj_eq {n m : Num} : (n.bit0 ≠ m.bit0) = (n ≠ m) := by
+  -- intro n m H1 H2
+  apply propext
+  case a =>
+    constructor
+    case mp =>
+      intro H_ne H_eq
+      subst H_eq
+      contradiction
+    case mpr =>
+      intro H_ne H_eq
+      apply H_ne
+      apply bit0_inj
+      exact H_eq
 -- begin
 -- apply propext,
 -- split,
@@ -34,7 +109,27 @@ def pextf {P : Prop} : ¬ P → (P = False) := λ Hnp => propext (Iff.intro (λ 
 -- exact H_ne (nat.bit0_inj H_eq)
 -- end
 
--- theorem bit1_inj_eq {n m : ℕ} : (bit1 n ≠ bit1 m) = (n ≠ m) :=
+theorem bit1_inj : ∀ (n m : Num), n.bit1 = m.bit1 → n = m
+  | 0, 0, h => by rfl
+  | 0, Num.pos m', h => by cases h
+  | Num.pos n', Num.pos m', h => by
+    simp [Num.bit1] at h
+    rw [h]
+
+theorem bit1_inj_eq {n m : Num} : (n.bit1 ≠ m.bit1) = (n ≠ m) := by
+  apply propext
+  case a =>
+    constructor
+    case mp =>
+      intro H_ne H_eq
+      subst H_eq
+      contradiction
+    case mpr =>
+      intro H_ne H_eq
+      apply H_ne
+      apply bit1_inj
+      exact H_eq
+
 -- begin
 -- apply propext,
 -- split,
@@ -45,7 +140,33 @@ def pextf {P : Prop} : ¬ P → (P = False) := λ Hnp => propext (Iff.intro (λ 
 -- exact H_ne (nat.bit1_inj H_eq)
 -- end
 
--- theorem zero_ne_bit0_eq {n : ℕ} : (0 ≠ bit0 n) = (n ≠ 0) :=
+theorem bit0_ne_zero : ∀ {n : Num}, n ≠ 0 → n.bit0 ≠ 0
+  | 0, H_ne, H_eq => by contradiction
+  | Num.pos n', H_ne, H_eq => by
+    simp [Num.bit0] at H_eq
+
+theorem bit0_ne_one : ∀ n : Num, n.bit0 ≠ 1
+  | 0, H_eq => by contradiction
+  | Num.pos n', H_eq => by
+    simp [Num.bit0] at H_eq
+    cases H_eq
+
+theorem one_ne_bit0 (n : Num) : 1 ≠ n.bit0 := by
+  apply Ne.symm (bit0_ne_one n)
+
+theorem zero_ne_bit0_eq {n : Num} : (0 ≠ n.bit0) = (n ≠ 0) := by
+  apply propext
+  case a =>
+    constructor
+    case mp =>
+      intro H_ne H_eq
+      subst H_eq
+      exact H_ne rfl
+    case mpr =>
+      intro H_ne H_eq
+      apply bit0_ne_zero H_ne
+      rw [H_eq]
+
 -- begin
 -- apply propext,
 -- split,
@@ -55,7 +176,18 @@ def pextf {P : Prop} : ¬ P → (P = False) := λ Hnp => propext (Iff.intro (λ 
 -- apply nat.zero_ne_bit0
 -- end
 
--- theorem bit0_ne_zero_eq {n : ℕ} : (bit0 n ≠ 0) = (n ≠ 0) :=
+theorem bit0_ne_zero_eq {n : Num} : (n.bit0 ≠ 0) = (n ≠ 0) := by
+  apply propext
+  case a =>
+    constructor
+    case mp =>
+      intro H_ne H_eq
+      subst H_eq
+      exact H_ne rfl
+    case mpr =>
+      intro H_ne
+      apply bit0_ne_zero H_ne
+
 -- begin
 -- apply propext,
 -- split,
@@ -65,7 +197,35 @@ def pextf {P : Prop} : ¬ P → (P = False) := λ Hnp => propext (Iff.intro (λ 
 -- apply nat.bit0_ne_zero
 -- end
 
--- theorem one_ne_bit1_eq {n : ℕ} : (1 ≠ bit1 n) = (n ≠ 0) :=
+theorem bit1_ne_one : ∀ {n : Num}, n ≠ 0 → n.bit1 ≠ 1
+  | 0, H_ne, H_eq => by contradiction
+  | Num.pos n', H_ne, H_eq => by
+    simp [Num.bit1] at H_eq
+    cases H_eq
+
+theorem bit1_ne_zero: ∀ (n : Num), n.bit1 ≠ 0
+  | 0, H_eq => by contradiction
+  | Num.pos n', H_eq => by
+    simp [Num.bit1] at H_eq
+
+theorem zero_ne_bit1 : ∀ (n : Num), 0 ≠ n.bit1 := by
+  intro n
+  apply Ne.symm (bit1_ne_zero n)
+
+theorem one_ne_bit1_eq {n : Num} : (1 ≠ n.bit1) = (n ≠ 0) := by
+  apply propext
+  case a =>
+    constructor
+    case mp =>
+      intro H_ne H_eq
+      subst H_eq
+      exact H_ne rfl
+    case mpr =>
+      intro H_ne
+      have H2 : n.bit1 ≠ 1 := by apply bit1_ne_one H_ne
+      apply Ne.symm H2
+
+
 -- begin
 -- apply propext,
 -- split,
@@ -75,7 +235,18 @@ def pextf {P : Prop} : ¬ P → (P = False) := λ Hnp => propext (Iff.intro (λ 
 -- apply nat.one_ne_bit1
 -- end
 
--- theorem bit1_ne_one_eq {n : ℕ} : (bit1 n ≠ 1) = (n ≠ 0) :=
+theorem bit1_ne_one_eq {n : Num} : (n.bit1 ≠ 1) = (n ≠ 0) := by
+  apply propext
+  case a =>
+    constructor
+    case mp =>
+      intro H_ne H_eq
+      subst H_eq
+      exact H_ne rfl
+    case mpr =>
+      intro H_ne
+      apply bit1_ne_one H_ne
+
 -- begin
 -- apply propext,
 -- split,
@@ -85,14 +256,14 @@ def pextf {P : Prop} : ¬ P → (P = False) := λ Hnp => propext (Iff.intro (λ 
 -- apply nat.bit1_ne_one
 -- end
 
--- theorem one_ne_bit0_eq (n : ℕ) : (1 ≠ bit0 n) = true := pextt (nat.one_ne_bit0 _)
--- theorem bit0_ne_one_eq (n : ℕ) : (bit0 n ≠ 1) = true := pextt (nat.bit0_ne_one _)
+theorem one_ne_bit0_eq (n : Num) : (1 ≠ n.bit0) = True := pextt (one_ne_bit0 _)
+theorem bit0_ne_one_eq (n : Num) : (n.bit0 ≠ 1) = True := pextt (bit0_ne_one _)
 
--- theorem zero_ne_bit1_eq (n : ℕ) : (0 ≠ bit1 n) = true := pextt (nat.zero_ne_bit1 _)
--- theorem bit1_ne_zero_eq (n : ℕ) : (bit1 n ≠ 0) = true := pextt (nat.bit1_ne_zero _)
+theorem zero_ne_bit1_eq (n : Num) : (0 ≠ n.bit1) = True := pextt (zero_ne_bit1 _)
+theorem bit1_ne_zero_eq (n : Num) : (n.bit1 ≠ 0) = True := pextt (bit1_ne_zero _)
 
--- theorem zero_ne_one_eq : (0 ≠ 1) = true := pextt nat.zero_ne_one
--- theorem one_ne_zero_eq : (1 ≠ 0) = true := pextt nat.one_ne_zero
+theorem zero_ne_one_eq : (0 ≠ 1) = True := pextt zero_ne_one
+theorem one_ne_zero_eq : (1 ≠ 0) = True := pextt one_ne_zero
 
 -- end nat
 
@@ -121,20 +292,37 @@ def pextf {P : Prop} : ¬ P → (P = False) := λ Hnp => propext (Iff.intro (λ 
 -- assume (H : x₁ ≠ x₂) (H_contra : (x₁, y₁) = (x₂, y₂)),
 -- by { injection H_contra with Hx Hy, exact H Hx }
 
--- namespace list
+def List.p1 {X Y : Type} : List (X × Y) → List X
+  | [] => []
+  | (xy::xys) => xy.1 :: List.p1 xys
+
+def List.p2 {X Y : Type} : List (X × Y) → List Y
+  | [] => []
+  | (xy::xys) => xy.2 :: List.p2 xys
+
+theorem length_p1_same {X Y : Type} : ∀ (xs : List (X × Y)),  xs.p1.length =  xs.length
+  | []      => by rfl
+  | (x::xs) => by simp [List.p1]; apply length_p1_same
+
+theorem length_p2_same {X Y : Type} : ∀ (xs : List (X × Y)), xs.p2.length =  xs.length
+  | []      => by rfl
+  | (x::xs) => by simp [List.p2]; apply length_p2_same
+
+
+namespace util_list
 -- section lt
 -- variables {A : Type*} [A_deceq : decidable_eq A] [A_lt : has_lt A] [A_dec_lt : decidable_rel (@has_lt.lt A _)]
 
 -- include A_deceq A_lt A_dec_lt
 
--- def less_than : list A → list A → Prop
+-- def less_than : List A → List A → Prop
 -- | []      (y::ys) := true
 -- | _       []      := false
 -- | (x::xs) (y::ys) := x < y ∨ (x = y ∧ less_than xs ys)
 
 -- instance : has_lt (list A) := ⟨less_than⟩
 
--- def decidable_less_than : ∀ (xs ys : list A), decidable (xs < ys)
+-- def decidable_less_than : ∀ (xs ys : List A), decidable (xs < ys)
 -- | []      (y::ys) := decidable.true
 -- | []       []     := decidable.false
 -- | (x::xs)  []     := decidable.false
@@ -146,53 +334,41 @@ def pextf {P : Prop} : ¬ P → (P = False) := λ Hnp => propext (Iff.intro (λ 
 -- instance : decidable_rel (@has_lt.lt (list A) _) := decidable_less_than
 
 -- end lt
-
--- def p1 {X Y : Type} : list (X × Y) → list X
--- | [] := []
--- | (xy::xys) := xy.1 :: p1 xys
-
--- def p2 {X Y : Type} : list (X × Y) → list Y
--- | [] := []
--- | (xy::xys) := xy.2 :: p2 xys
-
--- theorem length_p1_same {X Y : Type} : ∀ (xs : list (X × Y)), length xs^.p1 = length xs
--- | []      := rfl
--- | (x::xs) := begin dsimp [length, p1], rw length_p1_same end
-
--- theorem length_p2_same {X Y : Type} : ∀ (xs : list (X × Y)), length xs^.p2 = length xs
--- | []      := rfl
--- | (x::xs) := begin dsimp [length, p2], rw length_p2_same end
-
--- def sumr {α : Type} [has_add α] [has_zero α] : list α → α
+-- def sumr {α : Type} [has_add α] [has_zero α] : List α → α
 -- | [] := 0
 -- | (x::xs) := x + sumr xs
 
--- def sumrd {α : Type} [has_add α] (d : α) : list α → α
+def sumr {α : Type} [Add α] [Zero α] : List α → α
+  | [] => 0
+  | (x::xs) => x + sumr xs
+
+
+-- def sumrd {α : Type} [has_add α] (d : α) : List α → α
 -- | [] := d
 -- | (x::xs) := x + sumrd xs
 
--- theorem sumrd_sumr {α : Type} [add_comm_group α] (d : α) : ∀ (xs : list α), sumrd d xs = d + sumr xs
+-- theorem sumrd_sumr {α : Type} [add_comm_group α] (d : α) : ∀ (xs : List α), sumrd d xs = d + sumr xs
 -- | []      := begin dunfold sumrd sumr, rw add_zero end
 -- | (x::xs) := begin dunfold sumrd sumr, rw sumrd_sumr, rw [-add_assoc, -add_assoc], rw add_comm x d end
 
--- def sumr₁ {α : Type} [has_add α] [has_zero α] : list α → α
+-- def sumr₁ {α : Type} [has_add α] [has_zero α] : List α → α
 -- | [] := 0
 -- | [x] := x
 -- | (x::y::xs) := x + sumr₁ (y::xs)
 
--- theorem sumr_sumr₁ {α : Type} [add_group α] : ∀ (xs : list α), sumr₁ xs = sumr xs
+-- theorem sumr_sumr₁ {α : Type} [add_group α] : ∀ (xs : List α), sumr₁ xs = sumr xs
 -- | [] := rfl
 -- | [x] := begin dunfold sumr sumr₁, rw add_zero, end
 -- | (x::y::xs) := begin dunfold sumr sumr₁, rw sumr_sumr₁, reflexivity end
 
--- def prod {α : Type*} [has_mul α] [has_one α] : list α → α :=
+-- def prod {α : Type*} [has_mul α] [has_one α] : List α → α :=
 -- foldr has_mul.mul 1
 
 theorem append_single {α : Type} (x : α) (xs : List α) : [x] ++ xs = x :: xs := rfl
 
 theorem append_nil_left {α : Type} (xs : List α) : [] ++ xs = xs := rfl
 
--- theorem in_filter {α : Type*} (P : α → Prop) [decidable_pred P] : Π (xs : list α) (x : α), x ∈ xs → P x → x ∈ filter P xs
+-- theorem in_filter {α : Type*} (P : α → Prop) [decidable_pred P] : Π (xs : List α) (x : α), x ∈ xs → P x → x ∈ filter P xs
 -- | []      x H_x_in HPx := H_x_in
 -- | (y::ys) x H_x_in HPx :=
 -- have Hx : x = y ∨ x ∈ ys, from iff.mp (mem_cons_iff _ _ _) H_x_in,
@@ -206,7 +382,7 @@ theorem append_nil_left {α : Type} (xs : List α) : [] ++ xs = xs := rfl
 -- { simp [HnPy], exact in_filter _ _ H_in HPx }
 -- end
 
--- theorem of_in_filter {α : Type*} (P : α → Prop) [decidable_pred P] : Π (xs : list α) (x : α), x ∈ filter P xs → x ∈ xs ∧ P x
+-- theorem of_in_filter {α : Type*} (P : α → Prop) [decidable_pred P] : Π (xs : List α) (x : α), x ∈ filter P xs → x ∈ xs ∧ P x
 -- | []      x H_x_in := false.rec _ (not_mem_nil _ H_x_in)
 -- | (y::ys) x H_x_in :=
 -- have Hy : P y ∨ ¬ (P y), from decidable.em _,
@@ -231,19 +407,19 @@ theorem append_nil_left {α : Type} (xs : List α) : [] ++ xs = xs := rfl
 -- exact (of_in_filter _ _ H_x_in)^.right
 -- end
 
--- def miota : ℕ → ℕ → list ℕ
+-- def miota : Nat → Nat → List Nat
 -- | i 0     := []
 -- | i (k+1) := i :: miota (i+1) k
 
--- def riota : ℕ → list ℕ
+-- def riota : Nat → List Nat
 -- | 0 := []
 -- | (n+1) := n :: riota n
 
--- theorem in_riota_lt : ∀ {idx n : ℕ}, idx ∈ riota n → idx < n
+-- theorem in_riota_lt : ∀ {idx n : Nat}, idx ∈ riota n → idx < n
 -- | idx 0     H_mem := false.rec _ (not_mem_nil (riota 0) H_mem)
 -- | idx (n+1) H_mem :=
 -- begin
--- dsimp [riota, list.mem] at H_mem,
+-- dsimp [riota, List.mem] at H_mem,
 -- cases H_mem with H_idx_eq H_mem,
 -- { rw H_idx_eq, apply nat.lt_succ_self },
 -- apply nat.lt.step,
@@ -251,10 +427,10 @@ theorem append_nil_left {α : Type} (xs : List α) : [] ++ xs = xs := rfl
 -- exact H_mem
 -- end
 
--- theorem map_compose {X Y Z : Type} (f : X → Y) (g : Y → Z) (xs : list X) : map g (map f xs) = map (λ x, g (f x)) xs := by apply map_map
+-- theorem map_compose {X Y Z : Type} (f : X → Y) (g : Y → Z) (xs : List X) : map g (map f xs) = map (λ x, g (f x)) xs := by apply map_map
 
--- theorem map_congr_fn {X Y : Type} (f g : X → Y) (xs : list X) : f = g → map f xs = map g xs := begin intro H, rw H end
--- theorem map_congr_fn_pred {X Y : Type} (f g : X → Y) : Π (xs : list X) (H : ∀ x, x ∈ xs → f x = g x), map f xs = map g xs
+-- theorem map_congr_fn {X Y : Type} (f g : X → Y) (xs : List X) : f = g → map f xs = map g xs := begin intro H, rw H end
+-- theorem map_congr_fn_pred {X Y : Type} (f g : X → Y) : Π (xs : List X) (H : ∀ x, x ∈ xs → f x = g x), map f xs = map g xs
 -- | []      H := rfl
 -- | (x::xs) H :=
 --   show f x :: map f xs = g x :: map g xs, from
@@ -263,30 +439,33 @@ theorem append_nil_left {α : Type} (xs : List α) : [] ++ xs = xs := rfl
 --     begin intros y H_y_in_xs, apply H, apply mem_cons_of_mem, exact H_y_in_xs end,
 --   begin rw H x H_x, rw (map_congr_fn_pred xs H_rest) end
 
--- def dnth {α : Type*} [inhabited α] : list α → nat → α
--- | []       n     := default α
--- | (a :: l) 0     := a
--- | (a :: l) (n+1) := dnth l n
+def dnth {α : Type} [Inhabited α] : List α → Nat → α
+| [],       n     => default
+| (a :: l), 0     => a
+| (a :: l), (n+1) => dnth l n
 
--- theorem p1_dnth {α β : Type*} [inhabited α] [inhabited β] : ∀ (xs : list (α × β)) (idx : ℕ), (dnth xs idx).1 = dnth (p1 xs) idx
--- | []      _       := rfl
--- | (x::xs) 0       := rfl
--- | (x::xs) (idx+1) := begin dsimp [p1, dnth], apply p1_dnth end
+theorem p1_dnth {α β : Type} [Inhabited α] [Inhabited β] : ∀ (xs : List (α × β)) (idx : Nat), (dnth xs idx).1 = dnth xs.p1 idx
+| [],      _       => rfl
+| (x::xs), 0       => rfl
+| (x::xs), (idx+1) => by
+  simp [List.p1, dnth]
+  apply p1_dnth
 
--- theorem p2_dnth {α β : Type*} [inhabited α] [inhabited β] : ∀ (xs : list (α × β)) (idx : ℕ), (dnth xs idx).2 = dnth (p2 xs) idx
--- | []      _       := rfl
--- | (x::xs) 0       := rfl
--- | (x::xs) (idx+1) := begin dsimp [p2, dnth], apply p2_dnth end
+theorem p2_dnth {α β : Type} [Inhabited α] [Inhabited β] : ∀ (xs : List (α × β)) (idx : Nat), (dnth xs idx).2 = dnth xs.p2 idx
+| [],      _       => rfl
+| (x::xs), 0       => rfl
+| (x::xs), (idx+1) => by
+  simp [List.p2, dnth]
+  apply p2_dnth
 
--- def at_idx {X : Type} [inhabited X] (xs : list X) (idx : ℕ) (x : X) : Prop :=
---   idx < length xs ∧ x = dnth xs idx
+def at_idx {X : Type} [Inhabited X] (xs : List X) (idx : Nat) (x : X) : Prop :=
+  idx < xs.length ∧ x = dnth xs idx
 
--- inductive elem_at_idx {X : Type} : Π (xs : list X) (idx : ℕ) (x : X), Prop
--- | base : ∀ (xs : list X) (x : X), elem_at_idx (x::xs) 0 x
--- | step : ∀ (xs : list X) (x y : X) (idx : ℕ), elem_at_idx xs idx y → elem_at_idx (x::xs) (idx+1) y
+inductive elem_at_idx {X : Type} : (xs : List X) →  (idx : Nat) → (x : X) → Prop
+  | base : ∀ (xs : List X) (x : X), elem_at_idx (x::xs) 0 x
+  | step : ∀ (xs : List X) (x y : X) (idx : Nat), elem_at_idx xs idx y → elem_at_idx (x::xs) (idx+1) y
 
-
--- theorem elem_at_idx_of_at_idx {X : Type} [inhabited X] : ∀ {xs : list X} {idx : ℕ} {x : X},
+-- theorem elem_at_idx_of_at_idx {X : Type} [Inhabited X] : ∀ {xs : List X} {idx : Nat} {x : X},
 --   at_idx xs idx x → elem_at_idx xs idx x
 -- | [] _ _ H_at_idx := false.rec _ (nat.not_lt_zero _ H_at_idx^.left)
 -- | (x::xs) 0       x₀ H_at_idx := by { dsimp [at_idx, dnth] at H_at_idx, rw H_at_idx^.right, constructor }
@@ -300,13 +479,13 @@ theorem append_nil_left {α : Type} (xs : List α) : [] ++ xs = xs := rfl
 -- exact H_at_idx^.right
 -- end
 
--- theorem at_idx_0 {α : Type*} [inhabited α] {x : α} {xs : list α} : at_idx (x::xs) 0 x :=
+-- theorem at_idx_0 {α : Type*} [Inhabited α] {x : α} {xs : List α} : at_idx (x::xs) 0 x :=
 -- begin dunfold at_idx, split, exact nat.zero_lt_succ (length xs), reflexivity end
 
--- theorem at_idx_inj {α : Type*} [inhabited α] {x x₁ x₂ : α} {xs : list α} : at_idx (x::xs) 0 x₁ → at_idx (x::xs) 0 x₂ → x₁ = x₂ :=
+-- theorem at_idx_inj {α : Type*} [Inhabited α] {x x₁ x₂ : α} {xs : List α} : at_idx (x::xs) 0 x₁ → at_idx (x::xs) 0 x₂ → x₁ = x₂ :=
 -- begin dunfold at_idx, intros H₁ H₂, rw [H₁^.right, H₂^.right] end
 
--- theorem at_idx_of_cons {α : Type*} [inhabited α] {x : α} {xs : list α} {y : α} {idx : ℕ} :
+-- theorem at_idx_of_cons {α : Type*} [Inhabited α] {x : α} {xs : List α} {y : α} {idx : Nat} :
 --   at_idx (x::xs) (idx+1) y → at_idx xs idx y :=
 -- begin
 -- dunfold at_idx,
@@ -317,7 +496,7 @@ theorem append_nil_left {α : Type} (xs : List α) : [] ++ xs = xs := rfl
 -- rw H_dnth, reflexivity
 -- end
 
--- theorem at_idx_cons {α : Type*} [inhabited α] {x : α} {xs : list α} {y : α} {idx : ℕ} :
+-- theorem at_idx_cons {α : Type*} [Inhabited α] {x : α} {xs : List α} {y : α} {idx : Nat} :
 --   at_idx xs idx y → at_idx (x::xs) (idx+1) y :=
 -- begin
 -- dunfold at_idx,
@@ -328,7 +507,7 @@ theorem append_nil_left {α : Type} (xs : List α) : [] ++ xs = xs := rfl
 -- rw H_dnth, reflexivity
 -- end
 
--- theorem at_idx_p1 {α β : Type} [inhabited α] [inhabited β] {xs : list (α × β)} {x : α × β} {idx : ℕ} :
+-- theorem at_idx_p1 {α β : Type} [Inhabited α] [Inhabited β] {xs : List (α × β)} {x : α × β} {idx : Nat} :
 --   at_idx xs idx x → at_idx xs^.p1 idx x.1 :=
 -- begin
 -- intro H_at_idx,
@@ -339,7 +518,7 @@ theorem append_nil_left {α : Type} (xs : List α) : [] ++ xs = xs := rfl
 -- apply p1_dnth
 -- end
 
--- theorem at_idx_p2 {α β : Type} [inhabited α] [inhabited β] {xs : list (α × β)} {x : α × β} {idx : ℕ} :
+-- theorem at_idx_p2 {α β : Type} [Inhabited α] [Inhabited β] {xs : List (α × β)} {x : α × β} {idx : Nat} :
 --   at_idx xs idx x → at_idx xs^.p2 idx x.2 :=
 -- begin
 -- intro H_at_idx,
@@ -350,7 +529,7 @@ theorem append_nil_left {α : Type} (xs : List α) : [] ++ xs = xs := rfl
 -- apply p2_dnth
 -- end
 
--- theorem mem_of_at_idx {α : Type*} [inhabited α] {x : α} {xs : list α} {idx : ℕ} : at_idx xs idx x → x ∈ xs :=
+-- theorem mem_of_at_idx {α : Type*} [Inhabited α] {x : α} {xs : List α} {idx : Nat} : at_idx xs idx x → x ∈ xs :=
 -- begin
 -- intro H_at_idx,
 -- assert H_elem_at_idx : elem_at_idx xs idx x, { exact elem_at_idx_of_at_idx H_at_idx },
@@ -361,24 +540,24 @@ theorem append_nil_left {α : Type} (xs : List α) : [] ++ xs = xs := rfl
 -- exact IH
 -- end
 
--- theorem at_idx_over {X : Type} [inhabited X] {xs : list X} {idx : ℕ} {x : X} : at_idx xs idx x → ¬ (idx < length xs) → false :=
+-- theorem at_idx_over {X : Type} [Inhabited X] {xs : List X} {idx : Nat} {x : X} : at_idx xs idx x → ¬ (idx < length xs) → false :=
 -- assume H_at_idx H_idx_big, H_idx_big H_at_idx^.left
 
--- instance decidable_at_idx {α : Type*} [decidable_eq α] [inhabited α] (xs : list α) (idx : ℕ) (x : α) : decidable (at_idx xs idx x) :=
+-- instance decidable_at_idx {α : Type*} [decidable_eq α] [Inhabited α] (xs : List α) (idx : Nat) (x : α) : decidable (at_idx xs idx x) :=
 -- if H : idx < length xs ∧ x = dnth xs idx then decidable.is_true H else decidable.is_false H
 
--- theorem mem_of_cons_same {α : Type*} {x : α} {xs : list α} : x ∈ x::xs := by { apply or.inl, reflexivity }
+theorem mem_of_cons_same {α : Type} {x : α} {xs : List α} : x ∈ x::xs := by constructor
 
--- definition all_prop {α : Type*} (p : α → Prop) (l : list α) : Prop :=
+-- definition all_prop {α : Type*} (p : α → Prop) (l : List α) : Prop :=
 -- foldr (λ a r, p a ∧ r) true l
 
--- def rcons {α : Type*} (a : α) : list α → list α
+-- def rcons {α : Type*} (a : α) : List α → List α
 -- | []        := [a]
 -- | (x :: xs) := x :: (rcons xs)
 
--- def dnth_all {A : Type} [inhabited A] (idxs : list ℕ) (xs : list A) : list A := map (λ idx, dnth xs idx) idxs
+-- def dnth_all {A : Type} [Inhabited A] (idxs : List Nat) (xs : List A) : List A := map (λ idx, dnth xs idx) idxs
 
--- theorem mem_not_mem_neq {X : Type*} {x₁ x₂ : X} {xs : list X} : x₁ ∈ xs → x₂ ∉ xs → x₁ ≠ x₂ :=
+-- theorem mem_not_mem_neq {X : Type*} {x₁ x₂ : X} {xs : List X} : x₁ ∈ xs → x₂ ∉ xs → x₁ ≠ x₂ :=
 -- begin
 -- intros H_in H_nin,
 -- intro H_eq,
@@ -386,12 +565,12 @@ theorem append_nil_left {α : Type} (xs : List α) : [] ++ xs = xs := rfl
 -- exact H_nin H_in
 -- end
 
--- theorem nodup_cons_neq {X : Type} {x₁ x₂ : X} {xs : list X} : x₂ ∈ xs → nodup (x₁ :: xs) → x₁ ≠ x₂ :=
+-- theorem nodup_cons_neq {X : Type} {x₁ x₂ : X} {xs : List X} : x₂ ∈ xs → nodup (x₁ :: xs) → x₁ ≠ x₂ :=
 -- assume H_in H_nd,
 -- have H_nin : x₁ ∉ xs, from not_mem_of_nodup_cons H_nd,
 -- ne.symm $ mem_not_mem_neq H_in H_nin
 
--- theorem nodup_at_idx_neq {A : Type} [inhabited A] {x : A} {xs : list A} {y : A} {idx : ℕ} :
+-- theorem nodup_at_idx_neq {A : Type} [Inhabited A] {x : A} {xs : List A} {y : A} {idx : Nat} :
 --   nodup (x::xs) → at_idx (x::xs) (idx+1) y → y ≠ x :=
 -- begin
 -- intros H_nd H_at_idx,
@@ -402,57 +581,57 @@ theorem append_nil_left {α : Type} (xs : List α) : [] ++ xs = xs := rfl
 -- apply nodup_cons_neq H_in_xs H_nd,
 -- end
 
--- theorem sublist_cons_nil {X : Type*} {xs : list X} {x : X} : ¬ (x :: xs <+ []) :=
+-- theorem sublist_cons_nil {X : Type*} {xs : List X} {x : X} : ¬ (x :: xs <+ []) :=
 -- begin
 -- intro H_contra,
--- note H := list.eq_nil_of_sublist_nil H_contra,
+-- note H := List.eq_nil_of_sublist_nil H_contra,
 -- injection H
 -- end
 
--- theorem disjoint_of_sublist_left {α : Type*} {l₁ l₂ l : list α} : l₁ <+ l → disjoint l l₂ → disjoint l₁ l₂ :=
+-- theorem disjoint_of_sublist_left {α : Type*} {l₁ l₂ l : List α} : l₁ <+ l → disjoint l l₂ → disjoint l₁ l₂ :=
 -- λ ss d x xinl₁, d (subset_of_sublist ss xinl₁)
 
--- theorem disjoint_of_sublist_right {α : Type*} {l₁ l₂ l : list α} : l₂ <+ l → disjoint l₁ l → disjoint l₁ l₂ :=
+-- theorem disjoint_of_sublist_right {α : Type*} {l₁ l₂ l : List α} : l₂ <+ l → disjoint l₁ l → disjoint l₁ l₂ :=
 -- λ ss d x xinl xinl₁, d xinl (subset_of_sublist ss xinl₁)
 
--- theorem nodup_append_sublist₁ {X : Type*} {ys zs : list X} (xs : list X) : nodup (ys ++ zs) → xs <+ ys → nodup (xs ++ zs) :=
+-- theorem nodup_append_sublist₁ {X : Type*} {ys zs : List X} (xs : List X) : nodup (ys ++ zs) → xs <+ ys → nodup (xs ++ zs) :=
 -- assume H_nd H_sl,
 -- have H_nd_xs : nodup xs, from nodup_of_sublist H_sl (nodup_of_nodup_append_left H_nd),
 -- have H_nd_zs : nodup zs, from nodup_of_nodup_append_right H_nd,
 -- have H_dj : disjoint xs zs, from disjoint_of_sublist_left H_sl (disjoint_of_nodup_append H_nd),
 -- nodup_append_of_nodup_of_nodup_of_disjoint H_nd_xs H_nd_zs H_dj
 
--- theorem nodup_append_swap {X : Type} {xs₁ xs₂ : list X} {x : X} : nodup (xs₁ ++ (x :: xs₂)) → nodup ((x::xs₁) ++ xs₂) :=
--- by apply list.nodup_head
+-- theorem nodup_append_swap {X : Type} {xs₁ xs₂ : List X} {x : X} : nodup (xs₁ ++ (x :: xs₂)) → nodup ((x::xs₁) ++ xs₂) :=
+-- by apply List.nodup_head
 
--- theorem nodup_mem_append₂ {X : Type} {x : X} {xs₁ xs₂ : list X} : nodup (xs₁ ++ xs₂) → x ∈ xs₂ → x ∉ xs₁ :=
+-- theorem nodup_mem_append₂ {X : Type} {x : X} {xs₁ xs₂ : List X} : nodup (xs₁ ++ xs₂) → x ∈ xs₂ → x ∉ xs₁ :=
 -- assume (H_nd : nodup (xs₁ ++ xs₂)) (H₂ : x ∈ xs₂) (H₁ : x ∈ xs₁),
 -- have H_dj : disjoint xs₁ xs₂, from disjoint_of_nodup_append H_nd,
 -- H_dj H₁ H₂
 
--- theorem nodup_append_cons {X : Type} {xs₁ xs₂ : list X} {x : X} : nodup (xs₁ ++ (x :: xs₂)) → nodup (xs₁ ++ [x]) :=
+-- theorem nodup_append_cons {X : Type} {xs₁ xs₂ : List X} {x : X} : nodup (xs₁ ++ (x :: xs₂)) → nodup (xs₁ ++ [x]) :=
 -- assume H_nd,
 -- have H_nd₁ : nodup xs₁, from nodup_of_nodup_append_left H_nd,
 -- have H_dj : disjoint xs₁ (x :: xs₂), from disjoint_of_nodup_append H_nd,
 -- have H_nin : x ∉ xs₁, from disjoint_right H_dj mem_of_cons_same,
 -- begin apply nodup_app_comm, simp, apply nodup_cons H_nin H_nd₁ end
 
--- theorem nodup_append_cons_rest {X : Type} {xs₁ xs₂ : list X} {x : X} : nodup (xs₁ ++ (x :: xs₂)) → nodup (xs₁ ++ xs₂) :=
+-- theorem nodup_append_cons_rest {X : Type} {xs₁ xs₂ : List X} {x : X} : nodup (xs₁ ++ (x :: xs₂)) → nodup (xs₁ ++ xs₂) :=
 -- assume H_nd, nodup_of_nodup_cons (nodup_head H_nd)
 
--- theorem nodup_append_neq {X : Type} {xs₁ xs₂ : list X} {x₁ x₂ : X} : x₁ ∈ xs₁ → x₂ ∈ xs₂ → nodup (xs₁ ++ xs₂) → x₁ ≠ x₂ :=
+-- theorem nodup_append_neq {X : Type} {xs₁ xs₂ : List X} {x₁ x₂ : X} : x₁ ∈ xs₁ → x₂ ∈ xs₂ → nodup (xs₁ ++ xs₂) → x₁ ≠ x₂ :=
 -- assume H₁_in H₂_in H_nd,
 -- have H_dj : disjoint xs₁ xs₂, from disjoint_of_nodup_append H_nd,
 -- have H₁_nin : x₁ ∉ xs₂, from disjoint_left H_dj H₁_in,
 -- ne.symm $ mem_not_mem_neq H₂_in H₁_nin
 
--- theorem nodup_append_cons_neq {X : Type} {xs : list X} {x₁ x₂ : X} : x₁ ∈ xs → nodup (xs ++ [x₂]) → x₁ ≠ x₂ :=
+-- theorem nodup_append_cons_neq {X : Type} {xs : List X} {x₁ x₂ : X} : x₁ ∈ xs → nodup (xs ++ [x₂]) → x₁ ≠ x₂ :=
 -- assume H₁_in H_nd,
 -- have H_nd' : nodup (x₂ :: xs), from nodup_app_comm H_nd,
 -- have H₂_nin : x₂ ∉ xs, from not_mem_of_nodup_cons H_nd',
 -- mem_not_mem_neq H₁_in H₂_nin
 
--- theorem nodup_of_append_cons_cons {X : Type} {xs ys : list X} {y₁ y₂ : X} : nodup (xs ++ (y₁ :: y₂ :: ys)) → nodup (xs ++ (y₁ :: ys)) :=
+-- theorem nodup_of_append_cons_cons {X : Type} {xs ys : List X} {y₁ y₂ : X} : nodup (xs ++ (y₁ :: y₂ :: ys)) → nodup (xs ++ (y₁ :: ys)) :=
 -- assume H_nd,
 -- have H_nd' : nodup (y₁ :: (xs ++ y₂ :: ys)), from nodup_head H_nd,
 -- have H₁_nin : y₁ ∉ xs ++ y₂ :: ys, from not_mem_of_nodup_cons H_nd',
@@ -464,7 +643,7 @@ theorem append_nil_left {α : Type} (xs : List α) : [] ++ xs = xs := rfl
 -- nodup_middle (nodup_cons (not_mem_append H₁_nin₁ H₁_nin₂) H_nd'''')
 
 -- theorem map_filter_congr {α β : Type*} {f g : α → β} {p : α → Prop} [decidable_pred p] :
---   ∀ {xs : list α}, (∀ x, x ∈ xs → p x → f x = g x) → map f (filter p xs) = map g (filter p xs)
+--   ∀ {xs : List α}, (∀ x, x ∈ xs → p x → f x = g x) → map f (filter p xs) = map g (filter p xs)
 -- | []      H := rfl
 -- | (x::xs) H :=
 -- begin
@@ -480,7 +659,7 @@ theorem append_nil_left {α : Type} (xs : List α) : [] ++ xs = xs := rfl
 -- end
 
 -- theorem filter_congr {α : Type*} {p q : α → Prop} [decidable_pred p] [decidable_pred q] :
---   ∀ {xs : list α}, (∀ x, x ∈ xs → (p x ↔ q x)) → filter p xs = filter q xs
+--   ∀ {xs : List α}, (∀ x, x ∈ xs → (p x ↔ q x)) → filter p xs = filter q xs
 -- | [] H := rfl
 
 -- | (y::ys) H :=
@@ -506,7 +685,7 @@ theorem append_nil_left {α : Type} (xs : List α) : [] ++ xs = xs := rfl
 -- }
 -- end
 
--- theorem in_riota_cons : ∀ (idx m : ℕ), idx + 1 ∈ riota (m + 1) → idx ∈ riota m
+-- theorem in_riota_cons : ∀ (idx m : Nat), idx + 1 ∈ riota (m + 1) → idx ∈ riota m
 -- | 0       0 :=
 -- begin
 -- rw zero_add,
@@ -524,7 +703,7 @@ theorem append_nil_left {α : Type} (xs : List α) : [] ++ xs = xs := rfl
 -- subst H_idx_eq_m,
 -- simp,
 -- },
--- apply list.mem_cons_of_mem,
+-- apply List.mem_cons_of_mem,
 -- apply in_riota_cons,
 -- exact H_in
 -- end
@@ -535,9 +714,9 @@ theorem append_nil_left {α : Type} (xs : List α) : [] ++ xs = xs := rfl
 -- exact dec_trivial
 -- end
 
--- theorem in_riota_self (idx : ℕ) : idx ∈ riota (idx + 1) := by { dunfold riota, apply mem_of_cons_same }
+-- theorem in_riota_self (idx : Nat) : idx ∈ riota (idx + 1) := by { dunfold riota, apply mem_of_cons_same }
 
--- theorem nin_neq_dnth {α : Type*} [inhabited α] [decidable_eq α] (x : α) : ∀ xs, x ∉ xs → ∀ idx, idx ∈ riota (list.length xs) → x ≠ dnth xs idx
+-- theorem nin_neq_dnth {α : Type*} [Inhabited α] [decidable_eq α] (x : α) : ∀ xs, x ∉ xs → ∀ idx, idx ∈ riota (list.length xs) → x ≠ dnth xs idx
 -- | []      H_nin idx H_in := begin exfalso, exact not_mem_nil _ H_in end
 
 -- | (y::ys) H_nin 0       H_in :=
@@ -550,14 +729,14 @@ theorem append_nil_left {α : Type} (xs : List α) : [] ++ xs = xs := rfl
 -- begin
 -- dunfold dnth,
 -- apply nin_neq_dnth,
--- exact list.not_mem_of_not_mem_cons H_nin,
+-- exact List.not_mem_of_not_mem_cons H_nin,
 -- dunfold riota length at H_in,
 -- apply in_riota_cons,
 -- exact H_in
 -- end
 
--- theorem lt_length_of_in_riota {α : Type*} : Π (xs : list α) (idx : ℕ), idx ∈ riota (length xs) → idx < length xs
--- | [] idx H_in := begin exfalso, exact list.not_mem_nil _ H_in end
+-- theorem lt_length_of_in_riota {α : Type*} : Π (xs : List α) (idx : Nat), idx ∈ riota (length xs) → idx < length xs
+-- | [] idx H_in := begin exfalso, exact List.not_mem_nil _ H_in end
 
 -- | (x::xs) 0 H_in :=
 -- begin
@@ -573,7 +752,7 @@ theorem append_nil_left {α : Type} (xs : List α) : [] ++ xs = xs := rfl
 -- exact in_riota_cons _ _ H_in
 -- end
 
--- theorem dnth_mem_of_lt_length {α : Type*} [inhabited α] : Π (xs : list α) (idx : ℕ), idx < length xs → dnth xs idx ∈ xs
+-- theorem dnth_mem_of_lt_length {α : Type*} [Inhabited α] : Π (xs : List α) (idx : Nat), idx < length xs → dnth xs idx ∈ xs
 -- | [] idx H_lt := begin exfalso, exact nat.not_lt_zero _ H_lt end
 
 -- | (x::xs) 0 H_lt := mem_of_cons_same
@@ -581,20 +760,20 @@ theorem append_nil_left {α : Type} (xs : List α) : [] ++ xs = xs := rfl
 -- | (x::xs) (idx+1) H_lt :=
 -- begin
 -- dunfold dnth,
--- apply list.mem_cons_of_mem,
+-- apply List.mem_cons_of_mem,
 -- apply dnth_mem_of_lt_length,
 -- apply nat.lt_of_succ_lt_succ,
 -- exact H_lt
 -- end
 
--- theorem filter_false {α : Type*} [decidable_eq α] [inhabited α] : Π (xs : list α), filter (λ x, false) xs = nil
+-- theorem filter_false {α : Type*} [decidable_eq α] [Inhabited α] : Π (xs : List α), filter (λ x, false) xs = nil
 -- | [] := rfl
 -- | (x::xs) := begin dunfold filter, simp [filter_false] end
 
--- theorem not_in_filter_of_match_riota {α : Type*} [decidable_eq α] [inhabited α] (x : α) :
---   ∀ (xs : list α), x ∉ xs → filter (λ (idx : ℕ), x = dnth xs idx) (riota (length xs)) = nil :=
+-- theorem not_in_filter_of_match_riota {α : Type*} [decidable_eq α] [Inhabited α] (x : α) :
+--   ∀ (xs : List α), x ∉ xs → filter (λ (idx : Nat), x = dnth xs idx) (riota (length xs)) = nil :=
 -- assume xs H_nin,
--- have H : filter (λ (idx : ℕ), x = dnth xs idx) (riota (length xs)) = filter (λ idx : ℕ, false) (riota (length xs)),
+-- have H : filter (λ (idx : Nat), x = dnth xs idx) (riota (length xs)) = filter (λ idx : Nat, false) (riota (length xs)),
 -- begin
 -- apply filter_congr,
 -- intros idx H_in,
@@ -615,12 +794,12 @@ theorem append_nil_left {α : Type} (xs : List α) : [] ++ xs = xs := rfl
 -- rw filter_false
 -- end
 
--- end list
+end util_list
 
 -- namespace monad
 
--- def foldrM {M : Type → Type} [m : monad M] {X Y : Type} (f : Y → X → M Y) (init : Y) (xs : list X) : M Y :=
---   list.foldr (λ (x : X) (k : Y → M Y) (y : Y), f y x >>= k) return xs init
+-- def foldrM {M : Type → Type} [m : monad M] {X Y : Type} (f : Y → X → M Y) (init : Y) (xs : List X) : M Y :=
+--   List.foldr (λ (x : X) (k : Y → M Y) (y : Y), f y x >>= k) return xs init
 
 -- end monad
 
