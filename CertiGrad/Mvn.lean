@@ -205,13 +205,13 @@ lemma mvn_logpdf_correct {shape : S} (μ σ x : T shape) (H_σ : σ > 0) : log (
           simp [← add_assoc]
           simp [add_comm σ.square.log]
 
--- ... = sum (log ((sqrt ((2 * pi shape) * square σ))⁻¹) + ((- 2⁻¹) * (square $ (x - μ) / σ))) : by simp only [log_prod H_mul₂, log_mul H_sqrt H_exp, log_exp]
--- ... = sum ((- 2⁻¹) * log ((2 * pi shape) * square σ) + ((- 2⁻¹) * (square $ (x - μ) / σ))) : by simp [log_inv, log_sqrt]
--- ... = sum ((- 2⁻¹) * (log (2 * pi shape) + log (square σ)) + (- 2⁻¹) * (square $ (x - μ) / σ)) : by simp only [log_mul two_pi_pos H_σ₂]
--- ... = sum ((- 2⁻¹) * (log (2 * pi shape) + log (square σ) + (square $ (x - μ) / σ))) : by simp only [left_distrib]
--- ... = sum ((- (2 : TReal)⁻¹) • (log (2 * pi shape) + log (square σ) + (square $ (x - μ) / σ))) : by simp only [smul.def, const_neg, const_inv, const_bit0, const_one]
--- ... = (- 2⁻¹) * sum (square ((x - μ) / σ) + log (2 * pi shape) + log (square σ)) : by simp [sum_smul]
--- ... = mvn_logpdf μ σ x : rfl
+-- _ = sum (log ((sqrt ((2 * pi shape) * square σ))⁻¹) + ((- 2⁻¹) * (square $ (x - μ) / σ))) : by simp only [log_prod H_mul₂, log_mul H_sqrt H_exp, log_exp]
+-- _ = sum ((- 2⁻¹) * log ((2 * pi shape) * square σ) + ((- 2⁻¹) * (square $ (x - μ) / σ))) : by simp [log_inv, log_sqrt]
+-- _ = sum ((- 2⁻¹) * (log (2 * pi shape) + log (square σ)) + (- 2⁻¹) * (square $ (x - μ) / σ)) : by simp only [log_mul two_pi_pos H_σ₂]
+-- _ = sum ((- 2⁻¹) * (log (2 * pi shape) + log (square σ) + (square $ (x - μ) / σ))) : by simp only [left_distrib]
+-- _ = sum ((- (2 : TReal)⁻¹) • (log (2 * pi shape) + log (square σ) + (square $ (x - μ) / σ))) : by simp only [smul.def, const_neg, const_inv, const_bit0, const_one]
+-- _ = (- 2⁻¹) * sum (square ((x - μ) / σ) + log (2 * pi shape) + log (square σ)) : by simp [sum_smul]
+-- _ = mvn_logpdf μ σ x : rfl
 
 lemma mvn_int_const {shape : S} (μ σ : T shape) (H_σ : σ > 0) (y : TReal) :
   ∫ (λ (x : T shape) => T.mvn_pdf μ σ x • y) = y :=
@@ -240,81 +240,76 @@ lemma mvn_integral₁ {shape : S} (μ σ : T shape) (H_σ : σ > 0) :
 lemma mvn_integral₂ {shape : S} (μ σ : T shape) (H_σ : σ > 0) :
 ∫ (λ (x : T shape) => T.mvn_pdf μ σ x • T.mvn_logpdf μ σ x)
 =
-(- 2⁻¹) * sum (1 : T shape) + (- 2⁻¹) * sum (log (2 * pi shape)) + (- 2⁻¹) * sum (log (square σ)) :=
-have H_int₁ : is_integrable (λ (x : T shape) => mvn_pdf μ σ x • (-2⁻¹ * sum (square ((x - μ) / σ)))),
-begin
-simp only [smul_mul_scalar_right, integral_scale],
-apply iff.mp (is_integrable_scale _ _),
-simp only [smul_sum],
-apply iff.mp (is_integrable_sum _),
-simp only [square_div, smul_div],
-apply iff.mp (is_integrable_div _ _ (square_pos_of_pos H_σ)),
-exact mvn_cmoment₂_int _ _ H_σ,
-end,
+(- 2⁻¹) * sum (1 : T shape) + (- 2⁻¹) * sum (log (2 * pi shape)) + (- 2⁻¹) * sum (log (square σ)) := by
+  have H_int₁ : is_integrable (λ (x : T shape) => mvn_pdf μ σ x • (-2⁻¹ * sum (square ((x - μ) / σ)))) := by
+    simp only [smul_mul_scalar_right, integral_scale]
+    apply Iff.mp (is_integrable_scale _ _)
+    simp only [smul_sum]
+    apply Iff.mp (is_integrable_sum _)
+    simp only [square_div, smul_div]
+    apply Iff.mp (is_integrable_div _ _ (square_pos_of_pos H_σ))
+    exact mvn_cmoment₂_int _ _ H_σ
 
-have H_int₂ : is_integrable (λ (x : T shape) => mvn_pdf μ σ x • (-2⁻¹ * sum (log (2 * pi shape)))),
-begin
-simp only [smul_mul_scalar_right, integral_scale],
-apply iff.mp (is_integrable_scale _ _),
-simp only [smul_sum],
-apply iff.mp (is_integrable_sum _),
-exact mvn_const_int _ _ H_σ _
-end,
+  have H_int₂ : is_integrable (λ (x : T shape) => mvn_pdf μ σ x • (-2⁻¹ * sum (log (2 * pi shape)))) := by
+    simp only [smul_mul_scalar_right, integral_scale]
+    apply Iff.mp (is_integrable_scale _ _)
+    simp only [smul_sum]
+    apply Iff.mp (is_integrable_sum _)
+    exact mvn_const_int _ _ H_σ _
 
-have H_int₁₂ : is_integrable (λ (x : T shape) => mvn_pdf μ σ x • (-2⁻¹ * sum (square ((x - μ) / σ))) + mvn_pdf μ σ x • (-2⁻¹ * sum (log (2 * pi shape)))),
-from iff.mp (is_integrable_add _ _) (and.intro H_int₁ H_int₂),
+  have H_int₁₂ : is_integrable (λ (x : T shape) => mvn_pdf μ σ x • (-2⁻¹ * sum (square ((x - μ) / σ))) + mvn_pdf μ σ x • (-2⁻¹ * sum (log (2 * pi shape)))) := by
+    apply Iff.mp (is_integrable_add _ _) (And.intro H_int₁ H_int₂)
 
-have H_int₃ : is_integrable (λ (x : T shape) => mvn_pdf μ σ x • (-2⁻¹ * sum (log (square σ)))),
-begin
-simp only [smul_mul_scalar_right, integral_scale],
-apply iff.mp (is_integrable_scale _ _),
-simp only [smul_sum],
-apply iff.mp (is_integrable_sum _),
-exact mvn_const_int _ _ H_σ _
-end,
+  have H_int₃ : is_integrable (λ (x : T shape) => mvn_pdf μ σ x • (-2⁻¹ * sum (log (square σ)))) := by
+    simp only [smul_mul_scalar_right, integral_scale]
+    apply Iff.mp (is_integrable_scale _ _)
+    simp only [smul_sum]
+    apply Iff.mp (is_integrable_sum _)
+    exact mvn_const_int _ _ H_σ _
 
-have H_int₄ : is_integrable (λ (x : T shape) => T.mvn_pdf μ σ x • square ((x - μ) / σ)),
-begin
-simp only [square_div, smul_div],
-apply iff.mp (is_integrable_div _ _ (square_pos_of_pos H_σ)),
-exact mvn_cmoment₂_int _ _ H_σ,
-end,
+  have H_int₄ : is_integrable (λ (x : T shape) => T.mvn_pdf μ σ x • square ((x - μ) / σ)) := by
+    simp only [square_div, smul_div]
+    apply Iff.mp (is_integrable_div _ _ (square_pos_of_pos H_σ))
+    exact mvn_cmoment₂_int _ _ H_σ
 
-have H₁ : ∫ (λ (x : T shape) => T.mvn_pdf μ σ x • ((- 2⁻¹) * sum (square ((x - μ) / σ)))) = (- 2⁻¹) * sum (1 : T shape), from
-calc  ∫ (λ (x : T shape) => T.mvn_pdf μ σ x • ((- 2⁻¹) * sum (square ((x - μ) / σ))))
-    = ∫ (λ (x : T shape) => (- (2 : TReal)⁻¹) • (T.mvn_pdf μ σ x • sum (square ((x - μ) / σ)))) : by simp only [smul_mul_scalar_right]
-... = (- 2⁻¹) * ∫ (λ (x : T shape) => T.mvn_pdf μ σ x • sum (square ((x - μ) / σ))) : by { simp only [integral_scale], simp [smul.def] }
-... = (- 2⁻¹) * sum (∫ (λ (x : T shape) => T.mvn_pdf μ σ x • square ((x - μ) / σ))) : by simp only [smul_sum, integral_sum, H_int₄]
-... = (- 2⁻¹) * sum (1 : T shape) : by rw (mvn_csmoment₂ _ _ H_σ),
 
-have H₂ : ∫ (λ (x : T shape) => T.mvn_pdf μ σ x • ((- 2⁻¹) * sum (log (2 * pi shape)))) = (- 2⁻¹) * sum (log (2 * pi shape)), by rw (mvn_int_const μ _ H_σ),
+  have H₁ : ∫ (λ (x : T shape) => T.mvn_pdf μ σ x • ((- 2⁻¹) * sum (square ((x - μ) / σ)))) = (- 2⁻¹) * sum (1 : T shape) := by
+    calc  ∫ (λ (x : T shape) => T.mvn_pdf μ σ x • ((- 2⁻¹) * sum (square ((x - μ) / σ))))
+        = ∫ (λ (x : T shape) => (- (2 : TReal)⁻¹) • (T.mvn_pdf μ σ x • sum (square ((x - μ) / σ)))) := by simp only [smul_mul_scalar_right]
+      _ = (- 2⁻¹) * ∫ (λ (x : T shape) => T.mvn_pdf μ σ x • sum (square ((x - μ) / σ))) := by { simp only [integral_scale]; simp [smul.def] }
+      _ = (- 2⁻¹) * sum (∫ (λ (x : T shape) => T.mvn_pdf μ σ x • square ((x - μ) / σ))) := by simp only [smul_sum, integral_sum, H_int₄]
+      _ = (- 2⁻¹) * sum (1 : T shape) := by rw [(mvn_csmoment₂ _ _ H_σ)]
 
-have H₃ : ∫ (λ (x : T shape) => T.mvn_pdf μ σ x • ((- 2⁻¹) * sum (log (square σ)))) = (- 2⁻¹) * sum (log (square σ)), by rw mvn_int_const μ _ H_σ,
-begin
-dunfold mvn_logpdf,
-simp only [sum_add, left_distrib, smul_addr, integral_add, H₁, H₂, H₃, H_int₁₂, H_int₁, H_int₂, H_int₃],
-end
+  have H₂ : ∫ (λ (x : T shape) => T.mvn_pdf μ σ x • ((- 2⁻¹) * sum (log (2 * pi shape)))) = (- 2⁻¹) * sum (log (2 * pi shape)) := by rw [(mvn_int_const μ _ H_σ)]
+
+  have H₃ : ∫ (λ (x : T shape) => T.mvn_pdf μ σ x • ((- 2⁻¹) * sum (log (square σ)))) = (- 2⁻¹) * sum (log (square σ)) := by rw [mvn_int_const μ _ H_σ]
+
+  unfold mvn_logpdf
+  simp only [sum_add, left_distrib, smul_addr, integral_add, H₁, H₂, H₃, H_int₁₂, H_int₁, H_int₂, H_int₃]
 
 lemma mvn_kl_identity {shape : S} (μ σ : T shape) (H_σ : σ > 0) :
 ∫ (λ (x : T shape) => T.mvn_pdf μ σ x • T.mvn_empirical_kl μ σ x)
 =
-T.mvn_kl μ σ :=
-have H_logpdf_int : is_integrable (λ (x : T shape), T.mvn_pdf μ σ x • mvn_logpdf μ σ x),
-from mvn_logpdf_int μ μ σ σ H_σ H_σ,
+T.mvn_kl μ σ := by
+  have H_logpdf_int : is_integrable (λ (x : T shape) => T.mvn_pdf μ σ x • mvn_logpdf μ σ x) := by apply mvn_logpdf_int μ μ σ σ H_σ H_σ
 
-have H_std_logpdf_int : is_integrable (λ (x : T shape), - (T.mvn_pdf μ σ x • mvn_logpdf 0 1 x)),
-from iff.mp (is_integrable_neg _) (mvn_logpdf_int μ 0 σ 1 H_σ one_pos),
+  have H_std_logpdf_int : is_integrable (λ (x : T shape) => - (T.mvn_pdf μ σ x • mvn_logpdf 0 1 x)) := by apply Iff.mp (is_integrable_neg _) (mvn_logpdf_int μ 0 σ 1 H_σ one_pos)
 
-calc  ∫ (λ (x : T shape) => T.mvn_pdf μ σ x • T.mvn_empirical_kl μ σ x)
-    = ∫ (λ (x : T shape) => T.mvn_pdf μ σ x • (mvn_logpdf μ σ x - mvn_logpdf 0 1 x)) : rfl
-... = ∫ (λ (x : T shape) => T.mvn_pdf μ σ x • mvn_logpdf μ σ x + - (T.mvn_pdf μ σ x • mvn_logpdf 0 1 x)) : by simp [smul_addr, smul_neg]
-... = ∫ (λ (x : T shape) => T.mvn_pdf μ σ x • mvn_logpdf μ σ x) - ∫ (λ (x : T shape) => T.mvn_pdf μ σ x • mvn_logpdf 0 1 x)
-      : by simp [integral_add, H_logpdf_int, H_std_logpdf_int, integral_neg]
-... = ((- 2⁻¹) * sum (1 : T shape) + (- 2⁻¹) * sum (log (2 * pi shape)) + (- 2⁻¹) * sum (log (square σ))) - ((- 2⁻¹) * sum (square μ + square σ) + (- 2⁻¹) * sum (log (2 * pi shape))) : by rw [mvn_integral₁ μ σ H_σ, mvn_integral₂ μ σ H_σ]
-... = (- 2⁻¹) * sum ((1 : T shape) + log (2 * pi shape) + log (square σ) - square μ - square σ - log (2 * pi shape)) : by simp [sum_add, left_distrib, sum_neg]
-... = (- 2⁻¹) * sum ((1 : T shape) + log (square σ) - square μ - square σ + (log (2 * pi shape) - log (2 * pi shape))) : by simp
-... = (- 2⁻¹) * sum ((1 : T shape) + log (square σ) - square μ - square σ) : by simp
-... = T.mvn_kl μ σ : rfl
+  calc  ∫ (λ (x : T shape) => T.mvn_pdf μ σ x • T.mvn_empirical_kl μ σ x)
+      = ∫ (λ (x : T shape) => T.mvn_pdf μ σ x • (mvn_logpdf μ σ x - mvn_logpdf 0 1 x)) := rfl
+    _ = ∫ (λ (x : T shape) => T.mvn_pdf μ σ x • mvn_logpdf μ σ x + - (T.mvn_pdf μ σ x • mvn_logpdf 0 1 x)) := by
+        simp [sub_eq_neg_add, smul_addr, smul_neg, add_comm]
+    _ = ∫ (λ (x : T shape) => T.mvn_pdf μ σ x • mvn_logpdf μ σ x) - ∫ (λ (x : T shape) => T.mvn_pdf μ σ x • mvn_logpdf 0 1 x) := by
+        simp [sub_eq_neg_add, integral_add, H_logpdf_int, H_std_logpdf_int, integral_neg, add_comm]
+    _ = ((- 2⁻¹) * sum (1 : T shape) + (- 2⁻¹) * sum (log (2 * pi shape)) + (- 2⁻¹) * sum (log (square σ))) - ((- 2⁻¹) * sum (square μ + square σ) + (- 2⁻¹) * sum (log (2 * pi shape))) := by rw [mvn_integral₁ μ σ H_σ, mvn_integral₂ μ σ H_σ]
+    _ = (- 2⁻¹) * sum ((1 : T shape) + log (2 * pi shape) + log (square σ) - square μ - square σ - log (2 * pi shape)) := by
+        -- rw [sum_add]
+        simp [sub_eq_neg_add, sum_add, left_distrib, sum_neg]
+        ring
+
+    _ = (- 2⁻¹) * sum ((1 : T shape) + log (square σ) - square μ - square σ + (log (2 * pi shape) - log (2 * pi shape))) := by simp [sub_eq_neg_add]; ring
+    _ = (- 2⁻¹) * sum ((1 : T shape) + log (square σ) - square μ - square σ) := by simp
+    _ = T.mvn_kl μ σ := rfl
 
 end T
 end certigrad
