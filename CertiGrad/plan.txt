@@ -1,0 +1,40 @@
+
+      92 Det.lean
+      80 Dvec.lean
+     314 Env.lean
+     147 Id.lean
+     149 Label.lean
+     315 Mvn.lean
+      30 Reference.lean
+      23 Rng.lean
+     100 Tactics.lean
+     211 Tcont.lean
+     356 Tensor.lean
+     691 Tfacts.lean
+     683 Tgrads.lean   <--- many TacticM funcs need to be fixed
+     826 Util.lean
+
+     132 examples.nolean
+
+      49 backprop_correct.lean  <--- g11: final goal, just one theorem
+
+     556 prove_model_ok.lean  <--- g10
+     223 lemmas_extra.lean    <--- g10
+     435 compute_grad_slow_correct.lean  <--- g9 (can be done right after estimators.lean)
+     143 memoize_correct.lean            <--- g9
+     200 reparam.lean                    <--- g9 one general high-level theorem (with few lemmas)
+     482 kl.lean                         <--- g9
+    1016 lemmas.lean       <--- g8
+     253 estimators.lean   <--- g8
+     545 expected_value.lean  <--- g7
+     136 predicates.lean      <--- g6
+     117 run_utils.lean       <--- g6
+      95 compute_grad.lean  <--- g5
+      47 optim.lean         <--- g5
+     233 program.lean  <--- g4 (in parallel with tvec)
+      86 tvec.lean     <--- g4
+     199 graph.lean <--- g3
+      52 sprog.lean <--- g2
+     741 ops.lean   <--- g1: can be done in parallel with rand.lean
+     268 rand.lean  <--- current target, which depends on Tgrads TacticM funcs
+   10031 total
