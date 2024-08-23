@@ -18,7 +18,6 @@ inductive Dvec {X : Type} (Y : X → Type) : List X → Type
   | dnil : Dvec Y []
   | dcons : Y x → Dvec Y (xs : List X) → Dvec Y (x :: xs)
 
-namespace dvec
 
 -- reserve infixr ` ::: `:67
 -- notation h `:::` t  := cons h t
@@ -30,13 +29,16 @@ open Dvec
 -- notation : 60  "⟦" l : (List.foldr "," (h t, Dvec.dcons h t) Dvec.dnil "⟧") => l
 
 /- Declares a parser -/
-syntax (priority := high) "⟦" (term,+)? "⟧" : term
+-- set_option trace.Elab.definition true in
+syntax (priority := high) "⟦" term,* "⟧" : term
 
 /- Declares two expansions/syntax transformers -/
 macro_rules
   | `(⟦⟧) => `(Dvec.dnil)
+  | `(⟦$x⟧) => `(Dvec.dcons $x Dvec.dnil) -- this is necessary, otherwise the parse will fail
   | `(⟦$x, $xs:term,*⟧) => `(Dvec.dcons $x ⟦$xs,*⟧)
 
+-- def x0 := ⟦1, 2, 3⟧
 
 def Dvec.head {X : Type} {Y : X → Type} {x : X} {xs : List X}  (l : Dvec Y (x::xs)) : Y x :=
   match l with
@@ -50,6 +52,8 @@ def Dvec.head2 {X : Type} {Y : X → Type} {x₁ x₂ : X} {xs : List X} : Dvec 
 
 def Dvec.head3 {X : Type} {Y : X → Type} {x₁ x₂ x₃ : X} {xs : List X} : Dvec Y (x₁::x₂::x₃::xs) → Y x₃
 | (dcons y₁ (dcons y₂ (dcons y₃ ys))) => y₃
+
+namespace dvec
 
 def get {X : Type} [DecidableEq X] {Y : X → Type} (x₀ : X) [Inhabited (Y x₀)] : (xs : List X) → Dvec Y xs → Nat → Y x₀
 | [],      _ ,          _     => (default :(Y x₀))
