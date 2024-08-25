@@ -20,7 +20,10 @@ import CertiGrad.Reference
 import CertiGrad.Env
 import CertiGrad.Dvec
 
+import Mathlib.Data.Nat.Cast.Defs
 
+import Lean
+open Lean Elab Tactic Meta
 -- TODO(dhs): move these elsewhere once #1659 is resolved.
 -- attribute [congr] dif_ctx_simp_congr
 -- attribute [simp] dif_pos dif_neg
@@ -40,10 +43,32 @@ axiom const_inv {shape : S} : (α : TReal) →  const α⁻¹ shape = (const α 
 axiom const_zero {shape : S} : const 0 shape = 0
 axiom const_one {shape : S} : const 1 shape = 1
 
--- axiom const_bit0 {shape : S} : Π (α : TReal), const (bit0 α) shape = bit0 (const α shape)
--- axiom const_bit1 {shape : S} : Π (α : TReal), const (bit1 α) shape = bit1 (const α shape)
+-- the trick is to reduce arbitrary natural number to 0 1 bits
+-- and then finish the conversion from `const N shape` to `N`
 
---attribute [simp] const_mul const_neg const_inv const_zero const_one const_bit0 const_bit1
+axiom const_bit0 {shape : S} : Π (α : TReal), const (bit0 α) shape = bit0 (const α shape)
+axiom const_bit1 {shape : S} : Π (α : TReal), const (bit1 α) shape = bit1 (const α shape)
+
+
+-- theorem t1 : (2 : Nat) = bit0 (1 : Nat) := by
+--   unfold bit0
+--   simp
+
+theorem two_eq_bit0  {shape : S} : (2 : T shape) = bit0 (1 : T shape) := by
+  unfold bit0
+  apply Eq.symm
+  apply one_add_one_eq_two
+
+theorem two_shape_eq_two {shape : S} : const 2 shape = 2 := by
+  have H: (2 : TReal) = bit0 (1 : TReal) := by apply two_eq_bit0
+  rw [H]
+  have H2 : const (bit0 1) shape = bit0 (const 1 shape) := by apply const_bit0
+  rw [H2]
+  rw [two_eq_bit0]
+  rw [const_one]
+
+
+attribute [simp] const_mul const_neg const_inv const_zero const_one const_bit0 const_bit1
 
 -- Module structure
 axiom smul.def (α : TReal) (shape : S) (x : T shape) : α • x = const α shape * x
@@ -93,7 +118,8 @@ axiom neg_div : ∀ {shape : S} {x y : T shape}, -x / y = -(x / y)
 axiom log_prod : ∀ {shape : S} {x : T shape}, x > 0 → log (prod x) = sum (log x)
 axiom log_mul : ∀ {shape : S} {x y : T shape}, x > 0 → y > 0 → log (x * y) = log x + log y
 axiom log_exp : ∀ {shape : S} {x : T shape}, log (exp x) = x
-axiom log_sqrt : ∀ {shape : S} {x : T shape}, log (sqrt x) = (2:TReal)⁻¹ • log x
+-- axiom log_sqrt : ∀ {shape : S} {x : T shape}, log (sqrt x) = (2:TReal)⁻¹ • log x
+axiom log_sqrt : ∀ {shape : S} {x : T shape}, log (sqrt x) = 2⁻¹ * log x
 axiom log_inv : ∀ {shape : S} {x : T shape}, log (x⁻¹) = - log x
 
 -- Signs
@@ -123,17 +149,27 @@ axiom inv_pos {shape : S} {x : T shape} : x > 0 → x⁻¹ > 0
 axiom div_pos_pos {shape : S} {x y : T shape} : x > 0 → y > 0 → x / y > 0
 axiom add_pos_of_pos_pos {shape : S} {x y : T shape} : x > 0 → y > 0 → x + y > 0
 
--- theorem two_pos {shape : S} : (2 : T shape) > 0 := by
---   have H := @add_pos_of_pos_pos (shape := shape) (x := 1) (y := 1) one_pos one_pos
---   have H2 : (1 : T shape) + (1 : T shape) = (2 : T shape) := by simp [IL.nsmul]
+-- #check @OfNat.ofNat (T [1, 2]) 2 instOfNatAtLeastTwo
 
--- theorem two_pi_pos {shape : S} : 2 * pi shape > 0 := mul_pos_of_pos_pos two_pos pi_pos
+-- #check one_add_one_eq_two
+
+theorem two_pos {shape : S} : (2 : T shape) > 0 := by
+  have H := @add_pos_of_pos_pos (shape := shape) (x := 1) (y := 1) one_pos one_pos
+  have H2 : (1 : T shape) + (1 : T shape) = (2 : T shape) := by
+    apply one_add_one_eq_two
+    -- rfl -- simp [IL.nsmul]
+  rw [← H2]
+  apply H
+
+-- theorem two_pos {shape : S} : (2 : T shape) > 0 := one_plus_pos one_pos
+
+theorem two_pi_pos {shape : S} : 2 * pi shape > 0 := mul_pos_of_pos_pos two_pos pi_pos
 
 -- have H : IL.nsmul 1 (pi shape) = pi shape := by
 --   simp [IL.nsmul]
 --   apply zero_add
 
-theorem two_pi_pos {shape : S} : 2 • pi shape > 0 := by
+theorem two_pi_pos' {shape : S} : 2 • pi shape > 0 := by
   have H := @add_pos_of_pos_pos (shape := shape) (x := pi shape) (y := pi shape) pi_pos pi_pos
   have H3 : IL.nsmul 2 (pi shape) = 2 • pi shape := by rfl
   have H4 : zero.add (pi shape) = pi shape := by apply zero_add
@@ -640,8 +676,10 @@ axiom integral_scale_shift_var {shape fshape : S} (f : T shape → T fshape) (α
 end T
 
 -- helper tactic
--- section tactic
--- open tactic list
+
+section tactic
+open tactic util_list
+
 -- meta def prove_preconditions_core : tactic unit :=
 -- first (assumption :: map applyc [`certigrad.T.sqrt_pos, `certigrad.T.square_pos_of_pos, `certigrad.T.exp_pos,
 --                                  `certigrad.T.sigmoid_pos, `certigrad.T.sigmoid_lt1, `certigrad.T.lt1_alt, `certigrad.T.one_plus_pos,
@@ -650,8 +688,17 @@ end T
 --                                  `certigrad.T.pi_pos, `certigrad.T.eps_pos,
 --                                  `certigrad.T.inv_pos, `certigrad.T.div_pos_pos, `certigrad.T.two_pos, `certigrad.T.two_pi_pos])
 
+
+-- def provePreconditionsCore : TacticM Unit := do
+--   evalTactic $ ← `(tactic| first | assumption | apply certigrad.T.sqrt_pos | apply certigrad.T.square_pos_of_pos | apply certigrad.T.exp_pos | apply certigrad.T.sigmoid_pos | apply certigrad.T.sigmoid_lt1 | apply certigrad.T.lt1_alt | apply certigrad.T.one_plus_pos | apply certigrad.T.plus_one_pos | apply certigrad.T.one_pos | apply certigrad.T.neg_of_pos | apply certigrad.T.const_pos_of_pos | apply certigrad.T.mul_pos_of_pos_pos | apply certigrad.T.add_pos_of_pos_pos | apply certigrad.T.pi_pos | apply certigrad.T.eps_pos | apply certigrad.T.inv_pos | apply certigrad.T.div_pos_pos | apply certigrad.T.two_pos | apply certigrad.T.two_pi_pos)
+
+
 -- meta def prove_preconditions : tactic unit := repeat prove_preconditions_core
--- end tactic
+
+def provePreconditions : TacticM Unit := do
+  evalTactic $ ← `(tactic| repeat (first | assumption | apply certigrad.T.sqrt_pos | apply certigrad.T.square_pos_of_pos | apply certigrad.T.exp_pos | apply certigrad.T.sigmoid_pos | apply certigrad.T.sigmoid_lt1 | apply certigrad.T.lt1_alt | apply certigrad.T.one_plus_pos | apply certigrad.T.plus_one_pos | apply certigrad.T.one_pos | apply certigrad.T.neg_of_pos | apply certigrad.T.const_pos_of_pos | apply certigrad.T.mul_pos_of_pos_pos | apply certigrad.T.add_pos_of_pos_pos | apply certigrad.T.pi_pos | apply certigrad.T.eps_pos | apply certigrad.T.inv_pos | apply certigrad.T.div_pos_pos | apply certigrad.T.two_pos | apply certigrad.T.two_pi_pos))
+
+end tactic
 
 
 end certigrad

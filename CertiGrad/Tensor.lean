@@ -87,9 +87,13 @@ noncomputable instance {shape : S} : Inv (T shape) where
 -- noncomputable instance (shape : S) : OfNat (T shape) 1 := ⟨T.one shape⟩
 -- noncomputable instance  : OfNat (T []) n := ⟨T.of_nat n⟩
 
-noncomputable instance : OfNat TReal 0 := ⟨T.zero⟩ -- both zeros have to the same, otherwise, many proofs will be problematic
-noncomputable instance : OfNat TReal 1 := ⟨T.one⟩
-noncomputable instance : OfNat TReal n := ⟨T.of_nat n⟩
+
+def bit0 {α : Type u} [s₁ : Add α] (a  : α)             : α := a + a
+def bit1 {α : Type u} [s₁ : One α] [s₂ : Add α] (a : α) : α := (bit0 a) + 1
+
+-- noncomputable instance : OfNat TReal 0 := ⟨T.zero⟩ -- both zeros have to the same, otherwise, many proofs will be problematic
+-- noncomputable instance : OfNat TReal 1 := ⟨T.one⟩
+-- noncomputable instance : OfNat TReal n := ⟨T.of_nat n⟩
 
 noncomputable instance (shape : S) : Neg (T shape) := ⟨T.neg⟩
 noncomputable instance (shape : S) : Add (T shape) := ⟨T.add⟩
@@ -299,20 +303,30 @@ noncomputable def dot {shape : S} (x y : T shape) : TReal := sum (x * y)
 
 noncomputable def square {shape : S} (x : T shape) : T shape := x * x
 
+-- there are two different ways of interpreating `2` here
+-- one is to treat it as a TReal number
+-- another is to view it as an algebra operation, i.e., a + a
+
 -- def mvn_pdf {shape : S} (μ σ x : T shape) : TReal :=
 --   prod ((sqrt ((2 * pi shape) * square σ))⁻¹ * exp ((- 2⁻¹) * (square $ (x - μ) / σ)))
 
 noncomputable def mvn_pdf {shape : S} (μ σ x : T shape) : TReal :=
-  prod ((sqrt (( (2 : TReal) • pi shape) * square σ))⁻¹ * exp ((- (2 : TReal)⁻¹) • (square $ (x - μ) / σ)))
+  prod ((sqrt ((2 * pi shape) * square σ))⁻¹ * exp ((- 2⁻¹) * (square $ (x - μ) / σ)))
+
+  -- prod ((sqrt (( 2 • pi shape) * square σ))⁻¹ * exp ((- (2 : TReal)⁻¹) • (square $ (x - μ) / σ)))
+-- prod ((sqrt (( (2 : TReal) • pi shape) * square σ))⁻¹ * exp ((- (2 : TReal)⁻¹) • (square $ (x - μ) / σ)))
 
 
 -- def mvn_logpdf {shape : S} (μ σ x : T shape) : TReal :=
 --   (- 2⁻¹) * sum (square ((x - μ) / σ) + log (2 * pi shape) + log (square σ))
 
--- noncomputable def t1 : TReal := 2
-
+-- mvn means multivariate normal distribution (aka multivariate Gaussian distribution)
 noncomputable def mvn_logpdf {shape : S} (μ σ x : T shape) : TReal :=
-  (- 2⁻¹) * sum (square ((x - μ) / σ) + log ( (2:TReal) • pi shape) + log (square σ))
+  (- 2⁻¹) * sum (square ((x - μ) / σ) + log (2 * pi shape) + log (square σ))
+
+-- (- 2⁻¹) * sum (square ((x - μ) / σ) + log (2 • pi shape) + log (square σ))
+
+-- (- 2⁻¹) * sum (square ((x - μ) / σ) + log ( (2:TReal) • pi shape) + log (square σ))
 
 noncomputable  def mvn_grad_logpdf_μ {shape : S} (μ σ x : T shape) : T shape :=
   (x - μ) / (square σ)

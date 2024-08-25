@@ -13,6 +13,9 @@ import CertiGrad.Tactics
 import Mathlib.Algebra.Order.Ring.Defs
 import Mathlib.Tactic.Ring
 
+import Lean
+open Lean Elab Tactic Meta Conv
+
 namespace certigrad
 namespace T
 
@@ -354,13 +357,44 @@ section simplify_grad
 
 -- open util_list expr tactic
 
-lemma id_rule {A : Type*} (a : A) : id a = a := rfl
+
+lemma id_rule {A : Type} (a : A) : id a = a := rfl
+
+-- Lean4 simp/dsimp defined in Lean/Meta/Tactic/Simp/Main.lean
 
 -- meta def reduce_k (k : expr) : tactic expr :=
 -- do slss ← simp_lemmas.add_simp simp_lemmas.mk `certigrad.T.id_rule,
 --    slss^.dsimplify k <|> return k
 
+-- def reduce_k (k : expr) : TacticM Expr := sorry
+
+-- ChatGPT4 recommends the following re-implementation
+def reduceK (k : Expr) : MetaM Expr := do
+  -- Create a SimpTheorems object
+  let slss ← Meta.SimpTheorems.addConst {} `certigrad.T.id_rule
+
+  -- Attempt to simplify `k` using the simplification theorems
+  let simpResult ← Meta.simp k { simpTheorems := #[slss] }
+
+  -- If simplification results in a different expression, return it; otherwise, return the original `k`
+  if simpResult.1.expr != k then
+    return simpResult.1.expr
+  else
+    return k
+
+
+-- ChatGPT4 suggestion (when generating computeK)
+-- def reduceK (k : Expr) : MetaM Expr := do
+--   -- Placeholder for reduction logic; you would implement the actual logic
+--   let kReduced ← Meta.whnf k  -- Weak head normal form, as an example reduction
+--   return kReduced
+
 -- meta def has_x (x e : expr) : bool := expr.fold e ff (λ (m : expr) (d : nat) (b : bool) => if m = x then tt else b)
+def has_x (x e : Expr) : Option Bool :=
+  let f : Bool → Expr → Option Bool := (λ (b : Bool) (m : Expr) => if(m == x) then (some true) else (some b))
+  e.foldlM f false
+
+
 
 -- meta def compute_outer_inner_functions_core (x : expr) : Π (k e : expr), tactic expr :=
 -- λ (k e :  expr),
@@ -379,6 +413,36 @@ lemma id_rule {A : Type*} (a : A) : id a = a := rfl
 --                then compute_outer_inner_functions_core (lam `x binder_info.default barg₂_type (app k $ mk_app f $ update_nth args (n-1) (var 0))) barg₂
 --                else tactic.fail "no var0"
 
+
+-- compute_outer_inner_functions_core (lam `x binder_info.default barg₁_type (app k $ mk_app f $ update_nth args (n-2) (var 0))) barg₁
+
+
+-- ChatGPT suggests
+partial def computeOuterInnerFunctionsCore (x : Expr) : Expr → Expr → TacticM Expr :=
+  λ k e =>
+  do
+    let f := e.getAppFn
+    let args := e.getAppArgs
+    let n := args.size
+    if n < 2 then
+      throwError "Expression does not have enough arguments"
+
+    let barg₁ := args.get! (n-2)
+    let barg₂ := args.get! (n-1)
+
+    let barg₁_type ← inferType barg₁
+    let barg₂_type ← inferType barg₂
+
+    if barg₁ == x || barg₂ == x then
+      return k
+    else if (has_x x barg₁) = some true then
+      computeOuterInnerFunctionsCore x (mkLambda `x BinderInfo.default barg₁_type (mkAppN f $ args.set! (n-2) (mkBVar 0))) barg₁
+    else if (has_x x barg₂) = some true then
+      computeOuterInnerFunctionsCore x (mkLambda `x BinderInfo.default barg₂_type (mkAppN f $ args.set! (n-1) (mkBVar 0))) barg₂
+    else
+      throwError "Variable not found"
+
+
 -- meta def compute_outer_inner_functions (grad : expr) : tactic expr :=
 -- let g := app_arg (app_fn grad) in
 -- do f ← head_eta_expand g,
@@ -388,13 +452,65 @@ lemma id_rule {A : Type*} (a : A) : id a = a := rfl
 --    initial_k ← return (lam `x binder_info.default body_type (var 0)),
 --    compute_outer_inner_functions_core x initial_k body <|> return initial_k
 
+
+-- ChatGPT suggestion-2
+partial def computeOuterInnerFunctions (grad : Expr) : TacticM Expr := do
+  let f := grad.appArg!
+  -- let f ← Meta.headEtaExpand g
+  let x ← mkFreshExprMVar (← inferType f)
+  let body := f.instantiate1 x
+  let bodyType ← inferType body
+  let initialK := mkLambda `x BinderInfo.default bodyType (mkBVar 0)
+  computeOuterInnerFunctionsCore x initialK body <|> return initialK
+
+
+-- ChatGPT suggetion-1
+-- def computeOuterInnerFunctions (grad : Expr) : MetaM Expr := do
+--   -- Extract the function part and the argument from the application `grad`
+--   let f := grad.getAppFn.getAppArgs
+
+--   -- Perform head eta expansion on `g`
+--   -- let f ← Meta.headEtaExpand g
+
+--   -- Create a local definition `x` with the domain of `f` as its type
+--   let x ← Meta.mkFreshExprMVar (← inferType f.bindingDomain!)
+
+--   -- Substitute `x` into the body of `f`
+--   let body := f.bindingBody!.instantiate1 x
+
+--   -- Infer the type of the resulting body
+--   let bodyType ← Meta.inferType body
+
+--   -- Create the initial `k` lambda expression
+--   let initialK := mkLambda `x BinderInfo.default bodyType (mkBVar 0)
+
+--   -- Compute the outer and inner functions or return `initialK` if the computation fails
+--   (← computeOuterInnerFunctionsCore x initialK body) <|> return initialK
+
+
 -- meta def compute_k (grad : expr) : tactic expr :=
 -- do k ← compute_outer_inner_functions grad,
 --    k_simp ← reduce_k k,
 --    head_eta_expand k_simp
 
+def computeK (grad : Expr) : TacticM Expr := do
+  -- Compute outer and inner functions
+  let k ← computeOuterInnerFunctions grad
+  -- Simplify or reduce k
+  let kSimp ← reduceK k
+  -- Perform head eta-expansion
+  -- Meta.headEtaExpand kSimp
+  return kSimp
+
 -- meta def check_grad (e : expr) : tactic expr :=
 -- if is_napp_of e `certigrad.T.grad 3 then head_eta_expand e else tactic.fail "not ∇"
+
+def checkGrad (e : Expr) : TacticM Expr :=do
+  if e.isAppOfArity `certigrad.T.grad 3 then
+    -- there seems no headEtaExpansion in Lean4
+    return e
+  else
+    throwError "Variable not found"
 
 -- meta def try_add_simp (s : simp_lemmas) (p : pexpr) : tactic simp_lemmas :=
 -- do oe ← try_core $ to_expr p,
@@ -402,6 +518,21 @@ lemma id_rule {A : Type*} (a : A) : id a = a := rfl
 --    | none := return s
 --    | (some e) := simp_lemmas.add s e
 --    end
+
+-- ChatGPT suggestion
+
+def tryAddSimp (s : SimpTheorems) (p : Syntax) : TacticM SimpTheorems := do
+  -- Try to convert the `Syntax` (which represents a `pexpr`) to an `Expr`
+  let oe ← Lean.Elab.Tactic.tryTactic? (elabTerm p none)
+
+  match oe with
+  | none =>
+    -- If the expression is invalid, return the original `SimpTheorems`
+    return s
+  | some e =>
+    -- If valid, add the expression to the `SimpTheorems`
+    return (← s.addConst e.constName!)
+
 
 -- meta def build_simplify_grad_simp_lemmas (k : expr) : tactic simp_lemmas :=
 -- do es ← monad.mapm to_expr
@@ -440,12 +571,118 @@ lemma id_rule {A : Type*} (a : A) : id a = a := rfl
 --    s ← try_add_simp s ``(@certigrad.T.grad_scale_f),
 --    return s
 
+
+def buildSimplifyGradSimpLemmas (k : Expr) : TacticM SimpTheorems := do
+  -- List of expressions to elaborate
+  -- let dbg1 : Syntax := `(certigrad.T.grad_sum )
+
+  let exprs : List (TacticM (TSyntax `term)) :=
+    [ ``(@certigrad.T.grad_const),
+      ``(@certigrad.T.grad_id),
+      ``(certigrad.T.grad_exp $$k),
+      ``(certigrad.T.grad_log $$k),
+      ``(certigrad.T.grad_scale $$k),
+      ``(certigrad.T.grad_neg $$k),
+      ``(certigrad.T.grad_add₁ $$k),
+      ``(certigrad.T.grad_add₂ $$k),
+      ``(certigrad.T.grad_sub₁ $$k),
+      ``(certigrad.T.grad_sub₂ $$k),
+      ``(certigrad.T.grad_mul₁ $$k),
+      ``(certigrad.T.grad_mul₂ $$k),
+      ``(certigrad.T.grad_div₁ $$k),
+      ``(certigrad.T.grad_div₂ $$k),
+      ``(@certigrad.T.grad_dot₁),
+      ``(@certigrad.T.grad_dot₂),
+      ``(certigrad.T.grad_square $$k),
+      ``(certigrad.T.grad_sqrt $$k),
+      ``(certigrad.T.grad_softplus $$k),
+      ``(certigrad.T.grad_sigmoid $$k) ]
+
+  let exprs2 ←  Monad.sequence exprs
+  -- Convert the list of syntax to expressions
+  let es ← exprs2.mapM fun p => elabTerm p none
+
+  -- Create the initial SimpTheorems
+  let mut s := {}
+
+  -- Add each elaborated expression to SimpTheorems
+  for e in es do
+    s ← s.addConst e.constName!
+
+  -- These have shape requirements that may cause `elabTerm` to fail, use `tryAddSimp`
+  s ← tryAddSimp s (← ``(certigrad.T.grad_gemm₁ $$k))
+  s ← tryAddSimp s (← ``(certigrad.T.grad_gemm₂ $$k))
+  s ← tryAddSimp s (← ``(certigrad.T.grad_sum $$k))
+
+--    -- These haven't been defined yet
+--    s ← try_add_simp s ```(certigrad.T.grad_mvn_kl₁ %%k),
+--    s ← try_add_simp s ```(certigrad.T.grad_mvn_kl₂ %%k),
+--    s ← try_add_simp s ```(certigrad.T.grad_bernoulli_neglogpdf₁ %%k),
+--    s ← try_add_simp s ```(certigrad.T.grad_bernoulli_neglogpdf₂ %%k),
+
+  s ← tryAddSimp s (← ``(@certigrad.T.grad_scale_f))
+
+  -- Return the final set of simplification lemmas
+  return s
+
+
+-- old_conv definition in Lean 3
+-- meta def old_conv (α : Type) : Type :=
+-- name → expr → tactic (old_conv_result α)
+-- According to the above, r refers to `name` and e refers to `expr`
+-- the logic is to first check r is indeed `eq`
+
 -- meta def simplify_grad_core_helper (tac : tactic unit) : conv unit :=
 -- λ r e => do guard $ r = `eq,
 --           grad ← check_grad e,
 --           k ← compute_k grad,
 --           s ← build_simplify_grad_simp_lemmas k,
 --           conv.apply_lemmas_core reducible s tac r e
+
+def simplifyGradCoreHelper (tac : MetaM Unit) : TacticM Unit := do
+  let tag ← getMainTag
+  guard $ tag = `eq
+  let target ← getMainGoal
+  let grad ← checkGrad (← target.getType)
+  let k ← computeK grad
+  let s ← buildSimplifyGradSimpLemmas k
+
+  -- run the tac with newly added lemmas
+  -- s must be used, otherwise this function is meaningless
+  -- focus tac
+  -- withMainContext tac
+  Simp.withSimpContext { simpTheorems := #[s] } tac
+
+-- def simplifyGradCoreHelper (tac : TacticM Unit) : TacticM Unit := do
+--   -- Ensure we are working within an equation
+--   let r ← getLhs
+--   guard (← isDefEq r (mkConst ``Eq)) -- `Eq` is the Lean 4 equivalent to `eq`
+--   -- Perform checks and simplifications
+--   let grad ← checkGrad r
+--   let k ← computeK grad
+--   let s ← buildSimplifyGradSimpLemmas k
+--   applyLemmasCore reducible s tac
+
+-- another ChatGPT attempt
+-- def simplifyGradCoreHelper (tac : TacticM Unit) : Conv Unit := do
+--   let r ← getLhs
+--   let e ← getRhs
+--   guard (← isDefEq r (mkConst ``Eq))  -- Ensure we are working within an equation
+--   let grad ← checkGrad e
+--   let k ← computeK grad
+--   let s ← buildSimplifyGradSimpLemmas k
+--   applyLemmasCore reducible s tac
+
+/-
+
+  https://leanprover-community.github.io/archive/stream/113488-general/topic/simp.20inside.20expressions.20with.20coe_to_fun.20sometimes.20fails.html
+
+  ext_simplify_core supports adding some hook in the built-in `simp` process
+
+  seems not supported in Lean 4 anymore
+
+  simplify_grad_core essentially injects the simplify_grad_core_helper into the simp process
+-/
 
 -- meta def simplify_grad_core (tac : tactic unit) : tactic unit :=
 -- at_target (λ e => do (a, new_e, pf) ← ext_simplify_core () {zeta := ff, beta := ff, eta := ff, proj := ff} simp_lemmas.mk
@@ -456,8 +693,45 @@ lemma id_rule {A : Type*} (a : A) : id a = a := rfl
 --                                                       `eq e,
 --                 return (new_e, pf))
 
+
+-- def simplifyGradCore (tac : TacticM Unit) : TacticM Unit := do
+--   let target ← getMainGoal
+--   let goalExpr ← target.getType
+--   let (a, newExpr, pf) ← extSimplifyCore
+--     (cfg := {zeta := false, beta := false, eta := false, proj := false})
+--     {}  -- Empty simp lemmas
+--     (pre := fun _ => return none)  -- No preprocessing
+--     (post := fun _ => return none)  -- No postprocessing
+--     (step := fun _ _ _ r e => do
+--       let ⟨(), newE, pr⟩ ← simplifyGradCoreHelper tac
+--       return (some ((), newE, pr)))
+--     goalExpr
+
+--   replaceMainGoalWith (← assertExprEq goalExpr newExpr pf)
+--   pure ()
+
+
+/-
+  some guildines:
+  - we cannot literally transform each old Lean 3 implementation to Lean 4, especially for helper functions
+  - because the underlying logic of processing tactics changed a lot
+  - we have to understand the high-level purpose
+-/
+
+
+
 -- meta def check_is_cdifferentiable (e : expr) : tactic expr :=
 -- if is_napp_of e `certigrad.T.is_cdifferentiable 3 then head_eta_expand e else tactic.fail "not is_cdifferentiable"
+
+def checkIsCDifferentiable (e : Expr) : TacticM Expr := do
+  if e.isAppOfArity ``certigrad.T.is_cdifferentiable 3 then
+    -- return (← headBeta e)
+    return e
+  else
+    throwError "not is_cdifferentiable"
+
+-- def prove_differentiable_core_helper (grad : expr) : TacticM Unit := do
+--   match x with
 
 -- meta def prove_differentiable_core_helper (grad : expr) : tactic unit :=
 -- do k ← compute_k grad,
@@ -492,8 +766,47 @@ lemma id_rule {A : Type*} (a : A) : id a = a := rfl
 --         , to_expr ``(T.is_cdifferentiable_gemm₂ %%k) >>= apply
 -- ]
 
+def proveDifferentiableCoreHelper (grad : Expr) : TacticM Unit := do
+  let k ← computeK grad
+  evalTactic $ ← `(tactic|
+    first |
+    apply certigrad.T.is_cdifferentiable_const |
+    apply certigrad.T.is_cdifferentiable_id |
+    apply certigrad.T.is_cdifferentiable_exp k |
+    apply certigrad.T.is_cdifferentiable_log k |
+    apply certigrad.T.is_cdifferentiable_sqrt k |
+    apply certigrad.T.is_cdifferentiable_scale k |
+    apply certigrad.T.is_cdifferentiable_neg k |
+    apply certigrad.T.is_cdifferentiable_inv k |
+    apply certigrad.T.is_cdifferentiable_add₁ k |
+    apply certigrad.T.is_cdifferentiable_add₂ k |
+    apply certigrad.T.is_cdifferentiable_sub₁ k |
+    apply certigrad.T.is_cdifferentiable_sub₂ k |
+    apply certigrad.T.is_cdifferentiable_mul₁ k |
+    apply certigrad.T.is_cdifferentiable_mul₂ k |
+    apply certigrad.T.is_cdifferentiable_div₁ k |
+    apply certigrad.T.is_cdifferentiable_div₂ k |
+    apply certigrad.T.is_cdifferentiable_square k |
+    apply certigrad.T.is_cdifferentiable_sum k |
+    apply certigrad.T.is_cdifferentiable_prod k)
+
+
 -- meta def prove_differentiable_core : tactic unit := target >>= check_is_cdifferentiable >>= prove_differentiable_core_helper
 -- meta def prove_differentiable : tactic unit := repeat (prove_differentiable_core <|> prove_preconditions_core)
+
+def proveDifferentiableCore : TacticM Unit := do
+  let tgt ← getMainTarget
+  let expr ← checkIsCDifferentiable tgt
+  proveDifferentiableCoreHelper expr
+
+
+syntax "proveDifferentiable_helper_tac" : tactic
+elab_rules : tactic
+  | `(tactic| proveDifferentiable_helper_tac) => withMainContext $ proveDifferentiableCore <|> provePreconditions
+
+
+def proveDifferentiable : TacticM Unit := do
+  evalTactic $ ← `(tactic| repeat proveDifferentiable_helper_tac)
 
 -- meta def simplify_grad : tactic unit := simplify_grad_core (repeat $ prove_preconditions_core <|> prove_differentiable_core)
 

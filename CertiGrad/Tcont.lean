@@ -133,7 +133,7 @@ lemma continuous_scale_f {ishape oshape : S} (α : TReal) (f : T ishape → T os
 --     →
 --     is_continuous (λ θ₀ => f (env.get_ks parents (env.insert tgt θ₀ m))) θ
 
--- end T
+end T
 
 -- section tactic
 -- open tactic
@@ -181,31 +181,31 @@ lemma continuous_scale_f {ishape oshape : S} (α : TReal) (f : T ishape → T os
 
 -- end tactic
 
-namespace T
+-- namespace T
 
+-- -- lemma continuous_mvn_kl₁ {shape : S} (μ σ : T shape) (H_σ : σ > 0) : is_continuous (λ μ₀ => mvn_kl μ₀ σ) μ :=
+-- -- by { dunfold mvn_kl, prove_continuous }
 
--- lemma continuous_mvn_kl₁ {shape : S} (μ σ : T shape) (H_σ : σ > 0) : is_continuous (λ μ₀ => mvn_kl μ₀ σ) μ :=
--- by { dunfold mvn_kl, prove_continuous }
+-- -- lemma continuous_mvn_kl₂ {shape : S} (μ σ : T shape) (H_σ : σ > 0) : is_continuous (λ σ₀ => mvn_kl μ σ₀) σ :=
+-- -- have H_σ₂ : square σ > 0, from square_pos_of_pos H_σ,
+-- -- by { dunfold mvn_kl, prove_continuous }
 
--- lemma continuous_mvn_kl₂ {shape : S} (μ σ : T shape) (H_σ : σ > 0) : is_continuous (λ σ₀ => mvn_kl μ σ₀) σ :=
--- have H_σ₂ : square σ > 0, from square_pos_of_pos H_σ,
--- by { dunfold mvn_kl, prove_continuous }
+-- -- lemma continuous_bernoulli_neglogpdf₁ {shape : S} (p x : T shape) (H_p₁ : p > 0) (H_p₂ : 1 - p > 0) :
+-- -- is_continuous (λ p₀ => bernoulli_neglogpdf p₀ x) p :=
+-- -- by { dunfold bernoulli_neglogpdf, prove_continuous }
 
--- lemma continuous_bernoulli_neglogpdf₁ {shape : S} (p x : T shape) (H_p₁ : p > 0) (H_p₂ : 1 - p > 0) :
--- is_continuous (λ p₀ => bernoulli_neglogpdf p₀ x) p :=
--- by { dunfold bernoulli_neglogpdf, prove_continuous }
+-- -- lemma continuous_bernoulli_neglogpdf₂ {shape : S} (p x : T shape) (H_p₁ : p > 0) (H_p₂ : 1 - p > 0) :
+-- -- is_continuous (λ x₀ => bernoulli_neglogpdf p x₀) x :=
+-- -- begin
+-- -- dunfold bernoulli_neglogpdf,
+-- -- apply continuous_binary (λ θ₁ θ₂ => - T.sum (θ₁ * T.log (eps shape + p) + (1 - θ₂) * T.log (eps shape + (1 + -p)))),
+-- -- dsimp,
+-- -- prove_continuous,
+-- -- -- TODO(dhs): not sure why this is necessary
+-- -- apply continuous_chain (λ x => 1 - x) (λ y => y * log (eps shape + (1 + - p))),
+-- -- prove_continuous,
+-- -- end
 
--- lemma continuous_bernoulli_neglogpdf₂ {shape : S} (p x : T shape) (H_p₁ : p > 0) (H_p₂ : 1 - p > 0) :
--- is_continuous (λ x₀ => bernoulli_neglogpdf p x₀) x :=
--- begin
--- dunfold bernoulli_neglogpdf,
--- apply continuous_binary (λ θ₁ θ₂ => - T.sum (θ₁ * T.log (eps shape + p) + (1 - θ₂) * T.log (eps shape + (1 + -p)))),
--- dsimp,
--- prove_continuous,
--- -- TODO(dhs): not sure why this is necessary
--- apply continuous_chain (λ x => 1 - x) (λ y => y * log (eps shape + (1 + - p))),
--- prove_continuous,
--- end
+-- end T
 
-end T
 end certigrad
