@@ -391,7 +391,7 @@ def reduceK (k : Expr) : MetaM Expr := do
 
 -- meta def has_x (x e : expr) : bool := expr.fold e ff (λ (m : expr) (d : nat) (b : bool) => if m = x then tt else b)
 def has_x (x e : Expr) : Option Bool :=
-  let f : Bool → Expr → Option Bool := (λ (b : Bool) (m : Expr) => if(m == x) then (some true) else (some b))
+  let f : Bool → Expr → Option Bool := (λ (b : Bool) (m : Expr) => if(m.eqv x) then (some true) else (some b))
   e.foldlM f false
 
 
@@ -421,9 +421,11 @@ def has_x (x e : Expr) : Option Bool :=
 partial def computeOuterInnerFunctionsCore (x : Expr) : Expr → Expr → TacticM Expr :=
   λ k e =>
   do
+    logInfo m!"computeOuterInnerFunctionsCore, x:={x}, k:={k}, e:={e}"
     let f := e.getAppFn
     let args := e.getAppArgs
     let n := args.size
+    logInfo m!"f:={f}, args:={args}, n:={n}"
     if n < 2 then
       throwError "Expression does not have enough arguments"
 
@@ -432,6 +434,8 @@ partial def computeOuterInnerFunctionsCore (x : Expr) : Expr → Expr → Tactic
 
     let barg₁_type ← inferType barg₁
     let barg₂_type ← inferType barg₂
+
+    logInfo m!"barg1:={barg₁}, barg2:={barg₂}"
 
     if barg₁ == x || barg₂ == x then
       return k
@@ -455,16 +459,37 @@ partial def computeOuterInnerFunctionsCore (x : Expr) : Expr → Expr → Tactic
 
 -- ChatGPT suggestion-2
 partial def computeOuterInnerFunctions (grad : Expr) : TacticM Expr := do
-  let f := grad.appArg!'
+  -- let grad' := if h : grad.isMData then grad.
+  -- let f0 : Expr := if h : grad.isApp then grad.appFn h else grad
+
+  let f := if h : grad.isMData then grad.mdataExpr! else grad
+  -- getAppFn' will skip metadata
+  -- let f := grad.getAppFn'
+
+  -- logInfo m!"f0 := {f0}"
+  -- let f : Expr := if h : f0.isApp then f0.appArg h else f0
+  logInfo m!"f := {f}"
+
+  -- let f := grad.appArg!'
   -- let f ← Meta.headEtaExpand g
+
   -- throwError "computeOuterInnerFunctions 0"
   let x ← mkFreshExprMVar (← inferType f)
   let body := f.instantiate1 x
   let bodyType ← inferType body
   -- throwError "computeOuterInnerFunctions 1"
+
+-- f := @T.is_cdifferentiable
+-- x:=?m.6306, body:=@T.is_cdifferentiable, bodyType:={ishape : S} → (T ishape → TReal) → T ishape → Prop
+  logInfo m!"x:={x}, body:={body}, bodyType:={bodyType}"
+
+  -- initialK is simply an identity function: λ x => x
+  -- bvar 0 is de Bruin index
   let initialK := mkLambda `x BinderInfo.default bodyType (mkBVar 0)
+  logInfo m!"initialK:={initialK}"
   -- throwError "computeOuterInnerFunctions will invoke core"
-  computeOuterInnerFunctionsCore x initialK body <|> return initialK
+  computeOuterInnerFunctionsCore x initialK body
+  -- <|> return initialK
 
 
 -- ChatGPT suggetion-1
@@ -500,12 +525,14 @@ def computeK (grad : Expr) : TacticM Expr := do
   -- Compute outer and inner functions
   -- throwError "computeK-0"
   let k ← computeOuterInnerFunctions grad
+  logInfo m!"after outer-inner, k = {k}"
   -- throwError "computeK-1"
   -- Simplify or reduce k
   let kSimp ← reduceK k
   -- throwError "computeK-2"
   -- Perform head eta-expansion
   -- Meta.headEtaExpand kSimp
+  logInfo m!"after reduceK, k = {kSimp}"
   return kSimp
 
 -- meta def check_grad (e : expr) : tactic expr :=
@@ -857,11 +884,8 @@ def proveDifferentiableCoreHelper (grad : Expr) : TacticM Unit := do
 
 def proveDifferentiableCore : TacticM Unit := do
   let tgt ← getMainTarget
-  -- throwError "proveDiff failed 1"
   let expr ← checkIsCDifferentiable tgt
-  -- throwError "proveDiff failed 2"
-  trace `proveDiff (fun _ => "hello")
-  -- throwError "proveDiff failed 3"
+  logInfo m!"tgt:={tgt}, expr:={expr}"
   proveDifferentiableCoreHelper expr
 
 
