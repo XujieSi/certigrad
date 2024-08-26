@@ -455,12 +455,15 @@ partial def computeOuterInnerFunctionsCore (x : Expr) : Expr → Expr → Tactic
 
 -- ChatGPT suggestion-2
 partial def computeOuterInnerFunctions (grad : Expr) : TacticM Expr := do
-  let f := grad.appArg!
+  let f := grad.appArg!'
   -- let f ← Meta.headEtaExpand g
+  -- throwError "computeOuterInnerFunctions 0"
   let x ← mkFreshExprMVar (← inferType f)
   let body := f.instantiate1 x
   let bodyType ← inferType body
+  -- throwError "computeOuterInnerFunctions 1"
   let initialK := mkLambda `x BinderInfo.default bodyType (mkBVar 0)
+  -- throwError "computeOuterInnerFunctions will invoke core"
   computeOuterInnerFunctionsCore x initialK body <|> return initialK
 
 
@@ -495,9 +498,12 @@ partial def computeOuterInnerFunctions (grad : Expr) : TacticM Expr := do
 
 def computeK (grad : Expr) : TacticM Expr := do
   -- Compute outer and inner functions
+  -- throwError "computeK-0"
   let k ← computeOuterInnerFunctions grad
+  -- throwError "computeK-1"
   -- Simplify or reduce k
   let kSimp ← reduceK k
+  -- throwError "computeK-2"
   -- Perform head eta-expansion
   -- Meta.headEtaExpand kSimp
   return kSimp
@@ -724,11 +730,18 @@ def simplifyGradCoreHelper (tac : MetaM Unit) : TacticM Unit := do
 -- if is_napp_of e `certigrad.T.is_cdifferentiable 3 then head_eta_expand e else tactic.fail "not is_cdifferentiable"
 
 def checkIsCDifferentiable (e : Expr) : TacticM Expr := do
-  if e.isAppOfArity ``certigrad.T.is_cdifferentiable 3 then
+
+  /- e can be mdata : Lean.MData → Lean.Expr → Lean.Expr-/
+
+  if e.isAppOfArity' ``T.is_cdifferentiable 3 then
     -- return (← headBeta e)
     return e
   else
-    throwError "not is_cdifferentiable"
+  if e.isAppOfArity' ``T.is_cdifferentiable 2 then
+    -- return (← headBeta e)
+    throwError " is_cdifferentiable arity is 2"
+  else
+    throwError "not is_cdifferentiable fn:= {e.getAppFn} fn'={e.getAppFn'} numArgs:= {e.getAppNumArgs'} isConst={e.isConst} isLam={e.isLambda} isApp={e.isApp} isForAll={e.isForall} isLet={e.isLet} isLetFun={e.isLetFun} isProp={e.isProp} isMVar={e.isMVar} isFVar={e.isFVar} isBinding={e.isBinding} isSort={e.isSort} isLit={e.isLit} isMdata={e.isMData}"
 
 -- def prove_differentiable_core_helper (grad : expr) : TacticM Unit := do
 --   match x with
@@ -766,29 +779,77 @@ def checkIsCDifferentiable (e : Expr) : TacticM Expr := do
 --         , to_expr ``(T.is_cdifferentiable_gemm₂ %%k) >>= apply
 -- ]
 
+def myFirstApply (exprs : List (MetaM Expr)) : TacticM Unit := do
+  logInfo m!"myFirstApply is invoked, exprs.length={exprs.length}"
+  match exprs with
+  | [] => pure ()
+  | e :: es =>
+    try
+      logInfo m! "will extract e"
+      let e' ← e
+      logInfo m! "will try e:={e'}"
+      let mvarIds ← (← getMainGoal).apply e'
+      Term.synthesizeSyntheticMVarsNoPostponing
+      replaceMainGoal mvarIds
+    catch ex =>
+      logInfo m!"ex:={ex.toMessageData}"
+      myFirstApply es
+  -- assume exprs consists of a list of App Exprs
+
 def proveDifferentiableCoreHelper (grad : Expr) : TacticM Unit := do
+
+  -- match stx with
+  -- | `(tactic| apply $e) => evalApplyLikeTactic (·.apply) e
+  -- let target ← getMainGoal
+  -- let tmp ← target.apply grad
+  -- val ← instantiateMVars (← elabTermForApply e)
+
+
+  -- let val : Expr := Expr.const ``iNat.zero []
+  -- let target ← getMainGoal
+  -- logInfo m!"target := {target}"
+  -- let mvarIds' ← target.apply val
+  -- logInfo m!"mvarIds := {mvarIds'}"
+  -- Term.synthesizeSyntheticMVarsNoPostponing
+  -- replaceMainGoal mvarIds'
+
+
+  dbg_trace f!"dbg_trace: before calling computeK, grad := {grad}"
   let k ← computeK grad
-  evalTactic $ ← `(tactic|
-    first |
-    apply certigrad.T.is_cdifferentiable_const |
-    apply certigrad.T.is_cdifferentiable_id |
-    apply certigrad.T.is_cdifferentiable_exp k |
-    apply certigrad.T.is_cdifferentiable_log k |
-    apply certigrad.T.is_cdifferentiable_sqrt k |
-    apply certigrad.T.is_cdifferentiable_scale k |
-    apply certigrad.T.is_cdifferentiable_neg k |
-    apply certigrad.T.is_cdifferentiable_inv k |
-    apply certigrad.T.is_cdifferentiable_add₁ k |
-    apply certigrad.T.is_cdifferentiable_add₂ k |
-    apply certigrad.T.is_cdifferentiable_sub₁ k |
-    apply certigrad.T.is_cdifferentiable_sub₂ k |
-    apply certigrad.T.is_cdifferentiable_mul₁ k |
-    apply certigrad.T.is_cdifferentiable_mul₂ k |
-    apply certigrad.T.is_cdifferentiable_div₁ k |
-    apply certigrad.T.is_cdifferentiable_div₂ k |
-    apply certigrad.T.is_cdifferentiable_square k |
-    apply certigrad.T.is_cdifferentiable_sum k |
-    apply certigrad.T.is_cdifferentiable_prod k)
+  -- throwError "proveDiff failed 4"
+  Lean.logInfo m!"logInfo: done with computeK, k:={k}"
+
+  -- we shall change the state of MetaM to put k in the hypothesis, which can be referred later on
+  -- https://leanprover-community.github.io/lean4-metaprogramming-book/main/09_tactics.html#tweaking-the-context
+
+  let candidate_exprs : List (MetaM Expr) := [
+    (mkAppM ``certigrad.T.is_cdifferentiable_add₂ #[k]),
+    (mkAppM ``certigrad.T.is_cdifferentiable_const #[]),
+    (mkAppM ``certigrad.T.is_cdifferentiable_id #[]),
+    (mkAppM ``certigrad.T.is_cdifferentiable_exp #[k]),
+    (mkAppM ``certigrad.T.is_cdifferentiable_log #[k]),
+    (mkAppM ``certigrad.T.is_cdifferentiable_sqrt #[k]),
+    (mkAppM ``certigrad.T.is_cdifferentiable_scale #[k]),
+    (mkAppM ``certigrad.T.is_cdifferentiable_neg #[k]),
+    (mkAppM ``certigrad.T.is_cdifferentiable_inv #[k]),
+    (mkAppM ``certigrad.T.is_cdifferentiable_add₁ #[k]),
+    (mkAppM ``certigrad.T.is_cdifferentiable_add₂ #[k]),
+    (mkAppM ``certigrad.T.is_cdifferentiable_sub₁ #[k]),
+    (mkAppM ``certigrad.T.is_cdifferentiable_sub₂ #[k]),
+    (mkAppM ``certigrad.T.is_cdifferentiable_mul₁ #[k]),
+    (mkAppM ``certigrad.T.is_cdifferentiable_mul₂ #[k]),
+    (mkAppM ``certigrad.T.is_cdifferentiable_div₁ #[k]),
+    (mkAppM ``certigrad.T.is_cdifferentiable_div₂ #[k]),
+    (mkAppM ``certigrad.T.is_cdifferentiable_square #[k]),
+    (mkAppM ``certigrad.T.is_cdifferentiable_sum #[k]),
+    (mkAppM ``certigrad.T.is_cdifferentiable_prod #[k])
+  ]
+  logInfo m!"constructed all candidates"
+
+  myFirstApply candidate_exprs
+
+  logInfo m!"finished trying all candidates"
+  -- throwError "proveDiff failed 5"
 
 
 -- meta def prove_differentiable_core : tactic unit := target >>= check_is_cdifferentiable >>= prove_differentiable_core_helper
@@ -796,17 +857,28 @@ def proveDifferentiableCoreHelper (grad : Expr) : TacticM Unit := do
 
 def proveDifferentiableCore : TacticM Unit := do
   let tgt ← getMainTarget
+  -- throwError "proveDiff failed 1"
   let expr ← checkIsCDifferentiable tgt
+  -- throwError "proveDiff failed 2"
+  trace `proveDiff (fun _ => "hello")
+  -- throwError "proveDiff failed 3"
   proveDifferentiableCoreHelper expr
 
 
 syntax "proveDifferentiable_helper_tac" : tactic
 elab_rules : tactic
-  | `(tactic| proveDifferentiable_helper_tac) => withMainContext $ proveDifferentiableCore <|> provePreconditions
+  | `(tactic| proveDifferentiable_helper_tac) => withMainContext $ proveDifferentiableCore -- <|> provePreconditions
 
 
-def proveDifferentiable : TacticM Unit := do
-  evalTactic $ ← `(tactic| repeat proveDifferentiable_helper_tac)
+def proveDifferentiable_ : TacticM Unit := do
+  -- throwError "prove diff failed"
+  -- evalTactic $ ← `(tactic| repeat proveDifferentiable_helper_tac)
+  evalTactic $ ← `(tactic| proveDifferentiable_helper_tac)
+
+syntax "proveDifferentiable" : tactic
+elab_rules : tactic
+| `(tactic| proveDifferentiable) =>
+  withMainContext proveDifferentiable_
 
 -- meta def simplify_grad : tactic unit := simplify_grad_core (repeat $ prove_preconditions_core <|> prove_differentiable_core)
 
