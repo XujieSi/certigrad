@@ -423,9 +423,11 @@ partial def computeOuterInnerFunctionsCore (x : Expr) : Expr → Expr → Tactic
   do
     logInfo m!"computeOuterInnerFunctionsCore, x:={x}, k:={k}, e:={e}"
     let f := e.getAppFn
+    let f_type ← inferType f
     let args := e.getAppArgs
     let n := args.size
-    logInfo m!"f:={f}, args:={args}, n:={n}"
+    -- interesting finding: syntax `match` is actually a function
+    logInfo m!"f:={f}\nf_type:={f_type}\nargs:={args}\nn:={n}"
     if n < 2 then
       throwError "Expression does not have enough arguments"
 
@@ -436,6 +438,7 @@ partial def computeOuterInnerFunctionsCore (x : Expr) : Expr → Expr → Tactic
     let barg₂_type ← inferType barg₂
 
     logInfo m!"barg1:={barg₁}, barg2:={barg₂}"
+    logInfo m!"barg₁_type:={barg₁_type},  barg₂_type:={barg₂_type}"
 
     if barg₁ == x || barg₂ == x then
       return k
@@ -456,26 +459,45 @@ partial def computeOuterInnerFunctionsCore (x : Expr) : Expr → Expr → Tactic
 --    initial_k ← return (lam `x binder_info.default body_type (var 0)),
 --    compute_outer_inner_functions_core x initial_k body <|> return initial_k
 
+/-
+  chain rule of inner outer functions
+  k(x) = f (g (x)), where f is the outer function, and g is the inner function
+
+  k'(x) = f'(g(x)) g'(x)
+-/
 
 -- ChatGPT suggestion-2
 partial def computeOuterInnerFunctions (grad : Expr) : TacticM Expr := do
   -- let grad' := if h : grad.isMData then grad.
   -- let f0 : Expr := if h : grad.isApp then grad.appFn h else grad
 
-  let f := if h : grad.isMData then grad.mdataExpr! else grad
+  -- let f := if h : grad.isMData then grad.mdataExpr! else grad
   -- getAppFn' will skip metadata
+
+  -- let f := grad.appArg!'
+  -- let f ← Meta.headEtaExpand g
+
   -- let f := grad.getAppFn'
+  let args := grad.getAppArgs'
+  logInfo m!"args := {args}"
+  let f := args[1]!
 
   -- logInfo m!"f0 := {f0}"
   -- let f : Expr := if h : f0.isApp then f0.appArg h else f0
   logInfo m!"f := {f}"
 
-  -- let f := grad.appArg!'
-  -- let f ← Meta.headEtaExpand g
 
   -- throwError "computeOuterInnerFunctions 0"
-  let x ← mkFreshExprMVar (← inferType f)
-  let body := f.instantiate1 x
+--    x ← mk_local_def `x (binding_domain f),
+--    body ← return (instantiate_var (binding_body f) x),
+
+  let domain_type := f.bindingDomain!
+  let binding_body := f.bindingBody!
+  logInfo m!"domain_type := {domain_type}, binding_body := {binding_body}"
+
+  -- let x ← mkFreshExprMVar (← inferType f)
+  let x ← mkFreshExprMVar domain_type (userName:= `new_x)
+  let body := binding_body.instantiate1 x
   let bodyType ← inferType body
   -- throwError "computeOuterInnerFunctions 1"
 
@@ -840,9 +862,10 @@ def proveDifferentiableCoreHelper (grad : Expr) : TacticM Unit := do
   -- Term.synthesizeSyntheticMVarsNoPostponing
   -- replaceMainGoal mvarIds'
 
+  -- dbg_trace f!"dbg_trace: before calling computeK, grad := {grad}"
 
-  dbg_trace f!"dbg_trace: before calling computeK, grad := {grad}"
   let k ← computeK grad
+  -- let k := grad
   -- throwError "proveDiff failed 4"
   Lean.logInfo m!"logInfo: done with computeK, k:={k}"
 
