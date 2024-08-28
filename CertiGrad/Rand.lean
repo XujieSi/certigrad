@@ -74,6 +74,16 @@ noncomputable def continuous {ishapes : List S} {oshape : S} (pdf : pdf_function
     util_list.at_idx ishapes idx tshape →
     pdf_pre xs → T.is_continuous (λ (x : T tshape) => pdf (dvec.update_at x xs idx) y) (dvec.get tshape _ xs idx)
 
+
+
+/-
+   9 different `mvn` and `mvn_std` definitions:
+   - pdf, run, pre
+   - pdiff, glogpdf, glogpdf_correct
+   - pdf_pos, pdf_int1
+   - cont
+-/
+
 namespace pdf
 
 -- set_option trace.Elab.match true
@@ -165,39 +175,24 @@ def mvn (shape : S) : pdf_cdiff (pdf.mvn shape) (pre.mvn shape)
   proveDifferentiable
 
 
-
-
-
--- begin
--- clear mvn,
--- note H_ishape_eq := H_at_idx^.right,
--- dsimp [list.dnth] at H_ishape_eq,
--- subst H_ishape_eq,
--- dsimp [dvec.update_at, dvec.get],
--- simp,
--- dunfold pdf.mvn T.mvn_pdf,
--- apply T.is_cdifferentiable_binary (λ θ₁ θ₂, T.prod ((T.sqrt (2 * T.pi ishape * T.square θ₁))⁻¹ * T.exp (-2⁻¹ * T.square ((x - μ) / θ₂)))),
--- all_goals { dsimp, T.prove_differentiable }
--- end
-
 -- | ⟦μ, σ⟧ x (n+2) ishape H_at_idx H_pre := false.rec _ (util_list.at_idx_over H_at_idx (by tactic.dec_triv))
 
 -- def mvn_std (shape : S) : pdf_cdiff (pdf.mvn_std shape) (pre.mvn_std shape)
--- | ⟦⟧, x, tgt, ishape, H_at_idx, H_pre => false.rec _ (util_list.at_idx_over H_at_idx (by tactic.dec_triv))
+-- | ⟦⟧, x, tgt, ishape, H_at_idx, H_pre => False.recOn _ (util_list.at_idx_over H_at_idx (by dec_triv))
 
 end pdiff
 
--- namespace glogpdf
+namespace glogpdf
 
 -- def mvn (shape : S) : grad_logpdf [shape, shape] shape
--- | ⟦μ, σ⟧ x 0     fshape => T.force (T.mvn_grad_logpdf_μ μ σ x) fshape
--- | ⟦μ, σ⟧ x 1     fshape => T.force (T.mvn_grad_logpdf_σ μ σ x) fshape
--- | ⟦μ, σ⟧ x (n+2) fshape => T.error "mvn grad_logpdf: index too large"
+-- | ⟦μ, σ⟧, x, 0,     fshape => T.force (T.mvn_grad_logpdf_μ μ σ x) fshape
+-- | ⟦μ, σ⟧, x, 1,     fshape => T.force (T.mvn_grad_logpdf_σ μ σ x) fshape
+-- | ⟦μ, σ⟧, x, (n+2), fshape => T.error "mvn grad_logpdf: index too large"
 
 -- def mvn_std (shape : S) : grad_logpdf [] shape
--- | ⟦⟧ x idx fshape => 0
+-- | ⟦⟧, x, idx, fshape => 0
 
--- end glogpdf
+end glogpdf
 
 -- namespace glogpdf_correct
 
