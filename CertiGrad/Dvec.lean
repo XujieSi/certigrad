@@ -69,7 +69,7 @@ def get {X : Type} [DecidableEq X] {Y : X → Type} (x₀ : X) [Inhabited (Y x�
 def update_at {X : Type} [DecidableEq X] {Y : X → Type} {x₀ : X} (y₀ : Y x₀) : {xs : List X} → (ys : Dvec Y xs) → (idx : Nat) → Dvec Y xs
 | [],      _,                 _     =>  ⟦⟧ -- dnil
 | (x::xs), (dcons y ys), 0     => if H : x₀ = x then dcons (Eq.recOn H y₀) ys else dcons y ys
-| (x::xs), (dcons y ys), (n+1) => dcons y (update_at (x₀ := x) y ys n)
+| (x::xs), (dcons y ys), (n+1) => dcons y (update_at y₀ ys n)
 
 -- protected def to_string_aux {X : Type} {Y : X → Type} [∀ x, has_to_string (Y x)] : Π {xs : List X}, Dvec Y xs → string
 -- | [] _                  => "-------------"

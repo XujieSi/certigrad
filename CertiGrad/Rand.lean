@@ -144,9 +144,30 @@ def mvn (shape : S) : pdf_cdiff (pdf.mvn shape) (pre.mvn shape)
 
   -- apply T.is_cdifferentiable_id
 
--- | ⟦μ, σ⟧ x 1 ishape H_at_idx H_pre :=
--- have H_σ₂ : T.square σ > 0, from T.square_pos_of_pos H_pre,
--- have H_inv : T.sqrt (2 * T.pi shape * T.square σ) > 0, from T.sqrt_pos (T.mul_pos_of_pos_pos (T.mul_pos_of_pos_pos T.two_pos T.pi_pos) H_σ₂),
+| ⟦μ, σ⟧, x, 1, ishape, H_at_idx, H_pre => by
+  have H_σ₂ : T.square σ > 0 := by apply T.square_pos_of_pos H_pre
+  have H_inv : T.sqrt (2 * T.pi shape * T.square σ) > 0 := by apply T.sqrt_pos (T.mul_pos_of_pos_pos (T.mul_pos_of_pos_pos T.two_pos T.pi_pos) H_σ₂)
+  clear mvn
+  let H_ishape_eq := H_at_idx.right
+  simp [util_list.dnth] at H_ishape_eq
+  rw [H_ishape_eq]
+  -- subst H_ishape_eq
+  -- simp [dvec.update_at, dvec.get]
+  simp
+  unfold pdf.mvn T.mvn_pdf
+
+  simp
+  apply T.is_cdifferentiable_binary (λ θ₁ θ₂ => T.prod ((T.sqrt (2 * T.pi shape * T.square θ₁))⁻¹ * T.exp (- (2⁻¹ * T.square ((x - μ) / θ₂)))))
+  proveDifferentiable
+  assumption
+  proveDifferentiable
+  assumption
+  proveDifferentiable
+
+
+
+
+
 -- begin
 -- clear mvn,
 -- note H_ishape_eq := H_at_idx^.right,

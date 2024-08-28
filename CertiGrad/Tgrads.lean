@@ -451,13 +451,13 @@ partial def has_x (x e : Expr) : Option Bool :=
 partial def computeOuterInnerFunctionsCore (x : Expr) : Expr → Expr → TacticM Expr :=
   λ k e =>
   do
-    logInfo m!"computeOuterInnerFunctionsCore, x:={x}, k:={k}, e:={e}"
+    -- logInfo m!"computeOuterInnerFunctionsCore, x:={x}, k:={k}, e:={e}"
     let f := e.getAppFn
     let f_type ← inferType f
     let args := e.getAppArgs
     let n := args.size
     -- interesting finding: syntax `match` is actually a function
-    logInfo m!"f:={f}\nf_type:={f_type}\nargs:={args}\nn:={n}"
+    -- logInfo m!"f:={f}\nf_type:={f_type}\nargs:={args}\nn:={n}"
     if n < 2 then
       throwError "Expression does not have enough arguments"
 
@@ -467,12 +467,12 @@ partial def computeOuterInnerFunctionsCore (x : Expr) : Expr → Expr → Tactic
     let barg₁_type ← inferType barg₁
     let barg₂_type ← inferType barg₂
 
-    logInfo m!"barg1:={barg₁}, barg2:={barg₂}"
-    logInfo m!"barg₁_type:={barg₁_type},  barg₂_type:={barg₂_type}"
+    -- logInfo m!"barg1:={barg₁}, barg2:={barg₂}"
+    -- logInfo m!"barg₁_type:={barg₁_type},  barg₂_type:={barg₂_type}"
 
     let h1 := (has_x x barg₁)
     let h2 := (has_x x barg₂)
-    logInfo m! "h1:={h1}, h2:={h2}"
+    -- logInfo m! "h1:={h1}, h2:={h2}"
 
     -- let r1 := match h1 with
     --   | some (b, _) => b
@@ -523,12 +523,12 @@ partial def computeOuterInnerFunctions (grad : Expr) : TacticM Expr := do
 
   -- let f := grad.getAppFn'
   let args := grad.getAppArgs'
-  logInfo m!"args := {args}"
+  -- logInfo m!"args := {args}"
   let f := args[1]!
 
   -- logInfo m!"f0 := {f0}"
   -- let f : Expr := if h : f0.isApp then f0.appArg h else f0
-  logInfo m!"f := {f}"
+  -- logInfo m!"f := {f}"
 
 
   -- throwError "computeOuterInnerFunctions 0"
@@ -537,7 +537,7 @@ partial def computeOuterInnerFunctions (grad : Expr) : TacticM Expr := do
 
   let domain_type := f.bindingDomain!
   let binding_body := f.bindingBody!
-  logInfo m!"domain_type := {domain_type}, binding_body := {binding_body}"
+  -- logInfo m!"domain_type := {domain_type}, binding_body := {binding_body}"
 
   -- let x ← mkFreshExprMVar (← inferType f)
   let x ← mkFreshExprMVar domain_type (userName:= `new_x)
@@ -547,12 +547,12 @@ partial def computeOuterInnerFunctions (grad : Expr) : TacticM Expr := do
 
 -- f := @T.is_cdifferentiable
 -- x:=?m.6306, body:=@T.is_cdifferentiable, bodyType:={ishape : S} → (T ishape → TReal) → T ishape → Prop
-  logInfo m!"x:={x}, body:={body}, bodyType:={bodyType}"
+  -- logInfo m!"x:={x}, body:={body}, bodyType:={bodyType}"
 
   -- initialK is simply an identity function: λ x => x
   -- bvar 0 is de Bruin index
   let initialK := mkLambda `x BinderInfo.default bodyType (mkBVar 0)
-  logInfo m!"initialK:={initialK}"
+  -- logInfo m!"initialK:={initialK}"
   -- throwError "computeOuterInnerFunctions will invoke core"
   computeOuterInnerFunctionsCore x initialK body <|> return initialK
 
@@ -590,14 +590,14 @@ def computeK (grad : Expr) : TacticM Expr := do
   -- Compute outer and inner functions
   -- throwError "computeK-0"
   let k ← computeOuterInnerFunctions grad
-  logInfo m!"after outer-inner, k = {k}"
+  -- logInfo m!"after outer-inner, k = {k}"
   -- throwError "computeK-1"
   -- Simplify or reduce k
   let kSimp ← reduceK k
   -- throwError "computeK-2"
   -- Perform head eta-expansion
   -- Meta.headEtaExpand kSimp
-  logInfo m!"after reduceK, k = {kSimp}"
+  -- logInfo m!"after reduceK, k = {kSimp}"
   return kSimp
 
 -- meta def check_grad (e : expr) : tactic expr :=
@@ -872,19 +872,19 @@ def checkIsCDifferentiable (e : Expr) : TacticM Expr := do
 -- ]
 
 def myFirstApply (exprs : List (MetaM Expr)) : TacticM Unit := do
-  logInfo m!"myFirstApply is invoked, exprs.length={exprs.length}"
+  -- logInfo m!"myFirstApply is invoked, exprs.length={exprs.length}"
   match exprs with
   | [] => pure ()
   | e :: es =>
     try
-      logInfo m! "will extract e"
+      -- logInfo m! "will extract e"
       let e' ← e
-      logInfo m! "will try e:={e'}"
+      -- logInfo m! "will try e:={e'}"
       let mvarIds ← (← getMainGoal).apply e'
       Term.synthesizeSyntheticMVarsNoPostponing
       replaceMainGoal mvarIds
     catch ex =>
-      logInfo m!"ex:={ex.toMessageData}"
+      -- logInfo m!"ex:={ex.toMessageData}"
       myFirstApply es
   -- assume exprs consists of a list of App Exprs
 
@@ -910,7 +910,7 @@ def proveDifferentiableCoreHelper (grad : Expr) : TacticM Unit := do
   let k ← computeK grad
   -- let k := grad
   -- throwError "proveDiff failed 4"
-  Lean.logInfo m!"logInfo: done with computeK, k:={k}"
+  -- Lean.logInfo m!"logInfo: done with computeK, k:={k}"
 
   -- we shall change the state of MetaM to put k in the hypothesis, which can be referred later on
   -- https://leanprover-community.github.io/lean4-metaprogramming-book/main/09_tactics.html#tweaking-the-context
@@ -937,11 +937,11 @@ def proveDifferentiableCoreHelper (grad : Expr) : TacticM Unit := do
     (mkAppM ``certigrad.T.is_cdifferentiable_sum #[k]),
     (mkAppM ``certigrad.T.is_cdifferentiable_prod #[k])
   ]
-  logInfo m!"constructed all candidates"
+  -- logInfo m!"constructed all candidates"
 
   myFirstApply candidate_exprs
 
-  logInfo m!"finished trying all candidates, with k:={k}"
+  -- logInfo m!"finished trying all candidates, with k:={k}"
   -- throwError "proveDiff failed 5"
 
 
@@ -949,10 +949,10 @@ def proveDifferentiableCoreHelper (grad : Expr) : TacticM Unit := do
 -- meta def prove_differentiable : tactic unit := repeat (prove_differentiable_core <|> prove_preconditions_core)
 
 def proveDifferentiableCore : TacticM Unit := do
-  logInfo m!"enter proveDifferentiableCore..."
+  -- logInfo m!"enter proveDifferentiableCore..."
   let tgt ← getMainTarget
   let expr ← checkIsCDifferentiable tgt
-  logInfo m!"tgt:={tgt}, expr:={expr}"
+  -- logInfo m!"tgt:={tgt}, expr:={expr}"
   proveDifferentiableCoreHelper expr
 
 
