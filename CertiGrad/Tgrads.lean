@@ -389,11 +389,38 @@ def reduceK (k : Expr) : MetaM Expr := do
 --   let kReduced ← Meta.whnf k  -- Weak head normal form, as an example reduction
 --   return kReduced
 
--- meta def has_x (x e : expr) : bool := expr.fold e ff (λ (m : expr) (d : nat) (b : bool) => if m = x then tt else b)
-def has_x (x e : Expr) : Option Bool :=
-  let f : Bool → Expr → Option Bool := (λ (b : Bool) (m : Expr) => if(m.eqv x) then (some true) else (some b))
-  e.foldlM f false
+-- meta def has_x (x e : expr) : bool :=
+-- expr.fold e ff (λ (m : expr) (d : nat) (b : bool) => if m = x then tt else b)
 
+-- check whether x is used in sub-expressions of e recursively
+-- partial def has_x (x e : Expr) : Option (Bool × List Expr) :=
+--   let f : (Bool × List Expr) → Expr → Option (Bool × List Expr) := (λ (b,ls) (m : Expr) =>
+--     if b then return (b, ls)
+--     else
+--       let ls2 := m :: ls
+--       let f2 : (Bool × List Expr) → Expr → Option (Bool × List Expr) := (fun (b3, ls3) (m2 : Expr) =>
+--       if b3 then return (b3, ls3)
+--       else if(m2.eqv x) then (some (true, ls3))
+--       else
+--         match has_x x m2 with
+--         | some (true, ls4) => some (true, ls3 ++ ls4)
+--         | some (false, ls4) => some (b3, ls3 ++ ls4)
+--         | _ => none
+--       )
+--       if(m.eqv x) then (some (true, ls2))
+--       else
+--         -- (some (b, ls2))
+--         m.foldlM f2 (b, ls2)
+--     )
+--   e.foldlM f (false, [])
+
+partial def has_x (x e : Expr) : Option Bool :=
+  if e.eqv x then pure true
+  else
+    let f : Bool → Expr → Option Bool := (λ found (m : Expr) =>
+      if found then pure true
+      else has_x x m)
+    e.foldlM f false
 
 
 -- meta def compute_outer_inner_functions_core (x : expr) : Π (k e : expr), tactic expr :=
@@ -416,6 +443,9 @@ def has_x (x e : Expr) : Option Bool :=
 
 -- compute_outer_inner_functions_core (lam `x binder_info.default barg₁_type (app k $ mk_app f $ update_nth args (n-2) (var 0))) barg₁
 
+
+-- the goal here is to figure out the innerest function of using x (except for identity itself)
+-- candidates are specified int the axioms, e.g., log, exp, div, etc.
 
 -- ChatGPT suggests
 partial def computeOuterInnerFunctionsCore (x : Expr) : Expr → Expr → TacticM Expr :=
@@ -440,12 +470,26 @@ partial def computeOuterInnerFunctionsCore (x : Expr) : Expr → Expr → Tactic
     logInfo m!"barg1:={barg₁}, barg2:={barg₂}"
     logInfo m!"barg₁_type:={barg₁_type},  barg₂_type:={barg₂_type}"
 
+    let h1 := (has_x x barg₁)
+    let h2 := (has_x x barg₂)
+    logInfo m! "h1:={h1}, h2:={h2}"
+
+    -- let r1 := match h1 with
+    --   | some (b, _) => b
+    --   | _ => false
+
+    -- let r2 := match h2 with
+    --   | some (b, _) => b
+    --   | _ => false
+
     if barg₁ == x || barg₂ == x then
       return k
-    else if (has_x x barg₁) = some true then
-      computeOuterInnerFunctionsCore x (mkLambda `x BinderInfo.default barg₁_type (mkAppN f $ args.set! (n-2) (mkBVar 0))) barg₁
-    else if (has_x x barg₂) = some true then
-      computeOuterInnerFunctionsCore x (mkLambda `x BinderInfo.default barg₂_type (mkAppN f $ args.set! (n-1) (mkBVar 0))) barg₂
+    else if h1 = some true then
+-- compute_outer_inner_functions_core (lam `x binder_info.default barg₁_type (app k $ mk_app f $ update_nth args (n-2) (var 0))) barg₁
+
+      computeOuterInnerFunctionsCore x (mkLambda `x BinderInfo.default barg₁_type (Expr.app k (mkAppN f $ args.set! (n-2) (mkBVar 0)))) barg₁
+    else if h2 = some true then
+      computeOuterInnerFunctionsCore x (mkLambda `x BinderInfo.default barg₂_type (Expr.app k (mkAppN f $ args.set! (n-1) (mkBVar 0)))) barg₂
     else
       throwError "Variable not found"
 
@@ -510,8 +554,7 @@ partial def computeOuterInnerFunctions (grad : Expr) : TacticM Expr := do
   let initialK := mkLambda `x BinderInfo.default bodyType (mkBVar 0)
   logInfo m!"initialK:={initialK}"
   -- throwError "computeOuterInnerFunctions will invoke core"
-  computeOuterInnerFunctionsCore x initialK body
-  -- <|> return initialK
+  computeOuterInnerFunctionsCore x initialK body <|> return initialK
 
 
 -- ChatGPT suggetion-1
@@ -898,7 +941,7 @@ def proveDifferentiableCoreHelper (grad : Expr) : TacticM Unit := do
 
   myFirstApply candidate_exprs
 
-  logInfo m!"finished trying all candidates"
+  logInfo m!"finished trying all candidates, with k:={k}"
   -- throwError "proveDiff failed 5"
 
 
@@ -906,6 +949,7 @@ def proveDifferentiableCoreHelper (grad : Expr) : TacticM Unit := do
 -- meta def prove_differentiable : tactic unit := repeat (prove_differentiable_core <|> prove_preconditions_core)
 
 def proveDifferentiableCore : TacticM Unit := do
+  logInfo m!"enter proveDifferentiableCore..."
   let tgt ← getMainTarget
   let expr ← checkIsCDifferentiable tgt
   logInfo m!"tgt:={tgt}, expr:={expr}"
@@ -914,18 +958,22 @@ def proveDifferentiableCore : TacticM Unit := do
 
 syntax "proveDifferentiable_helper_tac" : tactic
 elab_rules : tactic
-  | `(tactic| proveDifferentiable_helper_tac) => withMainContext $ proveDifferentiableCore -- <|> provePreconditions
+  | `(tactic| proveDifferentiable_helper_tac) => withMainContext $ do
+    -- logInfo m!"enter proveDifferentiable_helper_tac..."
+    proveDifferentiableCore -- <|> provePreconditions
 
 
 def proveDifferentiable_ : TacticM Unit := do
   -- throwError "prove diff failed"
-  -- evalTactic $ ← `(tactic| repeat proveDifferentiable_helper_tac)
-  evalTactic $ ← `(tactic| proveDifferentiable_helper_tac)
+  evalTactic $ ← `(tactic| repeat proveDifferentiable_helper_tac)
+  -- evalTactic $ ← `(tactic| proveDifferentiable_helper_tac)
 
 syntax "proveDifferentiable" : tactic
 elab_rules : tactic
 | `(tactic| proveDifferentiable) =>
-  withMainContext proveDifferentiable_
+  withMainContext $ do
+    -- logInfo m!"enter proveDifferentiable..."
+    proveDifferentiable_
 
 -- meta def simplify_grad : tactic unit := simplify_grad_core (repeat $ prove_preconditions_core <|> prove_differentiable_core)
 

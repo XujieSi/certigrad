@@ -22,6 +22,14 @@ open util_list dvec
 set_option linter.unusedVariables false
 -- dvec is a namespace
 
+-- `Dvec T ishapes` contains multiple tensors, each of which may have different shapes (specified by ishapes)
+-- pdf_function is quite flexible in the sense that it may take as input different input tensors (even shapes can be different)
+-- produce distribution over one common shape tensor as output
+-- a single element/shape in ishapes should be sufficient for most cases,
+-- since usually a function takes one specific shape as input and produce one specific shape as output
+-- In fact, the ishapes is more like hyper-paramters (e.g., mean, variances) and the oshape is more like the "input"
+-- because the real output is a numeric probability value between 0 and 1
+-- For a probability function, we essentially "query" the probability over a space (i.e., described by the oshape)
 def pdf_function (ishapes : List S) (oshape : S) : Type := Dvec T ishapes → T oshape → TReal
 
 -- `state` is not available in Lean4
@@ -31,6 +39,12 @@ def rng_function (ishapes : List S) (oshape : S) : Type := Dvec T ishapes → St
 
 def precondition (ishapes : List S) : Type := Dvec T ishapes → Prop
 
+-- here, `(λ θ₀ => pdf (dvec.update_at θ₀ xs idx) y)` essentially says that
+-- we only consider a specific shape of tensor (i.e. the i-th one specified in xs) as input
+-- vary its value (i.e., θ₀) of that particular shape via update_at
+-- The continuous property stated here is somewhat strange in the sense that
+-- it describes if we vary the hyper-parameters (e.g., mean or variance) slightly,
+-- the changes of probability over some predefined event (specified by y) also change slightly
 noncomputable def pdf_cdiff {ishapes : List S} {oshape : S} (pdf : pdf_function ishapes oshape) (pdf_pre : precondition ishapes) : Prop :=
   ∀ ⦃xs : Dvec T ishapes⦄ {y : T oshape} {idx : ℕ} {fshape : S},
   at_idx ishapes idx fshape → pdf_pre xs →
@@ -41,6 +55,8 @@ def grad_logpdf (ishapes : List S) (oshape : S) : Type := Dvec T ishapes → T o
 def pdf_positive {ishapes : List S} {oshape : S} (pdf : pdf_function ishapes oshape) (pdf_pre : precondition ishapes) : Prop :=
   ∀ (xs : Dvec T ishapes), pdf_pre xs → ∀ (y : T oshape), pdf xs y > 0
 
+-- here, we can see the actual input is essentially the output space (i.e., the space over which the distribution of interest is about)
+-- values of ishapes are fixed for the integration: ∫ (λ (y : T oshape) => pdf xs y) = 1
 noncomputable def pdf_integrates_to_one {ishapes : List S} {oshape : S} (pdf : pdf_function ishapes oshape) (pdf_pre : precondition ishapes) : Prop :=
   ∀ (xs : Dvec T ishapes), pdf_pre xs → ∫ (λ (y : T oshape) => pdf xs y) = 1
 
@@ -100,7 +116,33 @@ def mvn (shape : S) : pdf_cdiff (pdf.mvn shape) (pre.mvn shape)
   dsimp [dvec.update_at, dvec.get]
   simp
   unfold pdf.mvn T.mvn_pdf
+
+  simp -- get rid of the match
+
+  -- the axioms are not quite intuitive,
+  -- is_cdifferentiable k (log θ) → is_cdifferentiable (λ θ => k (log θ)) θ
+  -- what if θ is used not once but in many different ways, e.g., log θ + exp θ ??
+  -- in this case, is_cdifferentiable_binary seems to work
+  -- In contrast, the other way around might be much better, for instance,
+  -- is_cdifferentiable k θ → is_cdifferentiable (λ θ => log (k θ)) θ
+
+  -- given: (fun θ₀ => ((2 * T.pi ishape * σ.square).sqrt⁻¹ * (-(2⁻¹ * ((x - θ₀) / σ).square)).exp).prod)
+  -- to use T.is_cdifferentiable_sub₂
+  -- we need to figure out k (the structure of wrapping up the internal x - θ₀)
+  -- apply T.is_cdifferentiable_sub₂ (x₁ := x)
+  -- apply T.is_cdifferentiable_prod
   proveDifferentiable
+
+  -- proveDifferentiable
+  -- proveDifferentiable
+  -- proveDifferentiable
+  -- proveDifferentiable
+  -- proveDifferentiable
+  -- proveDifferentiable
+  -- proveDifferentiable
+  -- proveDifferentiable
+
+  -- apply T.is_cdifferentiable_id
 
 -- | ⟦μ, σ⟧ x 1 ishape H_at_idx H_pre :=
 -- have H_σ₂ : T.square σ > 0, from T.square_pos_of_pos H_pre,
