@@ -14,7 +14,7 @@ import Mathlib.Algebra.Order.Ring.Defs
 import Mathlib.Tactic.Ring
 
 import Lean
-open Lean Elab Tactic Meta Conv
+open Lean Elab Tactic Meta
 
 namespace certigrad
 namespace T
@@ -956,24 +956,25 @@ def proveDifferentiableCore : TacticM Unit := do
   proveDifferentiableCoreHelper expr
 
 
-syntax "proveDifferentiable_helper_tac" : tactic
-elab_rules : tactic
-  | `(tactic| proveDifferentiable_helper_tac) => withMainContext $ do
+elab "proveDifferentiable_helper_tac" : tactic => withMainContext $ do
     -- logInfo m!"enter proveDifferentiable_helper_tac..."
     proveDifferentiableCore -- <|> provePreconditions
 
 
-def proveDifferentiable_ : TacticM Unit := do
-  -- throwError "prove diff failed"
-  evalTactic $ ← `(tactic| repeat proveDifferentiable_helper_tac)
-  -- evalTactic $ ← `(tactic| proveDifferentiable_helper_tac)
+-- def proveDifferentiable_ : TacticM Unit := do
+--   -- throwError "prove diff failed"
+--   evalTactic $ ← `(tactic| repeat proveDifferentiable_helper_tac)
+--   -- evalTactic $ ← `(tactic| proveDifferentiable_helper_tac)
 
-syntax "proveDifferentiable" : tactic
-elab_rules : tactic
-| `(tactic| proveDifferentiable) =>
-  withMainContext $ do
-    -- logInfo m!"enter proveDifferentiable..."
-    proveDifferentiable_
+-- syntax "proveDifferentiable" : tactic
+-- elab_rules : tactic
+-- | `(tactic| proveDifferentiable) =>
+--   withMainContext $ do
+--     -- logInfo m!"enter proveDifferentiable..."
+--     proveDifferentiable_
+
+elab "proveDifferentiable" : tactic => do
+    evalTactic $ ← `(tactic| repeat proveDifferentiable_helper_tac)
 
 -- meta def simplify_grad : tactic unit := simplify_grad_core (repeat $ prove_preconditions_core <|> prove_differentiable_core)
 
