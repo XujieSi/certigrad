@@ -181,8 +181,8 @@ def mvn (shape : S) : pdf_cdiff (pdf.mvn shape) (pre.mvn shape)
 
 -- | ⟦μ, σ⟧ x (n+2) ishape H_at_idx H_pre := false.rec _ (util_list.at_idx_over H_at_idx (by tactic.dec_triv))
 
--- def mvn_std (shape : S) : pdf_cdiff (pdf.mvn_std shape) (pre.mvn_std shape)
--- | ⟦⟧, x, tgt, ishape, H_at_idx, H_pre => False.recOn _ (util_list.at_idx_over H_at_idx (by dec_triv))
+def mvn_std (shape : S) : pdf_cdiff (pdf.mvn_std shape) (pre.mvn_std shape)
+| ⟦⟧, x, tgt, ishape, H_at_idx, H_pre => False.recOn _ (util_list.at_idx_over H_at_idx (by simp))
 
 end pdiff
 
