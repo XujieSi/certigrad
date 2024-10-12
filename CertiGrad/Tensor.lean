@@ -348,9 +348,10 @@ noncomputable def bernoulli_neglogpdf {shape : S} (p z : T shape) : TReal :=
 -- def force {shape₁ : S} (x : T shape₁) (shape₂ : S) : T shape₂ :=
 --   if H : shape₁ = shape₂ then eq.rec_on H x else T.error ("force-failed: " ++ _root_.to_string shape₁ ++ " != " ++ _root_.to_string shape₂)
 
--- def force {shape₁ : S} (x : T shape₁) (shape₂ : S) : T shape₂ :=
---   if H : shape₁ = shape₂ then eq.rec_on H x
---   else T.error ("force-failed: " ++ toString shape₁ ++ " != " ++ toString shape₂)
+noncomputable
+def force {shape₁ : S} (x : T shape₁) (shape₂ : S) : T shape₂ :=
+  if H : shape₁ = shape₂ then Eq.recOn H x
+  else T.error ("force-failed: " ++  shape₁.toString ++ " != " ++  shape₂.toString)
 
 end T
 end certigrad
