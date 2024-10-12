@@ -117,10 +117,14 @@ end pre
 
 namespace pdiff
 
+
 def mvn (shape : S) : pdf_cdiff (pdf.mvn shape) (pre.mvn shape)
 | ⟦μ, σ⟧, x, 0, ishape, H_at_idx, H_pre => by
   clear mvn
-  have H_ishape_eq := H_at_idx.right
+  -- the error message does not really affect the proof
+  -- the placeholder seems to be X : Type, which should be S
+  -- the error message is perahps a false warning
+  have H_ishape_eq := H_at_idx.right -- : Eq (α := S) ishape (dnth [shape, shape] 0)
   simp [util_list.dnth] at H_ishape_eq
   subst H_ishape_eq
   dsimp [dvec.update_at, dvec.get]
@@ -169,10 +173,10 @@ def mvn (shape : S) : pdf_cdiff (pdf.mvn shape) (pre.mvn shape)
   simp
   apply T.is_cdifferentiable_binary (λ θ₁ θ₂ => T.prod ((T.sqrt (2 * T.pi shape * T.square θ₁))⁻¹ * T.exp (- (2⁻¹ * T.square ((x - μ) / θ₂)))))
   proveDifferentiable
-  assumption
-  proveDifferentiable
-  assumption
-  proveDifferentiable
+  -- assumption
+  -- proveDifferentiable
+  -- assumption
+  -- proveDifferentiable
 
 
 -- | ⟦μ, σ⟧ x (n+2) ishape H_at_idx H_pre := false.rec _ (util_list.at_idx_over H_at_idx (by tactic.dec_triv))

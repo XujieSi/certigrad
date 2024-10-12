@@ -956,9 +956,9 @@ def proveDifferentiableCore : TacticM Unit := do
   proveDifferentiableCoreHelper expr
 
 
-elab "proveDifferentiable_helper_tac" : tactic => withMainContext $ do
-    -- logInfo m!"enter proveDifferentiable_helper_tac..."
-    proveDifferentiableCore -- <|> provePreconditions
+-- elab "proveDifferentiable_helper_tac" : tactic => withMainContext $ do
+--     -- logInfo m!"enter proveDifferentiable_helper_tac..."
+--     proveDifferentiableCore -- <|> provePreconditions
 
 
 -- def proveDifferentiable_ : TacticM Unit := do
@@ -974,7 +974,9 @@ elab "proveDifferentiable_helper_tac" : tactic => withMainContext $ do
 --     proveDifferentiable_
 
 elab "proveDifferentiable" : tactic => do
-    evalTactic $ ← `(tactic| repeat proveDifferentiable_helper_tac)
+    -- evalTactic $ ← `(tactic| repeat proveDifferentiable_helper_tac)
+    let f := fun _ => do proveDifferentiableCore; return []
+    setGoals (← Meta.repeat' f (← getGoals))
 
 -- meta def simplify_grad : tactic unit := simplify_grad_core (repeat $ prove_preconditions_core <|> prove_differentiable_core)
 
