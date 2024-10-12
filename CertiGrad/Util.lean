@@ -540,8 +540,10 @@ inductive elem_at_idx {X : Type} : (xs : List X) →  (idx : Nat) → (x : X) �
 -- exact IH
 -- end
 
--- theorem at_idx_over {X : Type} [Inhabited X] {xs : List X} {idx : Nat} {x : X} : at_idx xs idx x → ¬ (idx < length xs) → false :=
--- assume H_at_idx H_idx_big, H_idx_big H_at_idx^.left
+theorem at_idx_over {X : Type} [Inhabited X] {xs : List X} {idx : Nat} {x : X} : at_idx xs idx x → ¬ (idx < xs.length) → false := by
+  intro H_at_idx H_idx_big
+  have H := H_idx_big H_at_idx.left
+  contradiction
 
 -- instance decidable_at_idx {α : Type*} [decidable_eq α] [Inhabited α] (xs : List α) (idx : Nat) (x : α) : decidable (at_idx xs idx x) :=
 -- if H : idx < length xs ∧ x = dnth xs idx then decidable.is_true H else decidable.is_false H
