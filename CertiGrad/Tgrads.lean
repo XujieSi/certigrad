@@ -399,40 +399,52 @@ partial def computeOuterInnerFunctionsCore (x : Expr) : Expr → Expr → Tactic
     -- e.g.,  f = @T.prod
     let f := e.getAppFn
     -- e.g., {shape : S} → T shape → TReal
-    -- let f_type ← inferType f
+    let f_type ← inferType f
     -- e.g., [ishape, large_body_expr]
     let args := e.getAppArgs'
     let n := args.size
     -- interesting finding: syntax `match` is actually a function
     -- logInfo m!"f:={f}\nf_type:={f_type}\nargs:={args}\nn:={n}"
 
+    if n <= 0 then
+      throwError "Expression has zero arguments"
+
     if n <= 1 then
-      -- return k
-      throwError "Expression does not have enough arguments"
+      -- the right thing to do is constructing a k with single parameter
+      let barg := args.get! (n-1)
+      if barg == x then return k
+      else
+        let barg_type ← inferType barg
+        let h := (has_x x barg)
+        if h = some true then
+          computeOuterInnerFunctionsCore x (mkLambda `x BinderInfo.default barg_type (Expr.app k (mkAppN f $ args.set! (n-1) (mkBVar 0)))) barg
+        else
+          throwError "Strange things happened, somehow x is not in e anymore"
 
-    let barg₁ := args.get! (n-2)
-    let barg₂ := args.get! (n-1)
-    -- logInfo m!"barg1:={barg₁}, barg2:={barg₂}"
-
-    let barg₁_type ← inferType barg₁
-    -- logInfo m!"barg₁_type:={barg₁_type}"
-    let barg₂_type ← inferType barg₂
-
-    -- logInfo m!"barg₁_type:={barg₁_type},  barg₂_type:={barg₂_type}"
-
-    let h1 := (has_x x barg₁)
-    let h2 := (has_x x barg₂)
-    -- logInfo m! "h1:={h1}, h2:={h2}"
-
-    if barg₁ == x || barg₂ == x then
-      return k
-    else if h1 = some true then
-      computeOuterInnerFunctionsCore x (mkLambda `x BinderInfo.default barg₁_type (Expr.app k (mkAppN f $ args.set! (n-2) (mkBVar 0)))) barg₁
-    else if h2 = some true then
-      computeOuterInnerFunctionsCore x (mkLambda `x BinderInfo.default barg₂_type (Expr.app k (mkAppN f $ args.set! (n-1) (mkBVar 0)))) barg₂
     else
-      -- return k
-      throwError "Variable not found"
+      let barg₁ := args.get! (n-2)
+      let barg₂ := args.get! (n-1)
+      -- logInfo m!"barg1:={barg₁}, barg2:={barg₂}"
+
+      let barg₁_type ← inferType barg₁
+      -- logInfo m!"barg₁_type:={barg₁_type}"
+      let barg₂_type ← inferType barg₂
+
+      -- logInfo m!"barg₁_type:={barg₁_type},  barg₂_type:={barg₂_type}"
+
+      let h1 := (has_x x barg₁)
+      let h2 := (has_x x barg₂)
+      -- logInfo m! "h1:={h1}, h2:={h2}"
+
+      if barg₁ == x || barg₂ == x then
+        return k
+      else if h1 = some true then
+        computeOuterInnerFunctionsCore x (mkLambda `x BinderInfo.default barg₁_type (Expr.app k (mkAppN f $ args.set! (n-2) (mkBVar 0)))) barg₁
+      else if h2 = some true then
+        computeOuterInnerFunctionsCore x (mkLambda `x BinderInfo.default barg₂_type (Expr.app k (mkAppN f $ args.set! (n-1) (mkBVar 0)))) barg₂
+      else
+        -- return k
+        throwError "Variable not found"
 
 /-
 grad is in the form of: `T.is_cdifferentiable f val`
@@ -480,6 +492,7 @@ partial def computeOuterInnerFunctions (grad : Expr) : TacticM Expr := do
 
   -- Note: `<|>` prevents logInfo message of computeOuterInnerFunctionsCore
   -- being printed if any error happens inside
+  -- `<|>` is solelyfor handling the case f is identity function
   computeOuterInnerFunctionsCore x initialK body <|> return initialK
 
 /-
@@ -842,7 +855,6 @@ def proveDifferentiableCore (tid : MVarId): TacticM (List MVarId) := do
 
   let candidate_exprs : List (MetaM Expr) := [
     (mkAppM ``certigrad.T.is_cdifferentiable_id #[]),
-    (mkAppM ``certigrad.T.is_cdifferentiable_add₂ #[k]),
     (mkAppM ``certigrad.T.is_cdifferentiable_const #[]),
     (mkAppM ``certigrad.T.is_cdifferentiable_exp #[k]),
     (mkAppM ``certigrad.T.is_cdifferentiable_log #[k]),
@@ -908,6 +920,9 @@ elab "proveDifferentiable" : tactic => do
     -- logInfo m!"number of goals {(← getGoals).length}"
     -- evalTactic $ ← `(tactic| repeat proveDifferentiable_helper_tac)
 
+    /-
+      for debuging
+    -/
     -- let mvarIds ←  proveDifferentiableCore (← getMainGoal)
     -- logInfo m!"mvarIds: {mvarIds}"
     -- replaceMainGoal mvarIds
