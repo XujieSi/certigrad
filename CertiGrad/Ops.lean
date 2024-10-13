@@ -141,27 +141,59 @@ set_option trace.Elab.definition true
 -- (kernel) declaration has metavariables 'certigrad.ops.scale.f_odiff'
 -- https://leanprover-community.github.io/archive/stream/270676-lean4/topic/(kernel).20declaration.20has.20metavariables.html
 
-lemma f_odiff (α : TReal) {shape : S} : is_odifferentiable (@f α shape) (@f_pre shape)
+lemma f_odiff (α : TReal) {shape : S} : is_odifferentiable (@f α shape) (@f_pre shape) := by
+
+  unfold is_odifferentiable
+  intro xs H_pre idx fshape H_at_idx k H_k
+  cases xs
+  case dcons h tl =>
+    cases tl
+    simp at H_k
+    cases idx
+    case zero =>
+      -- simp
+      obtain ⟨left, right⟩ := H_at_idx
+      simp [dnth] at right
+      have H_fshape_eq : fshape = shape := right
+      rw [H_fshape_eq]
+      simp
+      proveDifferentiable
+      apply certigrad.T.is_cdifferentiable_scale
+      assumption
+    case dnil.succ n =>
+      have H_False : False := at_idx_over H_at_idx (by simp)
+      contradiction
+
+-- (kernel) declaration has metavariables 'certigrad.ops.scale.f_odiff2'
+-- the problem may be due to the use of pattern match
+-- if we do not use `proveDifferentiable`, it works properly
+-- a bug in `proveDifferentiable`??
+lemma f_odiff2 (α : TReal) {shape : S} : is_odifferentiable (@f α shape) (@f_pre shape)
 | ⟦x⟧, H_pre, 0, fshape, H_at_idx, k, H_k => by -- prove_odiff
-
-  -- have H_fshape_eq : fshape = shape := H_at_idx.right
-
-  -- have H2 : @at_idx (X := S) _ [shape] 0 fshape := H_at_idx
+  -- intro H_at_idx k H_k
+  -- -- have H2 : @at_idx (X := S) _ [shape] 0 fshape := H_at_idx
   obtain ⟨left, right⟩ := H_at_idx
   simp [dnth] at right
-
-  -- have H_fshape_eq : fshape = shape := right
-  -- subst H_fshape_eq
-  -- rw [H_fshape_eq]
   rw [right]
+
+  -- have H_fshape_eq : fshape = shape := H_at_idx.right
+  -- -- subst H_fshape_eq
+  -- rw [H_fshape_eq]
   simp
-  proveDifferentiable
+
+  -- proveDifferentiable
+  -- why proveDifferentiable is not effective here?
+  -- but effective when using full pattern match??
+  apply certigrad.T.is_cdifferentiable_scale; assumption
 
 | ⟦x⟧, H_pre, (n+1), fshape, H_at_idx, k, H_k => by -- idx_over
+  -- intro H_at_idx k H_k
+
   have H_False : False := at_idx_over H_at_idx (by simp)
   contradiction
+-- | xs, H_pre, n, fshape, H_at_idx, k, H_k => sorry
 
-#print f_odiff
+#print f_odiff2
 
 lemma f_pb_correct (α : TReal) {shape : S} : pullback_correct (@f α shape) (@f_pre shape) (@f_pb α shape)
 | ⟦x⟧, y, H_y, g_out, 0, fshape, H_at_idx, H_pre => by prove_pb_correct
