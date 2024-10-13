@@ -117,16 +117,19 @@ end pre
 
 namespace pdiff
 
-
 def mvn (shape : S) : pdf_cdiff (pdf.mvn shape) (pre.mvn shape)
 | ⟦μ, σ⟧, x, 0, ishape, H_at_idx, H_pre => by
   clear mvn
   -- the error message does not really affect the proof
   -- the placeholder seems to be X : Type, which should be S
   -- the error message is perahps a false warning
-  have H_ishape_eq := H_at_idx.right -- : Eq (α := S) ishape (dnth [shape, shape] 0)
-  simp [util_list.dnth] at H_ishape_eq
-  subst H_ishape_eq
+  -- have H_ishape_eq :  Eq (α := S) ishape shape := H_at_idx.right -- : Eq (α := S) ishape (dnth [shape, shape] 0)
+  -- simp [util_list.dnth] at H_ishape_eq
+  -- subst H_ishape_eq
+  obtain ⟨left, right⟩ := H_at_idx
+  simp [dnth] at right
+  subst right
+
   dsimp [dvec.update_at, dvec.get]
   simp
   unfold pdf.mvn T.mvn_pdf
@@ -145,7 +148,10 @@ def mvn (shape : S) : pdf_cdiff (pdf.mvn shape) (pre.mvn shape)
   -- we need to figure out k (the structure of wrapping up the internal x - θ₀)
   -- apply T.is_cdifferentiable_sub₂ (x₁ := x)
   -- apply T.is_cdifferentiable_prod
-  proveDifferentiable
+
+  -- apply T.is_cdifferentiable_sub₂ (x₁ := x)
+
+  repeat proveDifferentiable
 
   -- proveDifferentiable
   -- proveDifferentiable
@@ -156,12 +162,13 @@ def mvn (shape : S) : pdf_cdiff (pdf.mvn shape) (pre.mvn shape)
   -- proveDifferentiable
   -- proveDifferentiable
 
-  -- apply T.is_cdifferentiable_id
+  apply T.is_cdifferentiable_id
 
 | ⟦μ, σ⟧, x, 1, ishape, H_at_idx, H_pre => by
   have H_σ₂ : T.square σ > 0 := by apply T.square_pos_of_pos H_pre
   have H_inv : T.sqrt (2 * T.pi shape * T.square σ) > 0 := by apply T.sqrt_pos (T.mul_pos_of_pos_pos (T.mul_pos_of_pos_pos T.two_pos T.pi_pos) H_σ₂)
   clear mvn
+
   let H_ishape_eq := H_at_idx.right
   simp [util_list.dnth] at H_ishape_eq
   rw [H_ishape_eq]
@@ -172,26 +179,37 @@ def mvn (shape : S) : pdf_cdiff (pdf.mvn shape) (pre.mvn shape)
 
   simp
   apply T.is_cdifferentiable_binary (λ θ₁ θ₂ => T.prod ((T.sqrt (2 * T.pi shape * T.square θ₁))⁻¹ * T.exp (- (2⁻¹ * T.square ((x - μ) / θ₂)))))
-  proveDifferentiable
-  -- assumption
-  -- proveDifferentiable
-  -- assumption
-  -- proveDifferentiable
+  repeat proveDifferentiable
 
+  assumption
+  repeat proveDifferentiable
+  apply T.is_cdifferentiable_id
+
+  repeat proveDifferentiable
+  assumption
+
+  repeat proveDifferentiable
+  apply T.is_cdifferentiable_id
 
 -- | ⟦μ, σ⟧ x (n+2) ishape H_at_idx H_pre := false.rec _ (util_list.at_idx_over H_at_idx (by tactic.dec_triv))
 
+-- #print mvn -- mvn is not proved yet, as the body contains `sorryAx`
+#print mvn
+
 def mvn_std (shape : S) : pdf_cdiff (pdf.mvn_std shape) (pre.mvn_std shape)
 | ⟦⟧, x, tgt, ishape, H_at_idx, H_pre => False.recOn _ (util_list.at_idx_over H_at_idx (by simp))
+
+#print mvn_std
 
 end pdiff
 
 namespace glogpdf
 
--- def mvn (shape : S) : grad_logpdf [shape, shape] shape
--- | ⟦μ, σ⟧, x, 0,     fshape => T.force (T.mvn_grad_logpdf_μ μ σ x) fshape
--- | ⟦μ, σ⟧, x, 1,     fshape => T.force (T.mvn_grad_logpdf_σ μ σ x) fshape
--- | ⟦μ, σ⟧, x, (n+2), fshape => T.error "mvn grad_logpdf: index too large"
+noncomputable
+def mvn (shape : S) : grad_logpdf [shape, shape] shape
+| ⟦μ, σ⟧, x, 0,     fshape => T.force (T.mvn_grad_logpdf_μ μ σ x) fshape
+| ⟦μ, σ⟧, x, 1,     fshape => T.force (T.mvn_grad_logpdf_σ μ σ x) fshape
+| ⟦μ, σ⟧, x, (n+2), fshape => T.error "mvn grad_logpdf: index too large"
 
 -- def mvn_std (shape : S) : grad_logpdf [] shape
 -- | ⟦⟧, x, idx, fshape => 0
