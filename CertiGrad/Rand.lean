@@ -151,7 +151,7 @@ def mvn (shape : S) : pdf_cdiff (pdf.mvn shape) (pre.mvn shape)
   -- apply T.is_cdifferentiable_prod
   -- apply T.is_cdifferentiable_sub₂ (x₁ := x)
 
-  repeat proveDifferentiable
+  proveDifferentiable
 
   -- apply T.is_cdifferentiable_id
 
@@ -172,13 +172,18 @@ def mvn (shape : S) : pdf_cdiff (pdf.mvn shape) (pre.mvn shape)
   apply T.is_cdifferentiable_binary (λ θ₁ θ₂ => T.prod ((T.sqrt (2 * T.pi shape * T.square θ₁))⁻¹ * T.exp (- (2⁻¹ * T.square ((x - μ) / θ₂)))))
 
   case a =>
-    repeat (first | proveDifferentiable | assumption)
+    proveDifferentiable
+    assumption
+
+    -- repeat (first | proveDifferentiable | assumption)
     -- assumption
     -- repeat proveDifferentiable
     -- apply T.is_cdifferentiable_id
 
   case a =>
-    repeat (first | proveDifferentiable | assumption)
+    proveDifferentiable
+    assumption
+    -- repeat (first | proveDifferentiable | assumption)
     -- repeat proveDifferentiable
     -- assumption
     -- repeat proveDifferentiable

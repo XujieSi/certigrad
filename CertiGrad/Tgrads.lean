@@ -360,7 +360,8 @@ section simplify_grad
 lemma id_rule {A : Type} (a : A) : id a = a := rfl
 
 -- withMainContext resolves unknown free variable error
-def reduceK (k : Expr) : TacticM Expr := withMainContext do
+-- Now reduceK is indirectly wrapped in tid.withcontex
+def reduceK (k : Expr) : TacticM Expr :=  do
   -- Create a SimpTheorems object
   let slss ← Meta.SimpTheorems.addConst {} `certigrad.T.id_rule
 
@@ -391,7 +392,8 @@ partial def has_x (x e : Expr) : Option Bool :=
 partial def computeOuterInnerFunctionsCore (x : Expr) : Expr → Expr → TacticM Expr :=
   λ k e =>
   -- withMainContext resolves the unknown free variables error in computeOuterInnerFunctionsCore
-   withMainContext do
+  --  withMainContext
+   do
     -- logInfo m!"computeOuterInnerFunctionsCore, x:={x}, k:={k}, e:={e}"
 
     -- e.g.,  f = @T.prod
@@ -794,7 +796,7 @@ def myFirstApply (tid : MVarId) (exprs : List (MetaM Expr)) : TacticM (List MVar
       -- logInfo m! "will try e:={e'}"
       let mvarIds ← tid.apply e'
       Term.synthesizeSyntheticMVarsNoPostponing
-      logInfo m!"myFirstApply, mvardIds: {mvarIds}"
+      -- logInfo m!"myFirstApply, mvardIds: {mvarIds}"
       return mvarIds
 
       -- let mvarIds ← (← getMainGoal).apply e'
@@ -829,10 +831,11 @@ def proveDifferentiableCore (tid : MVarId): TacticM (List MVarId) := do
   -- dbg_trace f!"dbg_trace: before calling computeK, grad := {grad}"
 
   -- computeK is essential since we have to find the proper wrapping structure
-  let k ← computeK grad
+
+  let k ← tid.withContext (computeK grad)
   -- let k := grad
   -- throwError "proveDiff failed 4"
-  Lean.logInfo m!"logInfo: done with computeK, k:=\n{k}"
+  -- Lean.logInfo m!"logInfo: done with computeK, k:=\n{k}"
 
   -- we shall change the state of MetaM to put k in the hypothesis, which can be referred later on
   -- https://leanprover-community.github.io/lean4-metaprogramming-book/main/09_tactics.html#tweaking-the-context
@@ -859,7 +862,7 @@ def proveDifferentiableCore (tid : MVarId): TacticM (List MVarId) := do
     (mkAppM ``certigrad.T.is_cdifferentiable_sum #[k]),
     (mkAppM ``certigrad.T.is_cdifferentiable_prod #[k])
   ]
-  logInfo m!"constructed all candidates"
+  -- logInfo m!"constructed all candidates"
 
   myFirstApply tid candidate_exprs
 
@@ -899,23 +902,24 @@ def proveDifferentiableCore (tid : MVarId): TacticM (List MVarId) := do
 --     proveDifferentiable_
 
 elab "proveDifferentiable" : tactic => do
-    logInfo m!"proveDifferentiable is invoked"
-    logInfo m!"number of goals {(← getGoals).length}"
+    setGoals (← Meta.repeat' proveDifferentiableCore (← getGoals))
+
+    -- logInfo m!"proveDifferentiable is invoked"
+    -- logInfo m!"number of goals {(← getGoals).length}"
     -- evalTactic $ ← `(tactic| repeat proveDifferentiable_helper_tac)
 
-    let mvarIds ←  proveDifferentiableCore (← getMainGoal)
-    logInfo m!"mvarIds: {mvarIds}"
-    replaceMainGoal mvarIds
+    -- let mvarIds ←  proveDifferentiableCore (← getMainGoal)
+    -- logInfo m!"mvarIds: {mvarIds}"
+    -- replaceMainGoal mvarIds
 
     -- let f := fun tid => do
-    --   logInfo m! "f is called once"
-    --   let res ← (proveDifferentiableCore tid)
-    --   logInfo m! "res length: {res.length}"
-    --   return res
+      -- logInfo m! "one iteration of proveDifferentiable"
+      -- let res ← (proveDifferentiableCore tid)
+      -- logInfo m! "res length: {res.length}"
+      -- return res
 
-    --   return []
-    --   -- return [] is perhaps buggy, which incorrectly close the main goal
-    --   -- return []
+      -- `return []` is buggy, which incorrectly close the main goal
+      -- return []
     -- setGoals (← Meta.repeat' f (← getGoals))
 
 -- meta def simplify_grad : tactic unit := simplify_grad_core (repeat $ prove_preconditions_core <|> prove_differentiable_core)
