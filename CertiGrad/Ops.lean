@@ -22,55 +22,85 @@ open T util_list
 namespace ops
 
 section tactic
-open tactic
+
+-- open tactic
 
 -- meta def idx_over :TacticM Unit :=
 -- do exfalso, to_expr ```(at_idx_over H_at_idx dec_trivial) >>= exact
 
-def idx_over :TacticM Unit := sorry
+def idxOver : TacticM Unit := do
+  sorry
 
-meta def simp_simple :TacticM Unit :=
-do s₀ ← simp_lemmas.mk_default,
-   s ← return $ simp_lemmas.erase s₀ $ [`add_comm, `add_left_comm, `mul_comm, `mul_left_comm],
-   simplify_goal s {} >> try triv >> try (reflexivity reducible)
+elab "idx_over" : tactic => do idxOver
 
-meta def prove_odiff :TacticM Unit :=
-do get_local `f_odiff >>= clear,
-   to_expr ```(shape = fshape) >>= λ ty, to_expr ```(eq.symm H_at_idx.right) >>= λ val, assertv `H_fshape_eq ty val,
-   get_local `H_fshape_eq >>= subst,
-   dunfold [`certigrad.det.is_odifferentiable],
-   try simp_simple,
-   try dsimp,
-   prove_differentiable
+-- meta def simp_simple :TacticM Unit :=
+-- do s₀ ← simp_lemmas.mk_default,
+--    s ← return $ simp_lemmas.erase s₀ $ [`add_comm, `add_left_comm, `mul_comm, `mul_left_comm],
+--    simplify_goal s {} >> try triv >> try (reflexivity reducible)
 
-meta def prove_pb_correct_init :TacticM Unit :=
-do get_local `f_pb_correct >>= clear,
-   to_expr ```(shape = fshape) >>= λ ty, to_expr ```(eq.symm H_at_idx.right) >>= λ val, assertv `H_fshape_eq ty val,
-   get_local `H_fshape_eq >>= subst,
-   to_expr ```(T shape → TReal) >>= λ ty, to_expr ```(λ (z : T shape), T.dot z g_out) >>= definev `k ty,
-   to_expr ```(∇ k y = g_out) >>= assert `H_k_grad, dsimp, rewrite `certigrad.T.grad_dot₁,
-   get_local `H_k_grad >>= rewrite_core reducible tt tt occurrences.all tt,
-   get_local `H_y >>= subst
+def simpSimple : TacticM Unit := do
+  sorry
 
-meta def prove_pb_correct :TacticM Unit :=
-do prove_pb_correct_init,
-   try simp_simple,
-   try dsimp,
-   mk_const `certigrad.T.grad_tmulT >>= rewrite_core reducible tt tt occurrences.all tt,
-   simplify_grad,
-   try simp,
-   try reflexivity
+elab "simp_simple" : tactic => do simpSimple
 
-meta def prove_ocont_init :TacticM Unit :=
-do get_local `f_ocont >>= clear,
-   to_expr ```(shape = ishape) >>= λ ty, to_expr ```(eq.symm H_at_idx.right) >>= λ val, assertv `H_ishape_eq ty val,
-   get_local `H_ishape_eq >>= subst,
-   try simp_simple,
-   try dsimp
+-- meta def prove_odiff :TacticM Unit :=
+-- do get_local `f_odiff >>= clear,
+--    to_expr ```(shape = fshape) >>= λ ty, to_expr ```(eq.symm H_at_idx.right) >>= λ val, assertv `H_fshape_eq ty val,
+--    get_local `H_fshape_eq >>= subst,
+--    dunfold [`certigrad.det.is_odifferentiable],
+--    try simp_simple,
+--    try dsimp,
+--    prove_differentiable
 
-meta def prove_ocont :TacticM Unit :=
-do prove_ocont_init,
-   repeat (prove_continuous_core <|> prove_preconditions_core)
+def proveODiff : TacticM Unit := do sorry
+
+elab "prove_odiff" : tactic => do proveODiff
+
+-- meta def prove_pb_correct_init :TacticM Unit :=
+-- do get_local `f_pb_correct >>= clear,
+--    to_expr ```(shape = fshape) >>= λ ty, to_expr ```(eq.symm H_at_idx.right) >>= λ val, assertv `H_fshape_eq ty val,
+--    get_local `H_fshape_eq >>= subst,
+--    to_expr ```(T shape → TReal) >>= λ ty, to_expr ```(λ (z : T shape), T.dot z g_out) >>= definev `k ty,
+--    to_expr ```(∇ k y = g_out) >>= assert `H_k_grad, dsimp, rewrite `certigrad.T.grad_dot₁,
+--    get_local `H_k_grad >>= rewrite_core reducible tt tt occurrences.all tt,
+--    get_local `H_y >>= subst
+
+def provePbCorrectInit : TacticM Unit := do sorry
+
+elab "prove_pb_correct_init" : tactic => do provePbCorrectInit
+
+-- meta def prove_pb_correct :TacticM Unit :=
+-- do prove_pb_correct_init,
+--    try simp_simple,
+--    try dsimp,
+--    mk_const `certigrad.T.grad_tmulT >>= rewrite_core reducible tt tt occurrences.all tt,
+--    simplify_grad,
+--    try simp,
+--    try reflexivity
+
+def provePbCorrect :TacticM Unit := do sorry
+
+elab "prove_pb_correct" : tactic => do provePbCorrect
+
+#print provePbCorrect
+
+-- meta def prove_ocont_init :TacticM Unit :=
+-- do get_local `f_ocont >>= clear,
+--    to_expr ```(shape = ishape) >>= λ ty, to_expr ```(eq.symm H_at_idx.right) >>= λ val, assertv `H_ishape_eq ty val,
+--    get_local `H_ishape_eq >>= subst,
+--    try simp_simple,
+--    try dsimp
+
+def proveOContInit :TacticM Unit := do sorry
+elab "prove_ocont_init" : tactic => do proveOContInit
+
+
+-- meta def prove_ocont :TacticM Unit :=
+-- do prove_ocont_init,
+--    repeat (prove_continuous_core <|> prove_preconditions_core)
+
+def proveOCont :TacticM Unit := do sorry
+elab "prove_ocont" : tactic => do proveOCont
 
 end tactic
 
@@ -78,23 +108,68 @@ open det
 
 namespace scale
 
+noncomputable
 def f (α : TReal) {shape : S} (xs : Dvec T [shape]) : T shape := α • xs.head
-def f_pre {shape : S} : precondition [shape] := λ xs, true
+def f_pre {shape : S} : precondition [shape] := λ xs => True
+
+noncomputable
 def f_pb (α : TReal) {shape : S} (xs : Dvec T [shape]) (y gy : T shape) (idx : ℕ) (fshape : S) : T fshape := force (α • gy) fshape
 
 attribute [simp] f f_pre f_pb
 
+/-
+noncomputable
+def is_odifferentiable {ishapes : List S} {oshape : S} (f : Dvec T ishapes → T oshape) (f_pre : Dvec T ishapes → Prop) : Prop :=
+    ∀ (xs : Dvec T ishapes), f_pre xs →
+    ∀ (idx : Nat) (fshape : S), at_idx ishapes idx fshape →
+    ∀ (k : T oshape → TReal), is_cdifferentiable k (f xs) → is_cdifferentiable (λ θ₀ => k (f $ update_at θ₀ xs idx)) (get fshape _ xs idx)
+
+-/
+
+-- def at_idx {X : Type} [Inhabited X] (xs : List X) (idx : Nat) (x : X) : Prop :=
+
+-- #print inferInstance
+
+-- instance ins_S : Inhabited S where
+--   default := []
+
+-- #check ins_S
+
+set_option trace.Elab.definition true
+-- set_option pp.all true
+
+-- (kernel) declaration has metavariables 'certigrad.ops.scale.f_odiff'
+-- https://leanprover-community.github.io/archive/stream/270676-lean4/topic/(kernel).20declaration.20has.20metavariables.html
+
 lemma f_odiff (α : TReal) {shape : S} : is_odifferentiable (@f α shape) (@f_pre shape)
-| ⟦x⟧ H_pre 0 fshape H_at_idx k H_k => by prove_odiff
-| ⟦x⟧ H_pre (n+1) fshape H_at_idx k H_k => by idx_over
+| ⟦x⟧, H_pre, 0, fshape, H_at_idx, k, H_k => by -- prove_odiff
+
+  -- have H_fshape_eq : fshape = shape := H_at_idx.right
+
+  -- have H2 : @at_idx (X := S) _ [shape] 0 fshape := H_at_idx
+  obtain ⟨left, right⟩ := H_at_idx
+  simp [dnth] at right
+
+  -- have H_fshape_eq : fshape = shape := right
+  -- subst H_fshape_eq
+  -- rw [H_fshape_eq]
+  rw [right]
+  simp
+  proveDifferentiable
+
+| ⟦x⟧, H_pre, (n+1), fshape, H_at_idx, k, H_k => by -- idx_over
+  have H_False : False := at_idx_over H_at_idx (by simp)
+  contradiction
+
+#print f_odiff
 
 lemma f_pb_correct (α : TReal) {shape : S} : pullback_correct (@f α shape) (@f_pre shape) (@f_pb α shape)
-| ⟦x⟧ y H_y g_out 0 fshape H_at_idx H_pre => by prove_pb_correct
-| xs y H_y g_out (n+1) fshape H_at_idx H_pre => by idx_over
+| ⟦x⟧, y, H_y, g_out, 0, fshape, H_at_idx, H_pre => by prove_pb_correct
+| xs, y, H_y, g_out, (n+1), fshape, H_at_idx, H_pre => by idx_over
 
 lemma f_ocont (α : TReal) {shape : S} : is_ocontinuous (@f α shape) (@f_pre shape)
-| ⟦x⟧ 0 ishape H_at_idx H_pre => by prove_ocont
-| ⟦x⟧ (n+1) ishape H_at_idx H_pre => by idx_over
+| ⟦x⟧, 0, ishape, H_at_idx, H_pre => by prove_ocont
+| ⟦x⟧, (n+1), ishape, H_at_idx, H_pre => by idx_over
 
 end scale
 
@@ -104,6 +179,7 @@ det.op.mk "scale" (f α) f_pre (f_pb α) (f_odiff α) (f_pb_correct α) (f_ocont
 
 end
 
+/-
 namespace neg
 
 def f {shape : S} (xs : Dvec T [shape]) : T shape := - xs.head
@@ -741,6 +817,9 @@ open bernoulli_neglogpdf
 def bernoulli_neglogpdf (shape : S) : det.op [shape, shape] [] :=
 det.op.mk "bernoulli_neglogpdf" f f_pre f_pb f_odiff f_pb_correct f_ocont
 end
+
+-/
+
 
 end ops
 
