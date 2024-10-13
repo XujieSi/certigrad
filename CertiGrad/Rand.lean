@@ -146,23 +146,14 @@ def mvn (shape : S) : pdf_cdiff (pdf.mvn shape) (pre.mvn shape)
   -- given: (fun θ₀ => ((2 * T.pi ishape * σ.square).sqrt⁻¹ * (-(2⁻¹ * ((x - θ₀) / σ).square)).exp).prod)
   -- to use T.is_cdifferentiable_sub₂
   -- we need to figure out k (the structure of wrapping up the internal x - θ₀)
+
   -- apply T.is_cdifferentiable_sub₂ (x₁ := x)
   -- apply T.is_cdifferentiable_prod
-
   -- apply T.is_cdifferentiable_sub₂ (x₁ := x)
 
   repeat proveDifferentiable
 
-  -- proveDifferentiable
-  -- proveDifferentiable
-  -- proveDifferentiable
-  -- proveDifferentiable
-  -- proveDifferentiable
-  -- proveDifferentiable
-  -- proveDifferentiable
-  -- proveDifferentiable
-
-  apply T.is_cdifferentiable_id
+  -- apply T.is_cdifferentiable_id
 
 | ⟦μ, σ⟧, x, 1, ishape, H_at_idx, H_pre => by
   have H_σ₂ : T.square σ > 0 := by apply T.square_pos_of_pos H_pre
@@ -179,17 +170,19 @@ def mvn (shape : S) : pdf_cdiff (pdf.mvn shape) (pre.mvn shape)
 
   simp
   apply T.is_cdifferentiable_binary (λ θ₁ θ₂ => T.prod ((T.sqrt (2 * T.pi shape * T.square θ₁))⁻¹ * T.exp (- (2⁻¹ * T.square ((x - μ) / θ₂)))))
-  repeat proveDifferentiable
 
-  assumption
-  repeat proveDifferentiable
-  apply T.is_cdifferentiable_id
+  case a =>
+    repeat (first | proveDifferentiable | assumption)
+    -- assumption
+    -- repeat proveDifferentiable
+    -- apply T.is_cdifferentiable_id
 
-  repeat proveDifferentiable
-  assumption
-
-  repeat proveDifferentiable
-  apply T.is_cdifferentiable_id
+  case a =>
+    repeat (first | proveDifferentiable | assumption)
+    -- repeat proveDifferentiable
+    -- assumption
+    -- repeat proveDifferentiable
+    -- apply T.is_cdifferentiable_id
 
 -- | ⟦μ, σ⟧ x (n+2) ishape H_at_idx H_pre := false.rec _ (util_list.at_idx_over H_at_idx (by tactic.dec_triv))
 
