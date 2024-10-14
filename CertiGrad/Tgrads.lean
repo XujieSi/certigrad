@@ -412,6 +412,7 @@ partial def computeOuterInnerFunctionsCore (x : Expr) : Expr → Expr → Tactic
     if n <= 1 then
       -- the right thing to do is constructing a k with single parameter
       let barg := args.get! (n-1)
+      -- logInfo m! "barg={barg}"
       if barg == x then return k
       else
         let barg_type ← inferType barg
@@ -797,7 +798,7 @@ def checkIsCDifferentiable (e : Expr) : TacticM Expr := do
 --         , to_expr ``(T.is_cdifferentiable_gemm₂ %%k) >>= apply
 -- ]
 
-def myFirstApply (tid : MVarId) (exprs : List (MetaM Expr)) : TacticM (List MVarId) := do
+def myFirstApply (tid : MVarId) (exprs : List (MetaM Expr)) : TacticM (List MVarId) := tid.withContext do
   -- logInfo m!"myFirstApply is invoked, exprs.length={exprs.length}"
   match exprs with
   | [] => --pure []
@@ -816,7 +817,7 @@ def myFirstApply (tid : MVarId) (exprs : List (MetaM Expr)) : TacticM (List MVar
       -- Term.synthesizeSyntheticMVarsNoPostponing
       -- replaceMainGoal mvarIds
     catch ex =>
-      -- logInfo m!"ex:={ex.toMessageData}"
+      -- logInfo m!"myFirstApply, ex:={ex.toMessageData}"
       myFirstApply tid es
   -- assume exprs consists of a list of App Exprs
 
@@ -846,9 +847,11 @@ def proveDifferentiableCore (tid : MVarId): TacticM (List MVarId) := do
   -- computeK is essential since we have to find the proper wrapping structure
 
   let k ← tid.withContext (computeK grad)
-  -- let k := grad
-  -- throwError "proveDiff failed 4"
-  -- Lean.logInfo m!"logInfo: done with computeK, k:=\n{k}"
+
+  -- without `tid.withContext` wrapper, internal `k` is not displayed properly (@_fvar.5029)
+  -- e.g., k:= fun x => @_fvar.5029 x
+  -- tid.withContext do
+  --   Lean.logInfo m!"logInfo: done with computeK, k:=\n{k}"
 
   -- we shall change the state of MetaM to put k in the hypothesis, which can be referred later on
   -- https://leanprover-community.github.io/lean4-metaprogramming-book/main/09_tactics.html#tweaking-the-context
