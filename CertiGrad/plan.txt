@@ -38,3 +38,6 @@
      741 ops.lean   <--- g1: can be done in parallel with rand.lean, also depends on Tgrad TacticM (e.g., prove_differentiable)
      268 rand.lean  <--- current target, which depends on Tgrads TacticM funcs
    10031 total
+
+Lean3/mathlib3 documentation: https://leanprover-community.github.io/mathlib_docs/tactic/core.html
+Lean4/mathlib4 documentation: https://leanprover-community.github.io/mathlib4_docs/Lean/Elab/Tactic/Basic.html
