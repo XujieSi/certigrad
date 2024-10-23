@@ -7,12 +7,12 @@ RUN ["apt-get", "upgrade", "-y"]
 
 RUN ["apt-get", "install", "-y", "g++", "git", "cmake", "libgmp-dev", "wget"]
 
-RUN ["wget", "https://bitbucket.org/eigen/eigen/get/3.3.7.tar.gz"]
-RUN ["tar", "-xzvf", "3.3.7.tar.gz"]
+RUN ["wget", "https://gitlab.com/libeigen/eigen/-/archive/3.3.7/eigen-3.3.7.tar.gz"]
+RUN ["tar", "-xzvf", "eigen-3.3.7.tar.gz"]
 
-WORKDIR /app/eigen-eigen-323c052e1731
+WORKDIR /app/eigen-3.3.7
 RUN ["mkdir", "build"]
-WORKDIR /app/eigen-eigen-323c052e1731/build
+WORKDIR /app/eigen-3.3.7/build
 RUN ["cmake", ".."]
 RUN ["make", "install"]
 
