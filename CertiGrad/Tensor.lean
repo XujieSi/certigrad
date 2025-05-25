@@ -85,7 +85,7 @@ noncomputable instance {shape : S} : Inv (T shape) where
 
 -- noncomputable instance (shape : S) : OfNat (T shape) 0 := ⟨T.zero shape⟩
 -- noncomputable instance (shape : S) : OfNat (T shape) 1 := ⟨T.one shape⟩
--- noncomputable instance  : OfNat (T []) n := ⟨T.of_nat n⟩
+-- noncomputable instance : OfNat (T []) n := ⟨T.of_nat n⟩
 
 
 def bit0 {α : Type u} [s₁ : Add α] (a  : α)             : α := a + a
@@ -342,7 +342,7 @@ noncomputable def mvn_pdf {shape : S} (μ σ x : T shape) : TReal :=
 
 -- mvn means multivariate normal distribution (aka multivariate Gaussian distribution)
 noncomputable def mvn_logpdf {shape : S} (μ σ x : T shape) : TReal :=
-  (- 2⁻¹) * sum (square ((x - μ) / σ) + log (2 * pi shape) + log (square σ))
+  (-2⁻¹) * sum (square ((x - μ) / σ) + log ( 2 * pi shape) + log (square σ))
 
 -- (- 2⁻¹) * sum (square ((x - μ) / σ) + log (2 • pi shape) + log (square σ))
 

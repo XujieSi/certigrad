@@ -133,7 +133,7 @@ lemma id_rule {A : Type} (a : A) : id a = a := rfl
 
 -- withMainContext resolves unknown free variable error
 -- Now reduceK is indirectly wrapped in tid.withcontex
-def reduceK (k : Expr) : TacticM Expr :=  do
+def reduceK (k : Expr) : MetaM Expr :=  do
   -- Create a SimpTheorems object
   let slss ← Meta.SimpTheorems.addConst {} `certigrad.T.id_rule
 
@@ -161,7 +161,7 @@ partial def has_x (x e : Expr) : Option Bool :=
   - e is the body `... (new_x op y) ...`
 -/
 
-partial def computeOuterInnerFunctionsCore (x : Expr) : Expr → Expr → TacticM Expr :=
+partial def computeOuterInnerFunctionsCore (x : Expr) : Expr → Expr → MetaM Expr :=
   λ k e =>
   -- withMainContext resolves the unknown free variables error in computeOuterInnerFunctionsCore
   --  withMainContext
@@ -226,7 +226,7 @@ where f is (fun x => ... (x op y) ...)
 the goal is to find `k := (fun v => ... v ...)` such that f = `fun x => k (x op y)`
 -/
 
-partial def computeOuterInnerFunctions (grad : Expr) : TacticM Expr := do
+partial def computeOuterInnerFunctions (grad : Expr) : MetaM Expr := do
   -- let f := grad.getAppFn'
   -- logInfo m!"args := {args}"
   -- let f : Expr := if h : f0.isApp then f0.appArg h else f0
@@ -261,6 +261,7 @@ partial def computeOuterInnerFunctions (grad : Expr) : TacticM Expr := do
   -- initialK is simply an identity function: λ x => x
   -- `bvar 0` is de Bruin index
   let initialK := mkLambda `x BinderInfo.default bodyType (mkBVar 0)
+
   -- logInfo m!"initialK:={initialK}"
 
   -- Note: `<|>` prevents logInfo message of computeOuterInnerFunctionsCore
@@ -282,7 +283,7 @@ original function is equivalent to: fun θ₀ => k (x - θ₀)
 
 -/
 
-def computeK (grad : Expr) : TacticM Expr := do
+def computeK (grad : Expr) : MetaM Expr := do
   let k ← computeOuterInnerFunctions grad
   -- logInfo m!"after outer-inner, k = {k}"
 
@@ -300,7 +301,8 @@ def computeK (grad : Expr) : TacticM Expr := do
 -- meta def check_grad (e : expr) : tactic expr :=
 -- if is_napp_of e `certigrad.T.grad 3 then head_eta_expand e else tactic.fail "not ∇"
 
-def checkGrad (e : Expr) : TacticM Expr :=do
+def checkGrad (e : Expr) : MetaM Expr :=do
+  logInfo m!"checkGrad is invoked, exprs.length={e}"
   if e.isAppOfArity `certigrad.T.grad 3 then
     -- In Lean3 implementation, `head_eta_expand e` is returned
     -- but there seems no similar API (e.g., headEtaExpansion) in Lean4
@@ -368,86 +370,7 @@ def tryAddSimp (s : SimpTheorems) (p : Syntax) : TacticM SimpTheorems := do
 --    return s
 
 
-def buildSimplifyGradSimpLemmas (k : Expr) : TacticM SimpTheorems := do
-  -- List of expressions to elaborate
-  -- let dbg1 : Syntax := `(certigrad.T.grad_sum )
 
-  let exprs : List (TacticM (TSyntax `term)) :=
-    [ ``(@certigrad.T.grad_const),
-      ``(@certigrad.T.grad_id),
-      ``(certigrad.T.grad_exp $$k),
-      ``(certigrad.T.grad_log $$k),
-      ``(certigrad.T.grad_scale $$k),
-      ``(certigrad.T.grad_neg $$k),
-      ``(certigrad.T.grad_add₁ $$k),
-      ``(certigrad.T.grad_add₂ $$k),
-      ``(certigrad.T.grad_sub₁ $$k),
-      ``(certigrad.T.grad_sub₂ $$k),
-      ``(certigrad.T.grad_mul₁ $$k),
-      ``(certigrad.T.grad_mul₂ $$k),
-      ``(certigrad.T.grad_div₁ $$k),
-      ``(certigrad.T.grad_div₂ $$k),
-      ``(@certigrad.T.grad_dot₁),
-      ``(@certigrad.T.grad_dot₂),
-      ``(certigrad.T.grad_square $$k),
-      ``(certigrad.T.grad_sqrt $$k),
-      ``(certigrad.T.grad_softplus $$k),
-      ``(certigrad.T.grad_sigmoid $$k) ]
-
-  let exprs2 ←  Monad.sequence exprs
-  -- Convert the list of syntax to expressions
-  let es ← exprs2.mapM fun p => elabTerm p none
-
-  -- Create the initial SimpTheorems
-  let mut s := {}
-
-  -- Add each elaborated expression to SimpTheorems
-  for e in es do
-    s ← s.addConst e.constName!
-
-  -- These have shape requirements that may cause `elabTerm` to fail, use `tryAddSimp`
-  s ← tryAddSimp s (← ``(certigrad.T.grad_gemm₁ $$k))
-  s ← tryAddSimp s (← ``(certigrad.T.grad_gemm₂ $$k))
-  s ← tryAddSimp s (← ``(certigrad.T.grad_sum $$k))
-
---    -- These haven't been defined yet
---    s ← try_add_simp s ```(certigrad.T.grad_mvn_kl₁ %%k),
---    s ← try_add_simp s ```(certigrad.T.grad_mvn_kl₂ %%k),
---    s ← try_add_simp s ```(certigrad.T.grad_bernoulli_neglogpdf₁ %%k),
---    s ← try_add_simp s ```(certigrad.T.grad_bernoulli_neglogpdf₂ %%k),
-
-  s ← tryAddSimp s (← ``(@certigrad.T.grad_scale_f))
-
-  -- Return the final set of simplification lemmas
-  return s
-
-
--- old_conv definition in Lean 3
--- meta def old_conv (α : Type) : Type :=
--- name → expr → tactic (old_conv_result α)
--- According to the above, r refers to `name` and e refers to `expr`
--- the logic is to first check r is indeed `eq`
-
--- meta def simplify_grad_core_helper (tac : tactic unit) : conv unit :=
--- λ r e => do guard $ r = `eq,
---           grad ← check_grad e,
---           k ← compute_k grad,
---           s ← build_simplify_grad_simp_lemmas k,
---           conv.apply_lemmas_core reducible s tac r e
-
-def simplifyGradCoreHelper (tac : MetaM Unit) : TacticM Unit := do
-  let tag ← getMainTag
-  guard $ tag = `eq
-  let target ← getMainGoal
-  let grad ← checkGrad (← target.getType)
-  let k ← computeK grad
-  let s ← buildSimplifyGradSimpLemmas k
-
-  -- run the tac with newly added lemmas
-  -- s must be used, otherwise this function is meaningless
-  -- focus tac
-  -- withMainContext tac
-  Simp.withSimpContext { simpTheorems := #[s] } tac
 
 -- def simplifyGradCoreHelper (tac : TacticM Unit) : TacticM Unit := do
 --   -- Ensure we are working within an equation
@@ -573,8 +496,11 @@ def checkIsCDifferentiable (e : Expr) : TacticM Expr := do
 -- def proveDifferentiableCoreHelper (grad : Expr) : TacticM (List MVarId) := do
 
 def proveDifferentiableCore (tid : MVarId): TacticM (List MVarId) := do
+  logInfo m!"enter proveDifferentiableCore tid = [{tid}]"
   let tgt ←  instantiateMVars  (← tid.getType)
+  logInfo m!"tgt:={tgt}"
   let grad ← checkIsCDifferentiable tgt
+  logInfo m!"grad:={grad}"
 
   -- match stx with
   -- | `(tactic| apply $e) => evalApplyLikeTactic (·.apply) e
@@ -594,8 +520,9 @@ def proveDifferentiableCore (tid : MVarId): TacticM (List MVarId) := do
   -- dbg_trace f!"dbg_trace: before calling computeK, grad := {grad}"
 
   -- computeK is essential since we have to find the proper wrapping structure
-
+  logInfo m!"computeK: grad = {grad}"
   let k ← tid.withContext (computeK grad)
+  logInfo m!"computeK: k = {k}"
 
   -- without `tid.withContext` wrapper, internal `k` is not displayed properly (@_fvar.5029)
   -- e.g., k:= fun x => @_fvar.5029 x
@@ -633,12 +560,12 @@ def proveDifferentiableCore (tid : MVarId): TacticM (List MVarId) := do
     (mkAppM `certigrad.T.is_cdifferentiable_mvn_kl₁ #[k]),
     (mkAppM `certigrad.T.is_cdifferentiable_mvn_kl₂ #[k]),
     (mkAppM `certigrad.T.is_cdifferentiable_bernoulli_neglogpdf₁ #[k]),
-    (mkAppM `certigrad.T.is_cdifferentiable_bernoulli_neglogpdf₂ #[k]),
+    (mkAppM `certigrad.T.is_cdifferentiable_bsernoulli_neglogpdf₂ #[k]),
   ]
   -- logInfo m!"constructed all candidates"
-
+  logInfo m!"candidate_exprs: {tid}"
   myFirstApply tid candidate_exprs
-
+  -- logInfo m!"myFirstApply finished"
   -- logInfo m!"finished trying all candidates, with k:={k}"
   -- throwError "proveDiff failed 5"
 

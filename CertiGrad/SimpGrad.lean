@@ -8,7 +8,9 @@ import Mathlib.Algebra.Order.Ring.Defs
 import Mathlib.Tactic.Ring
 
 import Lean
-open Lean Elab Tactic Meta
+open Lean Elab Tactic Meta Simp
+
+
 namespace certigrad
 namespace T
 
@@ -19,8 +21,13 @@ open util_list
   is_cdifferentiable (λ θ₀ => k θ₀ θ) θ → is_cdifferentiable (λ θ₀ => k θ θ₀) θ →
   ∇ (λ θ₀ => k θ₀ θ₀) θ = ∇ (λ θ₀ => k θ₀ θ) θ + ∇ (λ θ₀ => k θ θ₀) θ
 
+
+
+
 @[grad_simp] axiom grad_tmulT {ishape oshape : S} : ∀ (f : T ishape → T oshape) (k : T oshape → TReal) (θ : T ishape),
   ∇ (λ θ₀ => k (f θ₀)) θ = tmulT (D (λ θ₀ => f θ₀) θ) (∇ k (f θ))
+
+
 
 -- @[grad_simp] axiom grad_chain_rule : ∀ {shape₁ shape₂ : S} (f : T shape₁ → T shape₂) (g : T shape₂ → TReal) (θ : T shape₁),
 --   ∇ (λ (θ₀ : T shape₁) => g (f θ₀)) θ = tmulT (D f θ) (∇ g (f θ))
@@ -44,23 +51,31 @@ open util_list
 @[grad_simp] axiom grad_const : ∀ {ishape : S} (θ : T ishape) (x : TReal), ∇ (λ (θ₀ : T ishape) => x) θ = 0
 @[grad_simp] axiom grad_id : ∀ (θ : TReal), ∇ (λ θ => θ) θ = (1 : TReal)
 
-axiom TReal_one : ∀ (θ : TReal), θ • 1 = θ
+@[grad_simp] axiom grad_id_D : ∀ (θ : TReal), D (λ θ => θ) θ = (1 : TReal)
+
+@[grad_simp] axiom TReal_one : ∀ (θ : TReal), θ • 1 = θ
 
 -- Unary
 @[grad_simp] axiom grad_exp {shape : S} (k : T shape → TReal) (θ : T shape) :
   ∇ (λ θ => k (exp θ)) θ = ∇ k (exp θ) * exp θ
 
+
+
 @[grad_simp] axiom grad_log {shape : S} (k : T shape → TReal) (θ : T shape) : θ > 0 →
   ∇ (λ θ => k (log θ)) θ = ∇ k (log θ) / θ
+
 
 @[grad_simp] axiom grad_sqrt {shape : S} (k : T shape → TReal) (θ : T shape) : θ > 0 →
   ∇ (λ θ => k (sqrt θ)) θ = ∇ k (sqrt θ) / (2 * sqrt θ)
 
+
 @[grad_simp] axiom grad_scale {shape : S} (k : T shape → TReal) (α : TReal) (x : T shape) :
   ∇ (λ x => k (α • x)) x = α • ∇ k (α • x)
 
-@[grad_simp] axiom grad_neg {shape : S} (k : T shape → TReal) (θ : T shape) :
+@[grad_simp] axiom grad_neg {shape : S} (k : T shape → TReal)(θ : T shape) :
   ∇ (λ θ => k (- θ)) θ = - (∇ k (- θ))
+
+
 
 -- Binary
 @[grad_simp] axiom grad_add₁ {shape : S} (k : T shape → TReal) (x₁ x₂ : T shape) :
@@ -85,7 +100,7 @@ axiom TReal_one : ∀ (θ : TReal), θ • 1 = θ
 -- would have `is_cdifferentiable k` as a pre-condition.
 -- It is safe to avoid that here because of the symmetry of the function.
 @[grad_simp] axiom grad_square {shape : S} (k : T shape → TReal) (x : T shape) :
-  ∇ (λ x => k (square x)) x = ∇ k (square x) * 2 * x
+  ∇ (λ x => k (square x)) x = ∇ k ((square x) * 2 * x)
 
 @[grad_simp] axiom grad_div₁ {shape : S} (k : T shape → TReal) (x₁ x₂ : T shape) : square x₂ > 0 →
   ∇ (λ x₁ => k (x₁ / x₂)) x₁ = ∇ k (x₁ / x₂) / x₂
@@ -180,9 +195,8 @@ axiom TReal_one : ∀ (θ : TReal), θ • 1 = θ
 --   simp
 --   apply mul_one
 
-lemma trivial_mul_one  (α : TReal) (shape : S): (const α shape * 1) = const α shape := by simp
+@[grad_simp] lemma trivial_mul_one  (α : TReal) {shape : S}: (const α shape * 1) = const α shape := by simp
 -- lemma trivial_mul_one' (α : TReal) : (const α [] * 1) = const α [] := by apply trivial_mul_one
-
 
 -- failure reason:
 -- multiply arbitrary shapes with TReal (e.g., 1) is not propoerly defined yet
@@ -217,7 +231,7 @@ lemma trivial_mul_one  (α : TReal) (shape : S): (const α shape * 1) = const α
 
 -- lemma H_grad_log_simple : {θ : T shape} → θ > 0 → ∇ log θ = θ := sorry -- θ⁻¹
 
-lemma H_grad_log_simple :  {x : TReal} →  x > 0 → ∇ log x = x⁻¹ := by
+@[grad_simp] lemma H_grad_log_simple :  {x : TReal} →  x > 0 → ∇ log x = x⁻¹ := by
   intro x h1
   have h2 :=  grad_log (k := (λ (y:TReal) => y))
   have h3 := h2 x
@@ -242,7 +256,7 @@ lemma H_grad_log_simple :  {x : TReal} →  x > 0 → ∇ log x = x⁻¹ := by
   rw [grad_chain_rule, tmulT_scalar, D_scalar, H_grad_log_simple H_pos]
 
 
-lemma grad_sumr {X : Type} {shape : S} (θ : T shape) (f : T shape → X → TReal) :
+@[grad_simp] lemma grad_sumr {X : Type} {shape : S} (θ : T shape) (f : T shape → X → TReal) :
   Π (xs : List X),
     is_cdifferentiable (λ (θ₀ : T shape) => sumr (List.map (f θ₀) xs)) θ →
     ∇ (λ (θ₀ : T shape) =>  sumr (List.map (f θ₀) xs)) θ
@@ -254,6 +268,322 @@ lemma grad_sumr {X : Type} {shape : S} (θ : T shape) (f : T shape → X → TRe
     unfold List.map sumr at H_diff
     rw [grad_add_fs _ _ _ (Iff.mpr (is_cdifferentiable_add_fs _ _ _) H_diff).left (Iff.mpr (is_cdifferentiable_add_fs _ _ _) H_diff).right]
     rw [grad_sumr _  _ _ ((Iff.mpr (is_cdifferentiable_add_fs _ _ _) H_diff).right)]
+
+
+-- def buildSimplifyGradSimpLemmas (k : Expr) : List (MetaM Expr) := do
+  -- List of expressions to elaborate
+  -- let dbg1 : Syntax := `(certigrad.T.grad_sum )
+  --  let exprs :  List (MetaM Expr) :=
+  --   [
+  --     (mkAppM ``certigrad.T.grad_id #[]),
+  --     (mkAppM ``certigrad.T.grad_const #[k]),
+  --     (mkAppM ``certigrad.T.grad_exp #[]),
+  --     (mkAppM ``certigrad.T.grad_log #[k]),
+  --     (mkAppM ``certigrad.T.grad_scale #[k]),
+  --     (mkAppM ``certigrad.T.grad_neg #[k]),
+  --     (mkAppM ``certigrad.T.grad_add₁ #[k]),
+  --     (mkAppM ``certigrad.T.grad_add₂ #[k]),
+  --     (mkAppM ``certigrad.T.grad_sub₁ #[k]),
+  --     (mkAppM ``certigrad.T.grad_sub₂ #[k]),
+  --     (mkAppM ``certigrad.T.grad_mul₁ #[k]),
+  --     (mkAppM ``certigrad.T.grad_mul₂ #[k]),
+  --     (mkAppM ``certigrad.T.grad_div₁ #[k]),
+  --     (mkAppM ``certigrad.T.grad_div₂ #[k]),
+  --     (mkAppM ``certigrad.T.grad_dot₁ #[]),
+  --     (mkAppM ``certigrad.T.grad_dot₂ #[]),
+  --     (mkAppM ``certigrad.T.grad_square #[k]),
+  --     (mkAppM ``certigrad.T.grad_sqrt #[k]),
+  --     (mkAppM ``certigrad.T.grad_softplus #[k]),
+  --     (mkAppM ``certigrad.T.grad_sigmoid #[k]),
+  --     (mkAppM ``certigrad.T.grad_gemm₁ #[k]),
+  --     (mkAppM ``certigrad.T.grad_gemm₂ #[k]),
+  --     (mkAppM ``certigrad.T.grad_sum #[k]),
+  --     -- (mkAppM ``certigrad.T.grad_mvn_kl₁ #[k]),
+  --     -- (mkAppM ``certigrad.T.grad_mvn_kl₂ #[k]),
+  --     -- (mkAppM ``certigrad.T.grad_bernoulli_neglogpdf₁ #[k]),
+  --     -- (mkAppM ``certigrad.T.grad_bernoulli_neglogpdf₂ #[k]),
+  --     (mkAppM ``certigrad.T.grad_scale_f #[]),
+  --     -- (mkAppM ``certigrad.T.grad_bernoulli_neglogpdf₁ #[k]),
+  --     -- (mkAppM ``certigrad.T.grad_bernoulli_neglogpdf₂ #[k]),
+  --   ]
+    -- let es ← Monad.sequence exprs -- Evaluate the list of monadic actions
+    -- return es
+
+    -- let es ← exprs.mapM id
+
+    -- Create the initial SimpTheorems
+    -- let mut s := {}
+
+    -- -- Add each elaborated expression to SimpTheorems
+    -- for e in es do
+    --   s ← s.add e
+
+    -- s ← tryAddSimp s ()
+    -- s ← tryAddSimp s (mkApp (← elabTerm ``(certigrad.T.grad_gemm₂) none) k)
+    -- s ← tryAddSimp s (mkApp (← elabTerm ``(certigrad.T.grad_sum) none) k)
+
+    -- s ← tryAddSimp s ()
+    -- s ← tryAddSimp s (mkApp (← elabTerm ``(certigrad.T.grad_mvn_kl₂) none) k)
+    -- s ← tryAddSimp s (mkApp (← elabTerm ``(certigrad.T.grad_bernoulli_neglogpdf₁) none) k)
+    -- s ← tryAddSimp s (mkApp (← elabTerm ``(certigrad.T.grad_bernoulli_neglogpdf₂) none) k)
+
+    -- s ← tryAddSimp s (← elabTerm ``(certigrad.T.grad_scale_f) none)
+
+    -- Return the final set of simplification lemmas
+    -- return s
+
+  -- let exprs : List (TacticM (TSyntax `term)) :=
+  --   [ ``(@certigrad.T.grad_const),
+  --     ``(@certigrad.T.grad_id),
+  --     ``(certigrad.T.grad_exp $$k),
+  --     ``(certigrad.T.grad_log $$k),
+  --     ``(certigrad.T.grad_scale $$k),
+  --     ``(certigrad.T.grad_neg $$k),
+  --     ``(certigrad.T.grad_add₁ $$k),
+  --     ``(certigrad.T.grad_add₂ $$k),
+  --     ``(certigrad.T.grad_sub₁ $$k),
+  --     ``(certigrad.T.grad_sub₂ $$k),
+  --     ``(certigrad.T.grad_mul₁ $$k),
+  --     ``(certigrad.T.grad_mul₂ $$k),
+  --     ``(certigrad.T.grad_div₁ $$k),
+  --     ``(certigrad.T.grad_div₂ $$k),
+  --     ``(@certigrad.T.grad_dot₁),
+  --     ``(@certigrad.T.grad_dot₂),
+  --     ``(certigrad.T.grad_square $$k),
+  --     ``(certigrad.T.grad_sqrt $$k),
+  --     ``(certigrad.T.grad_softplus $$k),
+  --     ``(certigrad.T.grad_sigmoid $$k) ]
+
+  -- let exprs2 ←  Monad.sequence exprs
+  -- -- Convert the list of syntax to expressions
+  -- let es ← exprs2.mapM fun p => elabTerm p none
+
+  -- -- Create the initial SimpTheorems
+  -- let mut s := {}
+
+  -- -- Add each elaborated expression to SimpTheorems
+  -- for e in es do
+  --   s ← s.addConst e.constName!
+
+  -- -- These have shape requirements that may cause `elabTerm` to fail, use `tryAddSimp`
+  -- s ← tryAddSimp s (← ``(certigrad.T.grad_gemm₁ $$k))
+  -- s ← tryAddSimp s (← ``(certigrad.T.grad_gemm₂ $$k))
+  -- s ← tryAddSimp s (← ``(certigrad.T.grad_sum $$k))
+
+  --  -- These haven't been defined yet
+  -- s ← tryAddSimp s (← ``(certigrad.T.grad_mvn_kl₁ $$k))
+  -- s ← tryAddSimp s (← ``(certigrad.T.grad_mvn_kl₂ $$k))
+  -- s ← tryAddSimp s (← ``(certigrad.T.grad_bernoulli_neglogpdf₁ $$k))
+  -- s ← tryAddSimp s (← ``(certigrad.T.grad_bernoulli_neglogpdf₂ $$k))
+
+  -- s ← tryAddSimp s (← ``(@certigrad.T.grad_scale_f))
+
+  -- -- Return the final set of simplification lemmas
+  -- return s
+def SimpGradRewrite (tid : MVarId) (exprs : List (MetaM Expr)) : TacticM (List MVarId) := do
+  logInfo m!"SimpGradRewrite is invoked, exprs.length={exprs.length}"
+  match exprs with
+  | [] => --pure []
+    throwError "SimpGradRewrite: None is successful:("
+  | e :: es =>
+    try
+      logInfo m! "will extract exprs"
+      let target ← instantiateMVars (← tid.getType)
+      -- let target ← whnf target
+      logInfo m!"SimpGradRewrite is invoked, target = {target}"
+      logInfo m!"SimpGradRewrite is invoked, e ={← e}"
+      let rr ← tid.rewrite target (← e)
+      Term.synthesizeSyntheticMVarsNoPostponing
+
+
+      let newMVar ← mkFreshExprMVar ( rr.eNew)
+      logInfo m!"SimpGradRewrite is invoked,  {newMVar.mvarId!}"
+      return [newMVar.mvarId!] ++ rr.mvarIds
+
+
+    catch ex =>
+      logInfo m!"SimpGradRewrite, ex:={ex.toMessageData}"
+      SimpGradRewrite tid es
+
+
+-- def simplifyGradCoreHelper(tid: MVarId): TacticM (List MVarId) := do
+--   logInfo m!"simplifyGradCoreHelper is invoked, tid={← tid.getType}"
+--   let tgt ← instantiateMVars  (← tid.getType)
+--   logInfo m!"simplifyGradCoreHelper is invoked, tgt={tgt}"
+--   logInfo m!"simplifyGradCoreHelper is invoked, tgteq={tgt.eq?}"
+
+--   match tgt.eq? with
+--   | some (_, lhs, rhs) =>
+--       logInfo m!"simplifyGradCoreHelper is invoked, lhs={lhs}, rhs={rhs}"
+--       -- let target ← tid.getType
+--       logInfo m!"CheckGrad lhs = {lhs.isAppOfArity `certigrad.T.grad 3}"
+--       let grad ← checkGrad (lhs)
+--       logInfo m!"checkGrad is invoked, grad = {grad}"
+
+
+--       let k ← tid.withContext (computeK grad)
+--       logInfo m!"computeK is invoked, k = {k}"
+--       let exprs :  List (MetaM Expr) :=
+--       [
+--       (mkAppM ``certigrad.T.grad_id #[]),
+--       (mkAppM ``certigrad.T.grad_const #[k]),
+--       (mkAppM ``certigrad.T.grad_exp #[k]),
+--       (mkAppM ``certigrad.T.grad_log #[k]),
+--       (mkAppM ``certigrad.T.grad_scale #[k]),
+--       (mkAppM ``certigrad.T.grad_neg #[k]),
+--       (mkAppM ``certigrad.T.grad_add₁ #[k]),
+--       (mkAppM ``certigrad.T.grad_add₂ #[k]),
+--       (mkAppM ``certigrad.T.grad_sub₁ #[k]),
+--       (mkAppM ``certigrad.T.grad_sub₂ #[k]),
+--       (mkAppM ``certigrad.T.grad_mul₁ #[k]),
+--       (mkAppM ``certigrad.T.grad_mul₂ #[k]),
+--       (mkAppM ``certigrad.T.grad_div₁ #[k]),
+--       (mkAppM ``certigrad.T.grad_div₂ #[k]),
+--       (mkAppM ``certigrad.T.grad_dot₁ #[k]),
+--       (mkAppM ``certigrad.T.grad_dot₂ #[k]),
+--       (mkAppM ``certigrad.T.grad_square #[k]),
+--       (mkAppM ``certigrad.T.grad_sqrt #[k]),
+--       (mkAppM ``certigrad.T.grad_softplus #[k]),
+--       (mkAppM ``certigrad.T.grad_sigmoid #[k]),
+--       (mkAppM ``certigrad.T.grad_gemm₁ #[k]),
+--       (mkAppM ``certigrad.T.grad_gemm₂ #[k]),
+--       (mkAppM ``certigrad.T.grad_sum #[k]),
+--       -- (mkAppM ``certigrad.T.grad_mvn_kl₁ #[k]),
+--       -- (mkAppM ``certigrad.T.grad_mvn_kl₂ #[k]),
+--       -- (mkAppM ``certigrad.T.grad_bernoulli_neglogpdf₁ #[k]),
+--       -- (mkAppM ``certigrad.T.grad_bernoulli_neglogpdf₂ #[k]),
+--       (mkAppM ``certigrad.T.grad_scale_f #[]),
+--       -- (mkAppM ``certigrad.T.grad_bernoulli_neglogpdf₁ #[k]),
+--       -- (mkAppM ``certigrad.T.grad_bernoulli_neglogpdf₂ #[k]),
+--     ]
+--       -- let (_, mavarIds) ← simpGoal
+--       SimpGradRewrite tid exprs
+--     | none =>
+--     throwError "simplifyGradCoreHelper: goal is not an equality, got: {tgt}"
+
+def addLemma (s : SimpTheorems) (e : Expr) : TacticM SimpTheorems := do
+  if let some name := e.getAppFn.constName? then
+    try
+      return (← s.addConst name)
+    catch _ =>
+      return s
+  else
+    return s
+def tryAddSimp (s : SimpTheorems) (e : Expr) : TacticM SimpTheorems := do
+  if let some name := e.getAppFn.constName? then
+    try
+      return (← s.addConst name)
+    catch _ =>
+      return s
+  else
+    return s
+
+
+def buildSimplifyGradSimpLemmas (k : Expr) : TacticM (Array SimpTheorems) := do
+  let exprs : List (MetaM Expr) :=
+    [ mkAppM ``certigrad.T.grad_const #[],
+      mkAppM ``certigrad.T.grad_id #[],
+      mkAppM ``certigrad.T.grad_exp #[k],
+      mkAppM ``certigrad.T.grad_log #[k],
+      mkAppM ``certigrad.T.grad_scale #[k],
+      mkAppM ``certigrad.T.grad_neg #[k],
+      mkAppM ``certigrad.T.grad_add₁ #[k],
+      mkAppM ``certigrad.T.grad_add₂ #[k],
+      mkAppM ``certigrad.T.grad_sub₁ #[k],
+      mkAppM ``certigrad.T.grad_sub₂ #[k],
+      mkAppM ``certigrad.T.grad_mul₁ #[k],
+      mkAppM ``certigrad.T.grad_mul₂ #[k],
+      mkAppM ``certigrad.T.grad_div₁ #[k],
+      mkAppM ``certigrad.T.grad_div₂ #[k],
+      mkAppM ``certigrad.T.grad_dot₁ #[],
+      mkAppM ``certigrad.T.grad_dot₂ #[],
+      mkAppM ``certigrad.T.grad_square #[k],
+      mkAppM ``certigrad.T.grad_sqrt #[k],
+      mkAppM ``certigrad.T.grad_softplus #[k],
+      mkAppM ``certigrad.T.grad_sigmoid #[k],
+      mkAppM ``certigrad.T.grad_gemm₁ #[],
+      mkAppM ``certigrad.T.grad_gemm₂ #[],
+      mkAppM ``certigrad.T.grad_sum #[],
+      mkAppM ``certigrad.T.grad_scale_f #[]
+    ]
+  let es ← exprs.mapM liftMetaM
+  let mut s := {}
+  for e in es do
+    s ← tryAddSimp s e
+  return #[s]
+set_option trace.Meta.Tactic.simp true
+def simplifyGradCoreHelper(tid: MVarId): TacticM (List MVarId) := do
+  logInfo m!"simplifyGradCoreHelper is invoked, tid={← tid.getType}"
+  let tgt ← instantiateMVars  (← tid.getType)
+  logInfo m!"simplifyGradCoreHelper is invoked, tgt={tgt}"
+  logInfo m!"simplifyGradCoreHelper is invoked, tgteq={tgt.eq?}"
+
+  match tgt.eq? with
+  | some (_, lhs, rhs) =>
+      logInfo m!"simplifyGradCoreHelper is invoked, lhs={lhs}, rhs={rhs}"
+      -- let target ← tid.getType
+      logInfo m!"CheckGrad lhs = {lhs.isAppOfArity `certigrad.T.grad 3}"
+      let grad ← checkGrad (lhs)
+      logInfo m!"checkGrad is invoked, grad = {grad}"
+      let k ← tid.withContext (computeK grad)
+      logInfo m!"computeK is invoked, k = {k}"
+      let s ← buildSimplifyGradSimpLemmas (k)
+      logInfo m!"buildSimplifyGradSimpLemmas is invoked, s = {s}"
+      let ctx : Simp.Context := { config := {}, simpTheorems := s }
+      try
+        let (result, _) ← Lean.Meta.Simp.main  tgt ctx
+        tid.assign (← result.proof?)
+        let simplifiedExpr := result.expr
+        let newMVar ← mkFreshExprMVar (simplifiedExpr)
+        return [newMVar.mvarId!]
+      catch ex =>
+        logInfo m!"Simp.main failed: {ex.toMessageData}"
+        throw ex
+    | none =>
+    throwError "simplifyGradCoreHelper: goal is not an equality, got: {tgt}"
+
+
+
+
+
+elab "simplifyGradCore": tactic => do
+    let goals ← getGoals
+    -- let mut newGoals := #[]
+    match goals with
+    | g::_ =>
+        let varIds ← simplifyGradCoreHelper g
+        setGoals varIds
+    | [] => pure ()
+        -- 后续处理 varIds
+
+    -- logInfo m!"simplifyGradCore is invoked, varIds={varIds}"
+
+    -- let varIds ← Meta.repeat' proveDifferentiableCore varIds
+
+
+    -- let varIds ← myAssumption varIds
+
+    -- let varIds ← Meta.repeat' provePreconditionsCore varIds
+
+    -- let varIds ← myAssumption varIds
+
+
+    -- setGoals varIds
+
+
+
+lemma grad_mvn_kl₁ (k : TReal → TReal) (shape : S) (μ σ : T shape) : ∇ (λ μ => k (mvn_kl μ σ)) μ = ∇ k (mvn_kl μ σ) • μ := by
+  unfold mvn_kl
+  simplifyGradCore
+
+  simplifyGradCore
+
+  simplifyGradCore
+
+
+
+-- example (k : TReal → TReal) (shape : S) (μ σ : TReal): ∇ (λ σ => σ) σ = 1:= by
+--   simplifyGradCore
 
 
 

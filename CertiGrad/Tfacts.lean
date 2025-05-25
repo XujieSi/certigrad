@@ -29,15 +29,15 @@ open Lean Elab Tactic Meta
 -- attribute [simp] dif_pos dif_neg
 
 def myFirstApply (tid : MVarId) (exprs : List (MetaM Expr)) : TacticM (List MVarId) := tid.withContext do
-  -- logInfo m!"myFirstApply is invoked, exprs.length={exprs.length}"
+  logInfo m!"myFirstApply is invoked, exprs.length={exprs.length}"
   match exprs with
   | [] => --pure []
     throwError "myFirstApply: None is successful:("
   | e :: es =>
     try
-      -- logInfo m! "will extract e"
+      logInfo m! "will extract e"
       let e' ← e
-      -- logInfo m! "will try e:={e'}"
+      logInfo m! "will try e:={e'}"
       let mvarIds ← tid.apply e'
       Term.synthesizeSyntheticMVarsNoPostponing
       -- logInfo m!"myFirstApply, mvardIds: {mvarIds}"
@@ -47,7 +47,7 @@ def myFirstApply (tid : MVarId) (exprs : List (MetaM Expr)) : TacticM (List MVar
       -- Term.synthesizeSyntheticMVarsNoPostponing
       -- replaceMainGoal mvarIds
     catch ex =>
-      -- logInfo m!"myFirstApply, ex:={ex.toMessageData}"
+      logInfo m!"myFirstApply, ex:={ex.toMessageData}"
       myFirstApply tid es
   -- assume exprs consists of a list of App Exprs
 
