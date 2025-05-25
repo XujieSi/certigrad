@@ -319,17 +319,17 @@ def checkGrad (e : Expr) : MetaM Expr :=do
 
 -- ChatGPT suggestion
 
-def tryAddSimp (s : SimpTheorems) (p : Syntax) : TacticM SimpTheorems := do
-  -- Try to convert the `Syntax` (which represents a `pexpr`) to an `Expr`
-  let oe ← Lean.Elab.Tactic.tryTactic? (elabTerm p none)
+-- def tryAddSimp (s : SimpTheorems) (p : Syntax) : TacticM SimpTheorems := do
+--   -- Try to convert the `Syntax` (which represents a `pexpr`) to an `Expr`
+--   let oe ← Lean.Elab.Tactic.tryTactic? (elabTerm p none)
 
-  match oe with
-  | none =>
-    -- If the expression is invalid, return the original `SimpTheorems`
-    return s
-  | some e =>
-    -- If valid, add the expression to the `SimpTheorems`
-    return (← s.addConst e.constName!)
+--   match oe with
+--   | none =>
+--     -- If the expression is invalid, return the original `SimpTheorems`
+--     return s
+--   | some e =>
+--     -- If valid, add the expression to the `SimpTheorems`
+--     return (← s.addConst e.constName!)
 
 
 -- meta def build_simplify_grad_simp_lemmas (k : expr) : tactic simp_lemmas :=
