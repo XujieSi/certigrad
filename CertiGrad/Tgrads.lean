@@ -285,7 +285,7 @@ original function is equivalent to: fun θ₀ => k (x - θ₀)
 
 def computeK (grad : Expr) : MetaM Expr := do
   let k ← computeOuterInnerFunctions grad
-  -- logInfo m!"after outer-inner, k = {k}"
+  logInfo m!"after outer-inner, k = {k}"
 
   -- Q: why do we need reduceK? this might be problematic,
   -- since after reducing the structure may not match the oringal function
@@ -295,7 +295,7 @@ def computeK (grad : Expr) : MetaM Expr := do
 
   -- Perform head eta-expansion
   -- Meta.headEtaExpand kSimp
-  -- logInfo m!"after reduceK, k = {kSimp}"
+  logInfo m!"after reduceK, k = {kSimp}"
   return kSimp
 
 -- meta def check_grad (e : expr) : tactic expr :=

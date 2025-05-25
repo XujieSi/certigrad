@@ -253,76 +253,7 @@ open util_list
 
 
 
-
-
--- def simplifyGradCoreHelper(tid: MVarId): TacticM (List MVarId) := do
---   logInfo m!"simplifyGradCoreHelper is invoked, tid={← tid.getType}"
---   let tgt ← instantiateMVars  (← tid.getType)
---   logInfo m!"simplifyGradCoreHelper is invoked, tgt={tgt}"
---   logInfo m!"simplifyGradCoreHelper is invoked, tgteq={tgt.eq?}"
-
---   match tgt.eq? with
---   | some (_, lhs, rhs) =>
---       logInfo m!"simplifyGradCoreHelper is invoked, lhs={lhs}, rhs={rhs}"
---       -- let target ← tid.getType
---       logInfo m!"CheckGrad lhs = {lhs.isAppOfArity `certigrad.T.grad 3}"
---       let grad ← checkGrad (lhs)
---       logInfo m!"checkGrad is invoked, grad = {grad}"
-
-
---       let k ← tid.withContext (computeK grad)
---       logInfo m!"computeK is invoked, k = {k}"
---       let exprs :  List (MetaM Expr) :=
---       [
---       (mkAppM ``certigrad.T.grad_id #[]),
---       (mkAppM ``certigrad.T.grad_const #[k]),
---       (mkAppM ``certigrad.T.grad_exp #[k]),
---       (mkAppM ``certigrad.T.grad_log #[k]),
---       (mkAppM ``certigrad.T.grad_scale #[k]),
---       (mkAppM ``certigrad.T.grad_neg #[k]),
---       (mkAppM ``certigrad.T.grad_add₁ #[k]),
---       (mkAppM ``certigrad.T.grad_add₂ #[k]),
---       (mkAppM ``certigrad.T.grad_sub₁ #[k]),
---       (mkAppM ``certigrad.T.grad_sub₂ #[k]),
---       (mkAppM ``certigrad.T.grad_mul₁ #[k]),
---       (mkAppM ``certigrad.T.grad_mul₂ #[k]),
---       (mkAppM ``certigrad.T.grad_div₁ #[k]),
---       (mkAppM ``certigrad.T.grad_div₂ #[k]),
---       (mkAppM ``certigrad.T.grad_dot₁ #[k]),
---       (mkAppM ``certigrad.T.grad_dot₂ #[k]),
---       (mkAppM ``certigrad.T.grad_square #[k]),
---       (mkAppM ``certigrad.T.grad_sqrt #[k]),
---       (mkAppM ``certigrad.T.grad_softplus #[k]),
---       (mkAppM ``certigrad.T.grad_sigmoid #[k]),
---       (mkAppM ``certigrad.T.grad_gemm₁ #[k]),
---       (mkAppM ``certigrad.T.grad_gemm₂ #[k]),
---       (mkAppM ``certigrad.T.grad_sum #[k]),
---       -- (mkAppM ``certigrad.T.grad_mvn_kl₁ #[k]),
---       -- (mkAppM ``certigrad.T.grad_mvn_kl₂ #[k]),
---       -- (mkAppM ``certigrad.T.grad_bernoulli_neglogpdf₁ #[k]),
---       -- (mkAppM ``certigrad.T.grad_bernoulli_neglogpdf₂ #[k]),
---       (mkAppM ``certigrad.T.grad_scale_f #[]),
---       -- (mkAppM ``certigrad.T.grad_bernoulli_neglogpdf₁ #[k]),
---       -- (mkAppM ``certigrad.T.grad_bernoulli_neglogpdf₂ #[k]),
---     ]
---       -- let (_, mavarIds) ← simpGoal
---       SimpGradRewrite tid exprs
---     | none =>
---     throwError "simplifyGradCoreHelper: goal is not an equality, got: {tgt}"
-
--- def addLemma (s : SimpTheorems) (e : Expr) : TacticM SimpTheorems := do
---   if let some name := e.getAppFn.constName? then
---     try
---       return (← s.addConst name)
---     catch _ =>
---       return s
---   else
---     return s
-
-
-
 def SimpGradRewrite (tid : MVarId) (exprs : List (MetaM Expr)) : TacticM ((List MVarId) × MVarId × Expr) := do
-  logInfo m!"SimpGradRewrite is invoked, exprs.length={exprs.length}"
   match exprs with
   | [] => --pure []
     throwError "SimpGradRewrite: None is successful:("
@@ -330,7 +261,7 @@ def SimpGradRewrite (tid : MVarId) (exprs : List (MetaM Expr)) : TacticM ((List 
     try
       logInfo m! "will extract exprs"
       let target ← instantiateMVars (← tid.getType)
-      -- let target ← whnf target
+      let target ← whnf target
       logInfo m!"SimpGradRewrite is invoked, target = {target}"
       logInfo m!"SimpGradRewrite is invoked, e ={← e}"
       let rr ← tid.rewrite target (← e)
@@ -338,27 +269,30 @@ def SimpGradRewrite (tid : MVarId) (exprs : List (MetaM Expr)) : TacticM ((List 
 
 
       let newMVar ← mkFreshExprMVar ( rr.eNew)
-      logInfo m!"SimpGradRewrite is invoked,  {newMVar.mvarId!}"
+      -- logInfo m!"SimpGradRewrite is invoked,  {newMVar.mvarId!}"
       return (rr.mvarIds, newMVar.mvarId!, rr.eNew)
-
-
     catch ex =>
-      logInfo m!"SimpGradRewrite, ex:={ex.toMessageData}"
+
       SimpGradRewrite tid es
 
+def simplifyGradCoreHelper(tid: MVarId): TacticM ((List MVarId) × MVarId × Expr) := do
+  logInfo m!"simplifyGradCoreHelper is invoked, tid={← tid.getType}"
+  let tgt ← instantiateMVars  (← tid.getType)
+  logInfo m!"simplifyGradCoreHelper is invoked, tgt={tgt}"
+  logInfo m!"simplifyGradCoreHelper is invoked, tgteq={tgt.eq?}"
 
-partial def ManualSimpGradCore(tid : MVarId) (e : Expr) : TacticM ((List MVarId) × Expr)  := do
-  match e.eq? with
+  match tgt.eq? with
   | some (_, lhs, rhs) =>
-      logInfo m!"rewriteUntilStable is invoked, lhs={lhs}, rhs={rhs}"
+      logInfo m!"simplifyGradCoreHelper is invoked, lhs={lhs}, rhs={rhs}"
       -- let target ← tid.getType
       logInfo m!"CheckGrad lhs = {lhs.isAppOfArity `certigrad.T.grad 3}"
-      let grad ← checkGrad (lhs)
-      logInfo m!"checkGrad is invoked, grad = {grad}"
+      -- let grad ← checkGrad (lhs)
+      -- logInfo m!"checkGrad is invoked, grad = {grad}"
 
-      let k ← tid.withContext (computeK grad)
+
+      let k ← tid.withContext (computeK lhs)
       logInfo m!"computeK is invoked, k = {k}"
-      let rules :  List (MetaM Expr) :=
+      let exprs :  List (MetaM Expr) :=
       [
       (mkAppM ``certigrad.T.grad_id #[]),
       (mkAppM ``certigrad.T.grad_const #[k]),
@@ -383,47 +317,107 @@ partial def ManualSimpGradCore(tid : MVarId) (e : Expr) : TacticM ((List MVarId)
       (mkAppM ``certigrad.T.grad_gemm₁ #[k]),
       (mkAppM ``certigrad.T.grad_gemm₂ #[k]),
       (mkAppM ``certigrad.T.grad_sum #[k]),
+      -- (mkAppM ``certigrad.T.grad_mvn_kl₁ #[k]),
+      -- (mkAppM ``certigrad.T.grad_mvn_kl₂ #[k]),
+      -- (mkAppM ``certigrad.T.grad_bernoulli_neglogpdf₁ #[k]),
+      -- (mkAppM ``certigrad.T.grad_bernoulli_neglogpdf₂ #[k]),
       (mkAppM ``certigrad.T.grad_scale_f #[]),
-      ]
+      -- (mkAppM ``certigrad.T.grad_bernoulli_neglogpdf₁ #[k]),
+      -- (mkAppM ``certigrad.T.grad_bernoulli_neglogpdf₂ #[k]),
+    ]
+      -- let (_, mavarIds) ← simpGoal
+      SimpGradRewrite tid exprs
+    | none =>
+    throwError "simplifyGradCoreHelper: goal is not an equality, got: {tgt}"
 
+
+
+
+
+
+
+partial def ManualSimpGradCore(tid : MVarId) (e : Expr) : TacticM ((List MVarId) × MVarId × Expr) := do
+  -- logInfo m!"ManualSimpGradCore is invoked, tid={← tid.getType}, e={e}"
+  match e.eq? with
+  | some (_, lhs, _) =>
+    -- logInfo m!"ManualSimpGradCore is invoked, lhs={lhs}, rhs={e}"
+    logInfo m!"ManualSimpGradCore is invoked, lhs={lhs}"
+    let fn := lhs.getAppFn
+    let args := lhs.getAppArgs
+    logInfo m!"ManualSimpGradCore is invoked, fn={fn}, args={args}"
+    if fn.isConstOf ``certigrad.T.grad && args.size == 3 then
+      let f := args[args.size - 2]!
+      let x := args[args.size - 1]!
+      logInfo m!"ManualSimpGradCore is invoked, f={f}, x={x}"
+      logInfo m!"ManualSimpGradCore is invoked, f={f}, x={x}"
+
+        let k ← tid.withContext (computeK e)
+        logInfo m!"computeK is invoked, k = {k}"
+        let rules : List (MetaM Expr) := [
+          (mkAppM ``certigrad.T.grad_id #[]),
+          (mkAppM ``certigrad.T.grad_const #[k]),
+          (mkAppM ``certigrad.T.grad_exp #[k]),
+          (mkAppM ``certigrad.T.grad_log #[k]),
+          (mkAppM ``certigrad.T.grad_scale #[k]),
+          (mkAppM ``certigrad.T.grad_neg #[k]),
+          (mkAppM ``certigrad.T.grad_add₁ #[k]),
+          (mkAppM ``certigrad.T.grad_add₂ #[k]),
+          (mkAppM ``certigrad.T.grad_sub₁ #[k]),
+          (mkAppM ``certigrad.T.grad_sub₂ #[k]),
+          (mkAppM ``certigrad.T.grad_mul₁ #[k]),
+          (mkAppM ``certigrad.T.grad_mul₂ #[k]),
+          (mkAppM ``certigrad.T.grad_div₁ #[k]),
+          (mkAppM ``certigrad.T.grad_div₂ #[k]),
+          (mkAppM ``certigrad.T.grad_dot₁ #[k]),
+          (mkAppM ``certigrad.T.grad_dot₂ #[k]),
+          (mkAppM ``certigrad.T.grad_square #[k]),
+          (mkAppM ``certigrad.T.grad_sqrt #[k]),
+          (mkAppM ``certigrad.T.grad_softplus #[k]),
+          (mkAppM ``certigrad.T.grad_sigmoid #[k]),
+          (mkAppM ``certigrad.T.grad_gemm₁ #[k]),
+          (mkAppM ``certigrad.T.grad_gemm₂ #[k]),
+          (mkAppM ``certigrad.T.grad_sum #[k]),
+          (mkAppM ``certigrad.T.grad_scale_f #[])
+        ]
       try
         let (subtids, newtid, newe) ← SimpGradRewrite tid rules
-          return (← ManualSimpGradCore newtid newe )
-
-      catch ex => match lhs with
-        | Expr.app f x  =>
-            logInfo m!"ManualSimpGradCore: f={f}, x={x}"
-            let (tid', f') ← ManualSimpGradCore tid f
-            let (tid'', x') ← ManualSimpGradCore tid x
-            pure (tid'++ tid'', mkApp f' x')
+        logInfo m!"SimpGradRewrite is invoked, subtids={subtids}, newtid={newtid}, newe={newe}"
+        let (allMvars, finalMvar, finalExpr) ← ManualSimpGradCore newtid newe
+        pure (subtids ++ allMvars, finalMvar, finalExpr)
+      catch _ =>
+        let (tidf, mvarf, f') ← ManualSimpGradCore tid f
+        let (tidx, mvarx, x') ← ManualSimpGradCore tid x
+        pure (tidf ++ tidx, mvarx, mkApp2 (Expr.const ``certigrad.T.grad []) f' x')
+    else
+      logInfo m!"Call before ---match lhs with---, lhs={lhs}, rhs={e}"
+      match lhs with
+        | Expr.app f x =>
+            let (tidf, mvarf, f') ← ManualSimpGradCore tid f
+            let (tidx, mvarx, x') ← ManualSimpGradCore tid x
+            pure (tidf ++ tidx, mvarx, mkApp f' x')
         | Expr.lam n ty body bi =>
-            let (tid', ty') ← ManualSimpGradCore tid ty
-            let (tid'', body') ← ManualSimpGradCore tid body
-            pure (tid''++ tid', mkLambda n bi ty' body')
-        | _ => pure ([], e)
-
-
+            let (tidty, mvarTy, ty') ← ManualSimpGradCore tid ty
+            let (tidbody, mvarBody, body') ← ManualSimpGradCore tid body
+            pure (tidty ++ tidbody, mvarBody, mkLambda n bi ty' body')
+        | _ =>
+            pure ([], tid, e)
   | none =>
-      logInfo m!"rewriteUntilStable: target is not an equality"
-      pure ([], e)
+    -- logInfo m!"ManualSimpGradCore is invoked, e={e}"
+    pure ([], tid, e)
+
 
 elab "simplifyGradCore": tactic => do
     let goals ← getGoals
     match goals with
     | g::_ =>
         let e ← g.getType
-        -- let varIds ← simplifyGradCoreHelper g
-        let (varIds, H_diff₁) ← ManualSimpGradCore g e
+        -- let (varIds, mainGoal, e) ← simplifyGradCoreHelper g
+        let (varIds, e) ← ManualSimpGradCore g e
         setGoals varIds
     | [] => pure ()
 lemma grad_mvn_kl₁ (k : TReal → TReal) (shape : S) (μ σ : T shape) : ∇ (λ μ => k (mvn_kl μ σ)) μ = ∇ k (mvn_kl μ σ) • μ := by
   unfold mvn_kl
   simplifyGradCore
-
-  simplifyGradCore
-
-  simplifyGradCore
-
 
 
 -- example (k : TReal → TReal) (shape : S) (μ σ : TReal): ∇ (λ σ => σ) σ = 1:= by
