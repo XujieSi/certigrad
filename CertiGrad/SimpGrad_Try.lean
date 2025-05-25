@@ -254,6 +254,7 @@ open util_list
 
 
 def SimpGradRewrite (tid : MVarId) (exprs : List (MetaM Expr)) : TacticM ((List MVarId) × MVarId × Expr) := do
+  logInfo m!"SimpGradRewrite is invoked, tid={← tid.getType}"
   match exprs with
   | [] => --pure []
     throwError "SimpGradRewrite: None is successful:("
@@ -346,12 +347,12 @@ partial def ManualSimpGradCore(tid : MVarId) (e : Expr) : TacticM ((List MVarId)
     let args := lhs.getAppArgs
     logInfo m!"ManualSimpGradCore is invoked, fn={fn}, args={args}"
     if fn.isConstOf ``certigrad.T.grad && args.size == 3 then
-      let f := args[args.size - 2]!
-      let x := args[args.size - 1]!
-      logInfo m!"ManualSimpGradCore is invoked, f={f}, x={x}"
-      logInfo m!"ManualSimpGradCore is invoked, f={f}, x={x}"
+        let f := args[args.size - 2]!
+        let x := args[args.size - 1]!
+        logInfo m!"ManualSimpGradCore is invoked, f={f}, x={x}"
+        logInfo m!"ManualSimpGradCore is invoked, f={f}, x={x}"
 
-        let k ← tid.withContext (computeK e)
+        let k ← tid.withContext (computeK lhs)
         logInfo m!"computeK is invoked, k = {k}"
         let rules : List (MetaM Expr) := [
           (mkAppM ``certigrad.T.grad_id #[]),
@@ -379,15 +380,16 @@ partial def ManualSimpGradCore(tid : MVarId) (e : Expr) : TacticM ((List MVarId)
           (mkAppM ``certigrad.T.grad_sum #[k]),
           (mkAppM ``certigrad.T.grad_scale_f #[])
         ]
-      try
-        let (subtids, newtid, newe) ← SimpGradRewrite tid rules
-        logInfo m!"SimpGradRewrite is invoked, subtids={subtids}, newtid={newtid}, newe={newe}"
-        let (allMvars, finalMvar, finalExpr) ← ManualSimpGradCore newtid newe
-        pure (subtids ++ allMvars, finalMvar, finalExpr)
-      catch _ =>
-        let (tidf, mvarf, f') ← ManualSimpGradCore tid f
-        let (tidx, mvarx, x') ← ManualSimpGradCore tid x
-        pure (tidf ++ tidx, mvarx, mkApp2 (Expr.const ``certigrad.T.grad []) f' x')
+        try
+          let (subtids, newtid, newe) ← SimpGradRewrite tid rules
+          logInfo m!"SimpGradRewrite is invoked, subtids={subtids}, newtid={newtid}, newe={newe}"
+          let (allMvars, finalMvar, finalExpr) ← ManualSimpGradCore newtid newe
+          pure (subtids ++ allMvars, finalMvar, finalExpr)
+        catch _ =>
+          logInfo m!"SimpGradRewrite failed, tid={tid}, e={e}"
+          let (tidf, mvarf, f') ← ManualSimpGradCore tid f
+          let (tidx, mvarx, x') ← ManualSimpGradCore tid x
+          pure (tidf ++ tidx, mvarx, mkApp2 (Expr.const ``certigrad.T.grad []) f' x')
     else
       logInfo m!"Call before ---match lhs with---, lhs={lhs}, rhs={e}"
       match lhs with
@@ -402,7 +404,7 @@ partial def ManualSimpGradCore(tid : MVarId) (e : Expr) : TacticM ((List MVarId)
         | _ =>
             pure ([], tid, e)
   | none =>
-    -- logInfo m!"ManualSimpGradCore is invoked, e={e}"
+    logInfo m!"Call before ---match e.eq? with---, e={e}"
     pure ([], tid, e)
 
 
