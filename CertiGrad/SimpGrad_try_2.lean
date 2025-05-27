@@ -322,12 +322,12 @@ partial def SimpGradCoreLoop
         let k ←  computeK lhs
         let rules ← BuildSimpGradLemmas k
         let ty ← inferType lhs
-        -- let possiblerhs ← mkFreshExprMVar ty
-        -- let tgt ← mkEq lhs possiblerhs
-        let newGoal ← mkFreshExprMVar ty
-        newGoal.mvarId!.assign (lhs)
+        let possiblerhs ← mkFreshExprMVar ty
+        let tgt ← mkEq possiblerhs lhs
+        let newGoal ← mkFreshExprMVar tgt
+        -- newGoal.mvarId!.assign (lhs)
         let newGoalType ← newGoal.mvarId!.getType
-        dbg_trace "Call before ---try SimpGradRewrite---, newGoalType={newGoalType}"
+        -- dbg_trace "Call before ---try SimpGradRewrite---, newGoalType={newGoalType}"
         try
            let subresult ← SimpGradRewrite newGoal.mvarId! rules
            let subgoals: List MVarId := subresult.mvarIds
@@ -338,17 +338,23 @@ partial def SimpGradCoreLoop
           --  let mlhs := possiblerhs.mvarId!
           --  mlhs.assign lhs
           --  dbg_trace "Call before ---match final.eq? with---, final={final}"
-           logInfo m!"Call before ---match final.eq? with---, final={final}"
+          --  logInfo m!"Call before ---match final.eq? with---, proof={proof}"
            match final.eq? with
            | some (_, nlhs, nrhs) =>
              let proof: Expr := subresult.eqProof
-
-            --  let symmproof ←  mkEqSymm proof
+             logInfo m!"nlhs = {nlhs}"
             --  let reflproof ← mkEqRefl nrhs
-            --  logInfo m!"Call before ---mkEqTrans reflproof proof---, reflproof={reflproof}, proof={proof}"
-            -- --  let combinedproof ← mkEqTrans reflproof proof
-            --  logInfo m!"Call after ---match final.eq? with---, proof={combinedproof}"
-             return (some (nlhs, nrhs, subgoals, proof ))
+             logInfo m!"final= {final}"
+             logInfo m!"Call before proof---, proof={proof}"
+             possiblerhs.mvarId!.assign nrhs
+             logInfo m!"!!!!!!!!!!!!!proof={proof}"
+             let eq11 ← inferType newGoal
+            --  logInfo m!"now the possiblerhs is {}"
+            -- -- --  let combinedproof ← mkEqTrans reflproof proof
+
+             let symmproof ← mkEqSymm proof
+            --  logInfo m!"Call after ---match final.eq? with---, proof={symmproof}"
+             return (some (nlhs, nrhs, subgoals, symmproof))
            | _ =>
              return some (lhs, lhs, [], ← mkEqRefl lhs)
         catch ex =>
@@ -387,7 +393,10 @@ partial def SimpGradCore (tid: MVarId)  : TacticM ((List MVarId)) := do
     logInfo m!"Call before ---tid.rewrite (← tid.getType) proof---, proof={proof}"
     logInfo m!"Call before ---tid.rewrite (← tid.getType) proof---, tid.getType={e}"
     let target ← instantiateMVars e
+    -- let rewriteexpr ← mkAppM
+    -- logInfo m!"rewriteexpr = {rewriteexpr}"
     let rr ← tid.rewrite target proof
+    Term.synthesizeSyntheticMVarsNoPostponing
     pure (subgoals ++ rr.mvarIds)
   | none =>
     throwError "SimpGradCore: goal is not an equality, got: {e}"
