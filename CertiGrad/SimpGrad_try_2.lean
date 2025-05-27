@@ -323,7 +323,7 @@ partial def SimpGradCoreLoop
         let rules ← BuildSimpGradLemmas k
         let ty ← inferType lhs
         let possiblerhs ← mkFreshExprMVar ty
-        let tgt ← mkEq possiblerhs lhs
+        let tgt ← mkEq lhs possiblerhs
         let newGoal ← mkFreshExprMVar tgt
         -- newGoal.mvarId!.assign (lhs)
         let newGoalType ← newGoal.mvarId!.getType
@@ -346,13 +346,17 @@ partial def SimpGradCoreLoop
             --  let reflproof ← mkEqRefl nrhs
              logInfo m!"final= {final}"
              logInfo m!"Call before proof---, proof={proof}"
-             possiblerhs.mvarId!.assign nrhs
+             possiblerhs.mvarId!.assign lhs
              logInfo m!"!!!!!!!!!!!!!proof={proof}"
-             let eq11 ← inferType newGoal
+             logInfo m!"final= {final}"
+            --  let symmproof ← mkEqSymm proof
+             let eq11 ← mkEqRefl lhs
+             let proof_ab ← mkAppM ``Eq.mp #[ proof, eq11]
+             let symmproof ← mkEqSymm proof_ab
             --  logInfo m!"now the possiblerhs is {}"
             -- -- --  let combinedproof ← mkEqTrans reflproof proof
 
-             let symmproof ← mkEqSymm proof
+            --  let symmproof ← mkEqSymm proof
             --  logInfo m!"Call after ---match final.eq? with---, proof={symmproof}"
              return (some (nlhs, nrhs, subgoals, symmproof))
            | _ =>
@@ -394,10 +398,12 @@ partial def SimpGradCore (tid: MVarId)  : TacticM ((List MVarId)) := do
     logInfo m!"Call before ---tid.rewrite (← tid.getType) proof---, tid.getType={e}"
     let target ← instantiateMVars e
     -- let rewriteexpr ← mkAppM
-    -- logInfo m!"rewriteexpr = {rewriteexpr}"
+    -- logInfo m!"rewriteexpr = {target.g}"
     let rr ← tid.rewrite target proof
-    Term.synthesizeSyntheticMVarsNoPostponing
-    pure (subgoals ++ rr.mvarIds)
+    let newGoal ← mkFreshExprMVar rr.eNew
+    logInfo m!"rrrrrrrr = { subgoals}"
+    -- Term.synthesizeSyntherticMVarsNoPostponing
+    pure ([newGoal.mvarId!] ++ subgoals ++ rr.mvarIds)
   | none =>
     throwError "SimpGradCore: goal is not an equality, got: {e}"
 
@@ -407,6 +413,7 @@ elab "simplifyGradCore": tactic => do
     match goals with
     | g::_ =>
         let (varIds) ← SimpGradCore g
+        logInfo m!"asdsadsadsa = {varIds}"
         setGoals varIds
     | [] => pure ()
 
