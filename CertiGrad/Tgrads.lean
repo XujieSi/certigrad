@@ -285,7 +285,7 @@ original function is equivalent to: fun θ₀ => k (x - θ₀)
 
 def computeK (grad : Expr) : MetaM Expr := do
   let k ← computeOuterInnerFunctions grad
-  logInfo m!"after outer-inner, k = {k}"
+  -- logInfo m!"after outer-inner, k = {k}"
 
   -- Q: why do we need reduceK? this might be problematic,
   -- since after reducing the structure may not match the oringal function
@@ -295,7 +295,7 @@ def computeK (grad : Expr) : MetaM Expr := do
 
   -- Perform head eta-expansion
   -- Meta.headEtaExpand kSimp
-  logInfo m!"after reduceK, k = {kSimp}"
+  -- logInfo m!"after reduceK, k = {kSimp}"
   return kSimp
 
 -- meta def check_grad (e : expr) : tactic expr :=
@@ -520,9 +520,9 @@ def proveDifferentiableCore (tid : MVarId): TacticM (List MVarId) := do
   -- dbg_trace f!"dbg_trace: before calling computeK, grad := {grad}"
 
   -- computeK is essential since we have to find the proper wrapping structure
-  logInfo m!"computeK: grad = {grad}"
+  -- logInfo m!"computeK: grad = {grad}"
   let k ← tid.withContext (computeK grad)
-  logInfo m!"computeK: k = {k}"
+  -- logInfo m!"computeK: k = {k}"
 
   -- without `tid.withContext` wrapper, internal `k` is not displayed properly (@_fvar.5029)
   -- e.g., k:= fun x => @_fvar.5029 x
