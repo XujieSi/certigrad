@@ -302,13 +302,11 @@ def BuildSimpGradLemmas (k: Expr) : TacticM (List (MetaM Expr)) := do
 
 
 partial def SimpGradCoreLoop
-
     (lhs: Expr)
     : TacticM (Option (List MVarId × Expr)) := do
     let fn := lhs.getAppFn
     let args := lhs.getAppArgs
     if fn.isConstOf ``certigrad.T.grad && args.size == 3 then
-        logInfo m!"---lhs={lhs}"
         let k ←  computeK lhs
         let rules ← BuildSimpGradLemmas k
         let ty ← inferType lhs
@@ -348,25 +346,29 @@ partial def SimpGradCoreLoop
         logInfo m!"Call before ---catch ex =>---, lhs={lhs}"
         return some ([], ← mkEqRefl lhs)
 
-partial def SimpGradCore (tid: MVarId)  : TacticM (List MVarId) := do
+partial def SimpGradCore (tid: MVarId)  : TacticM Unit := do
   let e ← tid.getType
   match e.eq? with
   | some (_, lhs, _) =>
     let (subgoals, proof) ← (←  SimpGradCoreLoop lhs)
     let target ← instantiateMVars e
     let rewriteResult ← tid.rewrite target proof
+    let goal' ← tid.replaceTargetEq rewriteResult.eNew rewriteResult.eqProof
+    let gens := rewriteResult.mvarIds.filter fun g => g != tid
+    replaceMainGoal (goal' :: gens)
+    logInfo m!"SimpGradCore: rewriteResult={←getGoals}---"
+    -- tid.assign (← mkEqRefl lhs)
     if rewriteResult.eNew == e then
-      return subgoals
-    else
-      SimpGradCore tid
+      return ()
+    else  -- let newGoals ← SimpGradCore tid
+      SimpGradCore (←getMainGoal)
   | none =>
     throwError "SimpGradCore: goal is not an equality, got: {e}"
 
 
 elab "simplifyGrad": tactic => do
   let tid ← getMainGoal
-  let newGoals ← SimpGradCore tid
-  setGoals newGoals
+  SimpGradCore tid
   let varIds ← Meta.repeat' proveDifferentiableCore (← getGoals)
 
   let varIds ← myAssumption varIds
