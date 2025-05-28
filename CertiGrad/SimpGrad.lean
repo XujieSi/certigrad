@@ -355,12 +355,10 @@ partial def SimpGradCore (tid: MVarId)  : TacticM (List MVarId) := do
     let (subgoals, proof) ← (←  SimpGradCoreLoop lhs)
     let target ← instantiateMVars e
     let rewriteResult ← tid.rewrite target proof
-    let mainGoal ← mkFreshExprMVar rewriteResult.eNew
     if rewriteResult.eNew == e then
-      return (mainGoal.mvarId! :: subgoals)
+      return subgoals
     else
-      let goals ← SimpGradCore mainGoal.mvarId!
-      return (goals ++ subgoals)
+      SimpGradCore tid
   | none =>
     throwError "SimpGradCore: goal is not an equality, got: {e}"
 
@@ -376,19 +374,21 @@ elab "simplifyGrad": tactic => do
   let varIds ← Meta.repeat' provePreconditionsCore varIds
 
   let varIds ← myAssumption varIds
-
+  logInfo m!"---simplifyGrad: varIds={varIds}---"
+  logInfo m!"Current goals: {← getGoals}"
   setGoals varIds
 
 
-example (k : TReal → TReal) : (fun x => k x) = k := by
-      rfl
+
 
 lemma grad_mvn_kl₁ (k : TReal → TReal) (shape : S) (μ σ : T shape) : ∇ (λ μ => k (mvn_kl μ σ)) μ = ∇ k (mvn_kl μ σ) • μ := by
   unfold mvn_kl
   simplifyGrad
-  simp [T.smul.def, T.const_neg, T.const_mul, T.const_zero, T.const_one, T.const_bit0, T.const_bit1, T.const_inv]
-  rw [←mul_comm, mul_assoc]
-  -- simp [T.mul_inv_cancel two_pos]
+  simp [T.smul.def]
+  rw [two_shape_eq_two, mul_comm, mul_assoc, mul_comm]
+  rw [T.inv_mul_cancel two_pos]
+  simp
+
 
 
 
