@@ -348,6 +348,9 @@ partial def SimpGradCoreLoop
 
 partial def SimpGradCore (tid: MVarId)  : TacticM Unit := do
   let e ← tid.getType
+  -- [WARNING!!!]
+  let e ← whnf e
+  logInfo m!"SimpGradCore: e.head={e.getAppFn}"
   match e.eq? with
   | some (_, lhs, _) =>
     let (subgoals, proof) ← (←  SimpGradCoreLoop lhs)
@@ -393,6 +396,29 @@ lemma grad_mvn_kl₁ (k : TReal → TReal) (shape : S) (μ σ : T shape) : ∇ (
 
 
 
+lemma grad_mvn_kl₂ (k : TReal → TReal) (shape : S) (μ σ : T shape) (H_σ : σ > 0) (H_k : is_cdifferentiable k (mvn_kl μ σ)) :
+  ∇ (λ σ => k (mvn_kl μ σ)) σ = ∇ k (mvn_kl μ σ) • (σ - (1 / σ)) := by
+    have H_σ₂ : square σ > 0 := square_pos_of_pos H_σ
+    have H_diff₁ : is_cdifferentiable (λ (θ₀ : T shape) => k (-2⁻¹ * T.sum (1 + T.log (square θ₀) - square μ - square σ))) σ := by proveDifferentiable
+    have H_diff₂ : is_cdifferentiable (λ (θ₀ : T shape) => k (-2⁻¹ * T.sum (1 + T.log (square σ) - square μ - square θ₀))) σ := by proveDifferentiable
+    unfold mvn_kl
+    rw [grad_binary (λ θ₁ θ₂ => k (-2⁻¹ * T.sum (1 + T.log (square θ₁) - square μ - square θ₂))) _ H_diff₁ H_diff₂]
+    simplifyGrad
+    simp [T.smul.def, T.const_neg, T.const_mul, T.const_zero,
+      T.const_one, T.const_bit0, T.const_bit1, T.const_inv,
+      left_distrib, right_distrib]
+    rw []
+    rw [T.neg_div]
+    simp [mul_neg_eq_neg_mul_symm, neg_mul_eq_neg_mul_symm]
+    apply congr_arg
+    apply congr_arg
+    simp only [T.mul_div_mul, square]
+    rw [-mul_assoc, T.mul_div_mul, (@T.div_self_square _ σ H_σ)]
+    simp
+    rw [-(mul_assoc (2 : T shape) 2⁻¹), T.mul_inv_cancel two_pos]
+    simp
+    rw [T.div_mul_inv]
+    simp
 
 
 

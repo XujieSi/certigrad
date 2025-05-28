@@ -496,11 +496,10 @@ def checkIsCDifferentiable (e : Expr) : TacticM Expr := do
 -- def proveDifferentiableCoreHelper (grad : Expr) : TacticM (List MVarId) := do
 
 def proveDifferentiableCore (tid : MVarId): TacticM (List MVarId) := do
-  logInfo m!"enter proveDifferentiableCore tid = [{tid}]"
   let tgt ←  instantiateMVars  (← tid.getType)
-  logInfo m!"tgt:={tgt}"
+  -- logInfo m!"tgt:={tgt}"
   let grad ← checkIsCDifferentiable tgt
-  logInfo m!"grad:={grad}"
+  -- logInfo m!"grad:={grad}"
 
   -- match stx with
   -- | `(tactic| apply $e) => evalApplyLikeTactic (·.apply) e
@@ -563,7 +562,7 @@ def proveDifferentiableCore (tid : MVarId): TacticM (List MVarId) := do
     (mkAppM `certigrad.T.is_cdifferentiable_bsernoulli_neglogpdf₂ #[k]),
   ]
   -- logInfo m!"constructed all candidates"
-  logInfo m!"candidate_exprs: {tid}"
+  -- logInfo m!"candidate_exprs: {tid}"
   myFirstApply tid candidate_exprs
   -- logInfo m!"myFirstApply finished"
   -- logInfo m!"finished trying all candidates, with k:={k}"
