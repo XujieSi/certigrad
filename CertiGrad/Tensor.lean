@@ -148,7 +148,13 @@ noncomputable def zsmul {shape : S} (i : Int) (m : T shape) : (T shape) :=
   match i with
   | Int.ofNat n => nsmul n m
   | Int.negSucc n => neg (nsmul (n + 1) m)
+
+
 end IL
+
+
+
+
 
 -- @[inline] instance (shape : S) : ordered_comm_ring (T shape) :=
 -- {
@@ -220,6 +226,11 @@ noncomputable def scalar_mul {shape : S} (α : TReal) (x : T shape) : T shape :=
 -- SMul is from mathlib4 Mathlib.Algebra.Algebra.Defs
 noncomputable instance {shape : S} : SMul (TReal) (T shape) where
   smul := scalar_mul
+
+
+axiom inv_inv {shape : S} : ∀ (x : T shape), x⁻¹⁻¹ = x
+axiom mul_inv_rev {shape : S} : ∀ (x y : T shape), (x * y)⁻¹ = y⁻¹ * x⁻¹
+axiom inv_eq_of_mul {shape : S} (x y : T shape) : x * y = 1 → x⁻¹ = y
 
 
 axiom transpose {m n : Nat} (M : T [m, n]) : T [n, m]
@@ -351,6 +362,7 @@ noncomputable def mvn_logpdf {shape : S} (μ σ x : T shape) : TReal :=
 noncomputable  def mvn_grad_logpdf_μ {shape : S} (μ σ x : T shape) : T shape :=
   (x - μ) / (square σ)
 
+
 noncomputable def mvn_grad_logpdf_σ {shape : S} (μ σ x : T shape) : T shape :=
   square (x - μ) / (σ * square σ) - σ⁻¹
 
@@ -373,5 +385,26 @@ def force {shape₁ : S} (x : T shape₁) (shape₂ : S) : T shape₂ :=
   if H : shape₁ = shape₂ then Eq.recOn H x
   else T.error ("force-failed: " ++  shape₁.toString ++ " != " ++  shape₂.toString)
 
+
+
+noncomputable instance divInvMonoid_T (shape : S) : DivInvMonoid (T shape) where
+  mul            := (· * ·)
+  one            := 1
+  inv            := T.inv -- 依赖你已有的 `noncomputable instance : Inv (T shape)`
+  div            := Div.div      -- 依赖你已有的 `noncomputable instance : Div (T shape)`
+  mul_assoc      := by intros; apply IL.mul_assoc
+  one_mul        := by intros; apply IL.one_mul
+  mul_one        := by intros; apply IL.mul_one
+
+noncomputable instance divisionMonoid_T (shape : S) : DivisionMonoid (T shape) where
+  mul            := (· * ·)
+  one            := 1
+  inv            := T.inv
+  mul_assoc      := by intros; apply IL.mul_assoc
+  one_mul        := by intros; apply IL.one_mul
+  mul_one        := by intros; apply IL.mul_one
+  inv_inv        := by intros; apply inv_inv
+  mul_inv_rev    := by intros; apply mul_inv_rev
+  inv_eq_of_mul  := by intros; apply inv_eq_of_mul;assumption
 end T
 end certigrad

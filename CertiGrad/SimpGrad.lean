@@ -417,12 +417,19 @@ lemma grad_mvn_kl₂ (k : TReal → TReal) (shape : S) (μ σ : T shape) (H_σ :
 
 lemma mvn_grad_logpdf_μ_correct {shape : S} (μ σ x : T shape) (H_σ : σ > 0) :
   ∇ (λ θ => mvn_logpdf θ σ x) μ = mvn_grad_logpdf_μ μ σ x := by
-  unfold mvn_logpdf
-  let H := square_pos_of_pos H_σ
+  unfold mvn_logpdf mvn_grad_logpdf_μ
   simplifyGrad
-  simp [smul.def, const_bit0, const_one, const_neg, const_inv, T.neg_div]
-  simp only [mul_assoc, mul_comm, T.mul_inv_cancel two_pos, T.div_div_eq_div_mul]
+  simp [T.smul.def]
+  simp [div_eq_mul_inv]
+  rw [two_shape_eq_two]
+  rw [T.inv_mul_cancel two_pos]
+  unfold square
+  simp
+  rw [mul_assoc]
 
+
+
+  -- rw [neg_neg]
 
 lemma mvn_grad_logpdf_σ_correct {shape : S} (μ σ x : T shape) (H_σ : σ > 0) :
   ∇ (λ θ => mvn_logpdf μ θ x) σ = mvn_grad_logpdf_σ μ σ x := by
