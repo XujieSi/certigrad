@@ -261,13 +261,12 @@ def SimpGradRewrite (tid : MVarId) (exprs : List (MetaM Expr)) : TacticM Rewrite
     throwError "SimpGradRewrite: None is successful:("
   | e :: es =>
     try
-      -- logInfo m! "---will extract exprs--- {← e}"
       let target ← instantiateMVars (← tid.getType)
       let target ← whnf target
       let rr ← tid.rewrite target (← e)
       Term.synthesizeSyntheticMVarsNoPostponing
       return rr
-    catch ex =>
+    catch _ =>
       SimpGradRewrite tid es
 
 def BuildSimpGradLemmas (k: Expr) : TacticM (List (MetaM Expr)) := do
@@ -321,20 +320,17 @@ partial def SimpGradCoreLoop
           let eqlhs_lhs ← mkEqRefl lhs
           let proof ← mkAppM ``Eq.mp #[ rwproof, eqlhs_lhs]
           return (some (subgoals, proof))
-        catch ex =>
-          -- throwError "SimpGradRewrite: None is successful:("
+        catch _ =>
           return some ([], ← mkEqRefl lhs)
     else
       try
         match lhs with
           | Expr.app f x =>
               try
-                -- logInfo m!"----f={f}, x={x}----"
                 let (fsubgoals, fproof) ← (← SimpGradCoreLoop f)
                 let (xsubgoals, xproof) ← (← SimpGradCoreLoop x)
                 let subgoals := fsubgoals ++ xsubgoals
                 let newproof ← mkCongr fproof xproof
-                -- logInfo m!"------ let newproof ← mkCongr fproof xproof lhs ------newproof={newproof}"
                 return (some (subgoals, newproof))
               catch _ =>
                 let proof ← mkEqRefl lhs
@@ -343,7 +339,6 @@ partial def SimpGradCoreLoop
               let proof ← mkEqRefl lhs
               return (some ([], proof))
       catch ex =>
-        logInfo m!"Call before ---catch ex =>---, lhs={lhs}"
         return some ([], ← mkEqRefl lhs)
 
 partial def SimpGradCore (tid: MVarId)  : TacticM Unit := do
@@ -358,7 +353,7 @@ partial def SimpGradCore (tid: MVarId)  : TacticM Unit := do
     let rewriteResult ← tid.rewrite target proof
     let goal' ← tid.replaceTargetEq rewriteResult.eNew rewriteResult.eqProof
     let gens := rewriteResult.mvarIds.filter fun g => g != tid
-    replaceMainGoal (goal' :: gens)
+    replaceMainGoal (goal' :: gens ++ subgoals)
     logInfo m!"SimpGradCore: rewriteResult={←getGoals}---"
     -- tid.assign (← mkEqRefl lhs)
     if rewriteResult.eNew == e then
@@ -370,8 +365,7 @@ partial def SimpGradCore (tid: MVarId)  : TacticM Unit := do
 
 
 elab "simplifyGrad": tactic => do
-  let tid ← getMainGoal
-  SimpGradCore tid
+  SimpGradCore (← getMainGoal)
   let varIds ← Meta.repeat' proveDifferentiableCore (← getGoals)
 
   let varIds ← myAssumption varIds
@@ -407,30 +401,59 @@ lemma grad_mvn_kl₂ (k : TReal → TReal) (shape : S) (μ σ : T shape) (H_σ :
     simp [T.smul.def, T.const_neg, T.const_mul, T.const_zero,
       T.const_one, T.const_bit0, T.const_bit1, T.const_inv,
       left_distrib, right_distrib]
-    rw []
-    rw [T.neg_div]
-    simp [mul_neg_eq_neg_mul_symm, neg_mul_eq_neg_mul_symm]
-    apply congr_arg
-    apply congr_arg
-    simp only [T.mul_div_mul, square]
-    rw [-mul_assoc, T.mul_div_mul, (@T.div_self_square _ σ H_σ)]
-    simp
-    rw [-(mul_assoc (2 : T shape) 2⁻¹), T.mul_inv_cancel two_pos]
-    simp
-    rw [T.div_mul_inv]
-    simp
+    -- rw []
+    -- rw [T.neg_div]
+    -- simp [mul_neg_eq_neg_mul_symm, neg_mul_eq_neg_mul_symm]
+    -- apply congr_arg
+    -- apply congr_arg
+    -- simp only [T.mul_div_mul, square]
+    -- rw [-mul_assoc, T.mul_div_mul, (@T.div_self_square _ σ H_σ)]
+    -- simp
+    -- rw [-(mul_assoc (2 : T shape) 2⁻¹), T.mul_inv_cancel two_pos]
+    -- simp
+    -- rw [T.div_mul_inv]
+    -- simp
 
 
+lemma mvn_grad_logpdf_μ_correct {shape : S} (μ σ x : T shape) (H_σ : σ > 0) :
+  ∇ (λ θ => mvn_logpdf θ σ x) μ = mvn_grad_logpdf_μ μ σ x := by
+  unfold mvn_logpdf
+  let H := square_pos_of_pos H_σ
+  simplifyGrad
+  simp [smul.def, const_bit0, const_one, const_neg, const_inv, T.neg_div]
+  simp only [mul_assoc, mul_comm, T.mul_inv_cancel two_pos, T.div_div_eq_div_mul]
 
 
+lemma mvn_grad_logpdf_σ_correct {shape : S} (μ σ x : T shape) (H_σ : σ > 0) :
+  ∇ (λ θ => mvn_logpdf μ θ x) σ = mvn_grad_logpdf_σ μ σ x := by
+  let H_σ₂ := square_pos_of_pos H_σ
+  have H_d₁ : is_cdifferentiable (λ θ₀ => -2⁻¹ * sum (square ((x - μ) / θ₀) + log (2 * pi shape) + log (square σ))) σ := by proveDifferentiable
+  have H_d₂ : is_cdifferentiable (λ θ₀ => -2⁻¹ * sum (square ((x - μ) / σ) + log (2 * pi shape) + log (square θ₀))) σ := by proveDifferentiable
+  have H₁ : (2 * (2⁻¹ / square σ)) = σ⁻¹ * σ⁻¹ := by
+    unfold square; rw [T.mul_div_mul_alt, T.mul_inv_cancel two_pos, one_div_inv, T.mul_inv_pos H_σ H_σ]
+  have H₂ : 2 * ((x + -μ) * ((x + -μ) * 2⁻¹)) = (2 * 2⁻¹) * square (x - μ) := by simp [square]
+  unfold mvn_logpdf
+  rw [grad_binary (λ θ₁ θ₂ => -2⁻¹ * sum (square ((x - μ) / θ₁) + log (2 * pi shape) + log (square θ₂))) _ H_d₁ H_d₂]
+  simplifyGrad
+  simp [smul.def, const_bit0, const_one, const_neg, const_inv, T.neg_div, T.div_div_eq_div_mul]
+  rw [H₁]
+  rw [←mul_assoc, T.mul_inv_cancel H_σ]
+  simp [T.mul_div_mul_alt, T.div_div_eq_div_mul]
+  rw [H₂, T.mul_inv_cancel two_pos]
+  simp [mvn_grad_logpdf_σ]
 
-
-
-
--- example (k : TReal → TReal) (shape : S) (μ σ : TReal): ∇ (λ σ => σ) σ = 1:= by
---   simplifyGradCore
-
-
-
-end T
-end certigrad
+lemma grad_bernoulli_neglogpdf₁ (k : TReal → TReal) (shape : S) (p z : T shape)
+  (H_p₁ : 0 < p) (H_p₂ : 0 < 1 - p) (H_k : is_cdifferentiable k (bernoulli_neglogpdf p z)) :
+  ∇ (λ p => k (bernoulli_neglogpdf p z)) p = ∇ k (bernoulli_neglogpdf p z) •
+    ((1 - z) / (eps shape + (1 - p)) - z / (eps shape + p)) := by
+    have H_diff₁ : is_cdifferentiable (λ (θ₀ : T shape) => k (-T.sum (z * T.log (eps shape + θ₀) + (1 - z) * T.log (eps shape + (1 - p))))) p := by proveDifferentiable
+    have H_diff₂ : is_cdifferentiable (λ (θ₀ : T shape) => k (-T.sum (z * T.log (eps shape + p) + (1 - z) * T.log (eps shape + (1 - θ₀))))) p := by proveDifferentiable
+    unfold bernoulli_neglogpdf
+    rw [T.grad_binary (λ θ₁ θ₂ => k (-T.sum (z * T.log (eps shape + θ₁) + (1 - z) * T.log (eps shape + (1 - θ₂))))) _ H_diff₁ H_diff₂]
+    simplifyGrad
+    -- simp [T.smul.def, const_neg, T.neg_div, T.div_mul_inv, left_distrib, right_distrib]
+    -- rw [T.neg_div]
+    -- simp [mul_neg, neg_mul]
+    -- apply congr_arg
+    -- apply congr_arg
+    -- simp [T.smul.def, const_neg, T.neg_div, T.div_mul_inv, left_distrib, right_distrib]
