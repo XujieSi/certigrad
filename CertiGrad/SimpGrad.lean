@@ -7,6 +7,7 @@ import Init.Prelude
 
 import Mathlib.Algebra.Order.Ring.Defs
 import Mathlib.Tactic.Ring
+import Mathlib.Algebra.Ring.Basic
 
 import Lean
 open Lean Elab Tactic Meta Simp
@@ -132,7 +133,7 @@ lemma grad_softplus {shape : S} (k : T shape → TReal) (θ : T shape) :
   have H : (exp θ) / (exp θ + 1) = 1 / (1 + exp (- θ)) :=
     calc (exp θ) / (exp θ + 1)
       = ((exp θ) / (exp θ + 1)) * ((exp θ)⁻¹ / (exp θ)⁻¹) := by simp [T.div_self (inv_pos (@exp_pos _ θ))]
-    _ = ((exp θ * (exp θ)⁻¹) / ((exp θ + 1) * (exp θ)⁻¹)) := by simp [T.div_mul_div]
+    _ = ((exp θ * (exp θ)⁻¹) / ((exp θ + 1) * (exp θ)⁻¹)) := by rw [T.div_mul_div]
     _ = (1 / ((exp θ + 1) * (exp θ)⁻¹)) := by simp only [T.mul_inv_cancel (@exp_pos _ θ)]
     _ = 1 / ((exp θ * (exp θ)⁻¹) + 1 * (exp θ)⁻¹) := by simp only [right_distrib]
     _ = 1 / (1 + exp (- θ)) := by { simp only [T.mul_inv_cancel (@exp_pos _ θ), one_mul]; rw [exp_inv]}
@@ -153,7 +154,7 @@ lemma grad_sigmoid {shape : S} (k : T shape → TReal) (θ : T shape) :
   have H : exp (- θ) / (1 + exp (- θ)) = 1 - sigmoid θ :=
     calc  exp (- θ) / (1 + exp (- θ))
         = ((1 + exp (- θ)) - 1) / (1 + exp (- θ)) := by simp [sub_add_eq_sub_sub]
-      _ = ((1 + exp (- θ)) / (1 + exp (- θ))) - 1 / (1 + exp (- θ)) := by simp [T.div_sub_div_same]
+      _ = ((1 + exp (- θ)) / (1 + exp (- θ))) - 1 / (1 + exp (- θ)) := by rw [T.div_sub_div_same]
       _ = 1 - sigmoid θ := by { rw [T.div_self (one_plus_pos exp_pos)]; rfl}
 
   calc  ∇ (λ θ => k (sigmoid θ)) θ
@@ -401,26 +402,23 @@ lemma grad_mvn_kl₂ (k : TReal → TReal) (shape : S) (μ σ : T shape) (H_σ :
     simp [T.smul.def, T.const_neg, T.const_mul, T.const_zero,
       T.const_one, T.const_bit0, T.const_bit1, T.const_inv,
       left_distrib, right_distrib]
-    -- rw []
-    -- rw [T.neg_div]
-    -- simp [mul_neg_eq_neg_mul_symm, neg_mul_eq_neg_mul_symm]
-    -- apply congr_arg
-    -- apply congr_arg
-    -- simp only [T.mul_div_mul, square]
-    -- rw [-mul_assoc, T.mul_div_mul, (@T.div_self_square _ σ H_σ)]
-    -- simp
-    -- rw [-(mul_assoc (2 : T shape) 2⁻¹), T.mul_inv_cancel two_pos]
-    -- simp
-    -- rw [T.div_mul_inv]
-    -- simp
+    simp [two_shape_eq_two, div_eq_mul_inv]
+    set A := (∇ (fun x => k x) (-(2⁻¹ * (1 + σ.square.log - μ.square - σ.square).sum))).const shape
+    unfold square
+    ring
+    rw [mul_comm 2⁻¹ σ]
+    simp [T.inv_mul_cancel (2 : T shape) two_pos]
+
+
+
+
 
 
 lemma mvn_grad_logpdf_μ_correct {shape : S} (μ σ x : T shape) (H_σ : σ > 0) :
   ∇ (λ θ => mvn_logpdf θ σ x) μ = mvn_grad_logpdf_μ μ σ x := by
   unfold mvn_logpdf mvn_grad_logpdf_μ
   simplifyGrad
-  simp [T.smul.def]
-  simp [div_eq_mul_inv]
+  simp [T.smul.def, div_eq_mul_inv]
   rw [two_shape_eq_two]
   rw [T.inv_mul_cancel two_pos]
   unfold square
@@ -436,18 +434,14 @@ lemma mvn_grad_logpdf_σ_correct {shape : S} (μ σ x : T shape) (H_σ : σ > 0)
   let H_σ₂ := square_pos_of_pos H_σ
   have H_d₁ : is_cdifferentiable (λ θ₀ => -2⁻¹ * sum (square ((x - μ) / θ₀) + log (2 * pi shape) + log (square σ))) σ := by proveDifferentiable
   have H_d₂ : is_cdifferentiable (λ θ₀ => -2⁻¹ * sum (square ((x - μ) / σ) + log (2 * pi shape) + log (square θ₀))) σ := by proveDifferentiable
-  have H₁ : (2 * (2⁻¹ / square σ)) = σ⁻¹ * σ⁻¹ := by
-    unfold square; rw [T.mul_div_mul_alt, T.mul_inv_cancel two_pos, one_div_inv, T.mul_inv_pos H_σ H_σ]
-  have H₂ : 2 * ((x + -μ) * ((x + -μ) * 2⁻¹)) = (2 * 2⁻¹) * square (x - μ) := by simp [square]
   unfold mvn_logpdf
   rw [grad_binary (λ θ₁ θ₂ => -2⁻¹ * sum (square ((x - μ) / θ₁) + log (2 * pi shape) + log (square θ₂))) _ H_d₁ H_d₂]
   simplifyGrad
   simp [smul.def, const_bit0, const_one, const_neg, const_inv, T.neg_div, T.div_div_eq_div_mul]
-  rw [H₁]
-  rw [←mul_assoc, T.mul_inv_cancel H_σ]
-  simp [T.mul_div_mul_alt, T.div_div_eq_div_mul]
-  rw [H₂, T.mul_inv_cancel two_pos]
-  simp [mvn_grad_logpdf_σ]
+  simp [T.smul.def, div_eq_mul_inv]
+  rw [two_shape_eq_two]
+  simp
+
 
 lemma grad_bernoulli_neglogpdf₁ (k : TReal → TReal) (shape : S) (p z : T shape)
   (H_p₁ : 0 < p) (H_p₂ : 0 < 1 - p) (H_k : is_cdifferentiable k (bernoulli_neglogpdf p z)) :

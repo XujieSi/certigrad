@@ -217,6 +217,8 @@ noncomputable instance (shape : S) : OrderedCommRing (T shape) where
 -- @[inline] instance (shape : S) : has_sub (T shape) := by apply_instance
 -- attribute [inline] ordered_comm_ring.to_ordered_ring ordered_ring.to_ring ring.to_add_comm_group add_comm_group.to_add_group algebra.sub
 
+
+
 noncomputable instance (shape : S) : Sub (T shape) := ⟨T.sub⟩
 
 
@@ -227,10 +229,11 @@ noncomputable def scalar_mul {shape : S} (α : TReal) (x : T shape) : T shape :=
 noncomputable instance {shape : S} : SMul (TReal) (T shape) where
   smul := scalar_mul
 
+axiom inv_inv: ∀ (x : TReal), x⁻¹⁻¹ = x
 
-axiom inv_inv {shape : S} : ∀ (x : T shape), x⁻¹⁻¹ = x
-axiom mul_inv_rev {shape : S} : ∀ (x y : T shape), (x * y)⁻¹ = y⁻¹ * x⁻¹
-axiom inv_eq_of_mul {shape : S} (x y : T shape) : x * y = 1 → x⁻¹ = y
+axiom mul_inv_rev : ∀ (x y : TReal), (x * y)⁻¹ = y⁻¹ * x⁻¹
+
+axiom inv_eq_of_mul (x y : TReal) : x * y = 1 → x⁻¹ = y
 
 
 axiom transpose {m n : Nat} (M : T [m, n]) : T [n, m]
@@ -363,7 +366,7 @@ noncomputable  def mvn_grad_logpdf_μ {shape : S} (μ σ x : T shape) : T shape 
   (x - μ) / (square σ)
 
 
-noncomputable def mvn_grad_logpdf_σ {shape : S} (μ σ x : T shape) : T shape :=
+noncomputable def   mvn_grad_logpdf_σ {shape : S} (μ σ x : T shape) : T shape :=
   square (x - μ) / (σ * square σ) - σ⁻¹
 
 noncomputable def mvn_std_logpdf {shape : S} (x : T shape) : TReal := mvn_logpdf 0 1 x
@@ -396,7 +399,7 @@ noncomputable instance divInvMonoid_T (shape : S) : DivInvMonoid (T shape) where
   one_mul        := by intros; apply IL.one_mul
   mul_one        := by intros; apply IL.mul_one
 
-noncomputable instance divisionMonoid_T (shape : S) : DivisionMonoid (T shape) where
+noncomputable instance divisionMonoid_T : DivisionMonoid (TReal) where
   mul            := (· * ·)
   one            := 1
   inv            := T.inv
