@@ -258,7 +258,6 @@ lemma grad_sumr {X : Type} {shape : S} (θ : T shape) (f : T shape → X → TRe
 def SimpGradRewrite (tid : MVarId) (exprs : List (MetaM Expr)) : TacticM RewriteResult := do
   match exprs with
   | [] => --pure []
-    dbg_trace "SimpGradRewrite: None is successful:("
     throwError "SimpGradRewrite: None is successful:("
   | e :: es =>
     try
@@ -346,7 +345,6 @@ partial def SimpGradCore (tid: MVarId)  : TacticM Unit := do
   let e ← tid.getType
   -- [WARNING!!!]
   let e ← whnf e
-  logInfo m!"SimpGradCore: e.head={e.getAppFn}"
   match e.eq? with
   | some (_, lhs, _) =>
     let (subgoals, proof) ← (←  SimpGradCoreLoop lhs)
@@ -355,7 +353,6 @@ partial def SimpGradCore (tid: MVarId)  : TacticM Unit := do
     let goal' ← tid.replaceTargetEq rewriteResult.eNew rewriteResult.eqProof
     let gens := rewriteResult.mvarIds.filter fun g => g != tid
     replaceMainGoal (goal' :: gens ++ subgoals)
-    logInfo m!"SimpGradCore: rewriteResult={←getGoals}---"
     -- tid.assign (← mkEqRefl lhs)
     if rewriteResult.eNew == e then
       return ()
@@ -374,8 +371,7 @@ elab "simplifyGrad": tactic => do
   let varIds ← Meta.repeat' provePreconditionsCore varIds
 
   let varIds ← myAssumption varIds
-  logInfo m!"---simplifyGrad: varIds={varIds}---"
-  logInfo m!"Current goals: {← getGoals}"
+
   setGoals varIds
 
 
@@ -389,8 +385,6 @@ lemma grad_mvn_kl₁ (k : TReal → TReal) (shape : S) (μ σ : T shape) : ∇ (
   rw [T.inv_mul_cancel two_pos]
   simp
 
-
-
 lemma grad_mvn_kl₂ (k : TReal → TReal) (shape : S) (μ σ : T shape) (H_σ : σ > 0) (H_k : is_cdifferentiable k (mvn_kl μ σ)) :
   ∇ (λ σ => k (mvn_kl μ σ)) σ = ∇ k (mvn_kl μ σ) • (σ - (1 / σ)) := by
     have H_σ₂ : square σ > 0 := square_pos_of_pos H_σ
@@ -399,17 +393,17 @@ lemma grad_mvn_kl₂ (k : TReal → TReal) (shape : S) (μ σ : T shape) (H_σ :
     unfold mvn_kl
     rw [grad_binary (λ θ₁ θ₂ => k (-2⁻¹ * T.sum (1 + T.log (square θ₁) - square μ - square θ₂))) _ H_diff₁ H_diff₂]
     simplifyGrad
-    simp [T.smul.def, T.const_neg, T.const_mul, T.const_zero,
-      T.const_one, T.const_bit0, T.const_bit1, T.const_inv,
-      left_distrib, right_distrib]
-    simp [two_shape_eq_two, div_eq_mul_inv]
+    simp [T.smul.def, two_shape_eq_two, div_mul_inv]
     set A := (∇ (fun x => k x) (-(2⁻¹ * (1 + σ.square.log - μ.square - σ.square).sum))).const shape
+    have H_1: A * 2⁻¹ * σ.square⁻¹ * 2 * σ = A * σ.square⁻¹ * σ * (2 * 2⁻¹) := by ring_nf
+    have H_2: A * 2⁻¹ * 2 * σ = A * σ * (2 * 2⁻¹) := by ring_nf
+    rw [H_1, H_2, T.mul_inv_cancel two_pos]
+    simp [mul_one]
     unfold square
+    rw [T.mul_inv_pos H_σ H_σ]
+    have H_3: A * (σ⁻¹ * σ⁻¹) * σ = A * σ⁻¹ * (σ * σ⁻¹) := by ring_nf
+    rw [H_3, T.mul_inv_cancel H_σ, mul_one]
     ring
-    rw [mul_comm 2⁻¹ σ]
-    simp [T.inv_mul_cancel (2 : T shape) two_pos]
-
-
 
 
 
@@ -418,29 +412,28 @@ lemma mvn_grad_logpdf_μ_correct {shape : S} (μ σ x : T shape) (H_σ : σ > 0)
   ∇ (λ θ => mvn_logpdf θ σ x) μ = mvn_grad_logpdf_μ μ σ x := by
   unfold mvn_logpdf mvn_grad_logpdf_μ
   simplifyGrad
-  simp [T.smul.def, div_eq_mul_inv]
-  rw [two_shape_eq_two]
-  rw [T.inv_mul_cancel two_pos]
   unfold square
-  simp
-  rw [mul_assoc]
-
-
-
-  -- rw [neg_neg]
+  simp [T.smul.def, div_mul_inv, T.mul_inv_pos H_σ H_σ, two_shape_eq_two, T.inv_mul_cancel two_pos]
+  ring
 
 lemma mvn_grad_logpdf_σ_correct {shape : S} (μ σ x : T shape) (H_σ : σ > 0) :
   ∇ (λ θ => mvn_logpdf μ θ x) σ = mvn_grad_logpdf_σ μ σ x := by
   let H_σ₂ := square_pos_of_pos H_σ
   have H_d₁ : is_cdifferentiable (λ θ₀ => -2⁻¹ * sum (square ((x - μ) / θ₀) + log (2 * pi shape) + log (square σ))) σ := by proveDifferentiable
   have H_d₂ : is_cdifferentiable (λ θ₀ => -2⁻¹ * sum (square ((x - μ) / σ) + log (2 * pi shape) + log (square θ₀))) σ := by proveDifferentiable
-  unfold mvn_logpdf
+  unfold mvn_logpdf mvn_grad_logpdf_σ
   rw [grad_binary (λ θ₁ θ₂ => -2⁻¹ * sum (square ((x - μ) / θ₁) + log (2 * pi shape) + log (square θ₂))) _ H_d₁ H_d₂]
   simplifyGrad
-  simp [smul.def, const_bit0, const_one, const_neg, const_inv, T.neg_div, T.div_div_eq_div_mul]
-  simp [T.smul.def, div_eq_mul_inv]
-  rw [two_shape_eq_two]
-  simp
+  unfold square
+  simp [T.smul.def, div_mul_inv,two_shape_eq_two, mul_inv_pos H_σ H_σ]
+  have H_1: 2⁻¹ * 2 * ((x - μ) * σ⁻¹) * (x - μ) * (σ⁻¹ * σ⁻¹) + -(2⁻¹ * (σ⁻¹ * σ⁻¹) * 2 * σ) = (2 * 2⁻¹) * ((x - μ) * σ⁻¹) * (x - μ) * (σ⁻¹ * σ⁻¹) - (σ⁻¹ * (σ * σ⁻¹) * (2 * 2⁻¹)) := by ring
+  simp [H_1, T.mul_inv_cancel two_pos, T.mul_inv_cancel H_σ, one_mul, mul_one]
+  have H_σ_σ : σ * σ > 0 := by apply square_pos_of_pos H_σ
+  simp [mul_inv_pos H_σ H_σ_σ,mul_inv_pos H_σ H_σ]
+  ring
+
+
+
 
 
 lemma grad_bernoulli_neglogpdf₁ (k : TReal → TReal) (shape : S) (p z : T shape)
@@ -452,9 +445,9 @@ lemma grad_bernoulli_neglogpdf₁ (k : TReal → TReal) (shape : S) (p z : T sha
     unfold bernoulli_neglogpdf
     rw [T.grad_binary (λ θ₁ θ₂ => k (-T.sum (z * T.log (eps shape + θ₁) + (1 - z) * T.log (eps shape + (1 - θ₂))))) _ H_diff₁ H_diff₂]
     simplifyGrad
-    -- simp [T.smul.def, const_neg, T.neg_div, T.div_mul_inv, left_distrib, right_distrib]
-    -- rw [T.neg_div]
-    -- simp [mul_neg, neg_mul]
-    -- apply congr_arg
-    -- apply congr_arg
-    -- simp [T.smul.def, const_neg, T.neg_div, T.div_mul_inv, left_distrib, right_distrib]
+    simp [T.smul.def, const_neg, T.neg_div, T.div_mul_inv, left_distrib, right_distrib]
+    rw [T.neg_div]
+    simp [mul_neg, neg_mul]
+    apply congr_arg
+    apply congr_arg
+    simp [T.smul.def, const_neg, T.neg_div, T.div_mul_inv, left_distrib, right_distrib]

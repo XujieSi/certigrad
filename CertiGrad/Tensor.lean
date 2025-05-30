@@ -229,13 +229,6 @@ noncomputable def scalar_mul {shape : S} (α : TReal) (x : T shape) : T shape :=
 noncomputable instance {shape : S} : SMul (TReal) (T shape) where
   smul := scalar_mul
 
-axiom inv_inv: ∀ (x : TReal), x⁻¹⁻¹ = x
-
-axiom mul_inv_rev : ∀ (x y : TReal), (x * y)⁻¹ = y⁻¹ * x⁻¹
-
-axiom inv_eq_of_mul (x y : TReal) : x * y = 1 → x⁻¹ = y
-
-
 axiom transpose {m n : Nat} (M : T [m, n]) : T [n, m]
 
 axiom sum : {shape : S} →  T shape → TReal
@@ -388,26 +381,5 @@ def force {shape₁ : S} (x : T shape₁) (shape₂ : S) : T shape₂ :=
   if H : shape₁ = shape₂ then Eq.recOn H x
   else T.error ("force-failed: " ++  shape₁.toString ++ " != " ++  shape₂.toString)
 
-
-
-noncomputable instance divInvMonoid_T (shape : S) : DivInvMonoid (T shape) where
-  mul            := (· * ·)
-  one            := 1
-  inv            := T.inv -- 依赖你已有的 `noncomputable instance : Inv (T shape)`
-  div            := Div.div      -- 依赖你已有的 `noncomputable instance : Div (T shape)`
-  mul_assoc      := by intros; apply IL.mul_assoc
-  one_mul        := by intros; apply IL.one_mul
-  mul_one        := by intros; apply IL.mul_one
-
-noncomputable instance divisionMonoid_T : DivisionMonoid (TReal) where
-  mul            := (· * ·)
-  one            := 1
-  inv            := T.inv
-  mul_assoc      := by intros; apply IL.mul_assoc
-  one_mul        := by intros; apply IL.one_mul
-  mul_one        := by intros; apply IL.mul_one
-  inv_inv        := by intros; apply inv_inv
-  mul_inv_rev    := by intros; apply mul_inv_rev
-  inv_eq_of_mul  := by intros; apply inv_eq_of_mul;assumption
 end T
 end certigrad
