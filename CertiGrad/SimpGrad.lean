@@ -437,7 +437,7 @@ lemma mvn_grad_logpdf_σ_correct {shape : S} (μ σ x : T shape) (H_σ : σ > 0)
 
 
 lemma grad_bernoulli_neglogpdf₁ (k : TReal → TReal) (shape : S) (p z : T shape)
-  (H_p₁ : 0 < p) (H_p₂ : 0 < 1 - p) (H_k : is_cdifferentiable k (bernoulli_neglogpdf p z)) :
+  (H_p₁ : 0 < p) (H_p₂ : p < 1) (H_k : is_cdifferentiable k (bernoulli_neglogpdf p z)) :
   ∇ (λ p => k (bernoulli_neglogpdf p z)) p = ∇ k (bernoulli_neglogpdf p z) •
     ((1 - z) / (eps shape + (1 - p)) - z / (eps shape + p)) := by
     have H_diff₁ : is_cdifferentiable (λ (θ₀ : T shape) => k (-T.sum (z * T.log (eps shape + θ₀) + (1 - z) * T.log (eps shape + (1 - p))))) p := by proveDifferentiable
@@ -445,9 +445,6 @@ lemma grad_bernoulli_neglogpdf₁ (k : TReal → TReal) (shape : S) (p z : T sha
     unfold bernoulli_neglogpdf
     rw [T.grad_binary (λ θ₁ θ₂ => k (-T.sum (z * T.log (eps shape + θ₁) + (1 - z) * T.log (eps shape + (1 - θ₂))))) _ H_diff₁ H_diff₂]
     simplifyGrad
-    simp [T.smul.def, const_neg, T.neg_div, T.div_mul_inv, left_distrib, right_distrib]
-    rw [T.neg_div]
-    simp [mul_neg, neg_mul]
-    apply congr_arg
-    apply congr_arg
-    simp [T.smul.def, const_neg, T.neg_div, T.div_mul_inv, left_distrib, right_distrib]
+    simp [T.smul.def, T.div_mul_inv]
+    set A := (∇ (fun x => k x) (-(z * (eps shape + p).log + (1 - z) * (eps shape + (1 - p)).log).sum)).const shape
+    ring
