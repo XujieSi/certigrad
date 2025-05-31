@@ -338,7 +338,7 @@ partial def SimpGradCoreLoop
           | _ =>
               let proof ← mkEqRefl lhs
               return (some ([], proof))
-      catch ex =>
+      catch _ =>
         return some ([], ← mkEqRefl lhs)
 
 partial def SimpGradCore (tid: MVarId)  : TacticM Unit := do
