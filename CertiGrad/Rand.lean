@@ -13,6 +13,7 @@ import CertiGrad.Tgrads
 import CertiGrad.Tcont
 import CertiGrad.Mvn
 import CertiGrad.Dvec
+import CertiGrad.SimpGrad
 
 namespace certigrad
 
@@ -211,104 +212,91 @@ def mvn (shape : S) : grad_logpdf [shape, shape] shape
 | ⟦μ, σ⟧, x, 1,     fshape => T.force (T.mvn_grad_logpdf_σ μ σ x) fshape
 | ⟦μ, σ⟧, x, (n+2), fshape => T.error "mvn grad_logpdf: index too large"
 
--- def mvn_std (shape : S) : grad_logpdf [] shape
--- | ⟦⟧, x, idx, fshape => 0
+noncomputable
+def mvn_std (shape : S) : grad_logpdf [] shape
+| ⟦⟧, x, idx, fshape => 0
 
 end glogpdf
 
--- namespace glogpdf_correct
+namespace glogpdf_correct
 
--- lemma mvn (shape : S) : grad_logpdf_correct (pdf.mvn shape) (pre.mvn shape) (glogpdf.mvn shape)
--- | ⟦μ, σ⟧ x 0     ishape H_at_idx H_pre :=
--- begin
--- clear mvn,
--- note H_ishape_eq := H_at_idx^.right,
--- dsimp [list.dnth] at H_ishape_eq,
--- subst H_ishape_eq,
--- dsimp [dvec.update_at, dvec.get],
--- simp,
--- assert H : ∀ (θ₀ : T ishape), T.log (pdf.mvn ishape ⟦θ₀, σ⟧ x) = T.mvn_logpdf θ₀ σ x,
--- { intro θ₀, simp [pdf.mvn, T.mvn_logpdf_correct θ₀ σ x H_pre] },
--- rw (funext H), clear H,
--- erw T.mvn_grad_logpdf_μ_correct _ _ _ H_pre,
--- simp [glogpdf.mvn, dvec.head2]
--- end
+lemma mvn (shape : S) : grad_logpdf_correct (pdf.mvn shape) (pre.mvn shape) (glogpdf.mvn shape)
+        | ⟦μ, σ⟧, x, 0, ishape, H_at_idx, H_pre => by
+            clear mvn
+            let H_ishape_eq := H_at_idx.right
+            simp [util_list.dnth] at H_ishape_eq
+            rw [H_ishape_eq]
+            simp
+            have H : ∀ (θ₀ : T shape), T.log (pdf.mvn shape ⟦θ₀, σ⟧ x) = T.mvn_logpdf θ₀ σ x := by
+              intro θ₀; simp [pdf.mvn, T.mvn_logpdf_correct θ₀ σ x H_pre]
+            rw [funext H]
+            clear H
+            erw [T.mvn_grad_logpdf_μ_correct _ _ _ H_pre]
+            simp [glogpdf.mvn, Dvec.head2, T.force]
+        | ⟦μ, σ⟧, x, 1, ishape, H_at_idx, H_pre => by
+            clear mvn
+            let H_ishape_eq := H_at_idx.right
+            simp [util_list.dnth] at H_ishape_eq
+            rw [H_ishape_eq]
+            simp
+            have H : ∀ (θ₀ : T shape), θ₀ > 0 → T.log (pdf.mvn shape ⟦μ, θ₀⟧ x) = T.mvn_logpdf μ θ₀ x := by
+              intros θ₀ H_θ₀; simp [pdf.mvn, T.mvn_logpdf_correct μ θ₀ x H_θ₀]
+            erw [T.grad_congr_pos _ _ _ H_pre H]
+            clear H
+            erw [T.mvn_grad_logpdf_σ_correct _ _ _ H_pre]
+            simp [glogpdf.mvn, Dvec.head2, T.force]
+        | ⟦μ, σ⟧, x, (n+2), ishape, H_at_idx, H_pre => False.recOn _   (util_list.at_idx_over H_at_idx (by simp))
 
--- | ⟦μ, σ⟧ x 1     ishape H_at_idx H_pre :=
--- begin
--- clear mvn,
--- note H_ishape_eq := H_at_idx^.right,
--- dsimp [list.dnth] at H_ishape_eq,
--- subst H_ishape_eq,
--- dsimp [dvec.update_at, dvec.get],
--- simp,
--- assert H : ∀ (θ₀ : T ishape), θ₀ > 0 → T.log (pdf.mvn ishape ⟦μ, θ₀⟧ x) = T.mvn_logpdf μ θ₀ x,
--- { intros θ₀ H_θ₀, simp [pdf.mvn, T.mvn_logpdf_correct μ θ₀ x H_θ₀] },
+lemma mvn_std (shape : S) : grad_logpdf_correct (pdf.mvn_std shape) (pre.mvn_std shape) (glogpdf.mvn_std shape)
+| ⟦⟧, x, idx, ishape, H_at_idx, H_pre => False.recOn _ (util_list.at_idx_over H_at_idx (by simp))
 
--- erw T.grad_congr_pos _ _ _ H_pre H,
--- clear H,
--- erw T.mvn_grad_logpdf_σ_correct _ _ _ H_pre,
--- simp [glogpdf.mvn, dvec.head2]
--- end
--- | ⟦μ, σ⟧ x (n+2) ishape H_at_idx H_pre => false.rec _ (util_list.at_idx_over H_at_idx (by tactic.dec_triv))
+end glogpdf_correct
 
--- lemma mvn_std (shape : S) : grad_logpdf_correct (pdf.mvn_std shape) (pre.mvn_std shape) (glogpdf.mvn_std shape)
--- | ⟦⟧ x idx     ishape H_at_idx H_pre => false.rec _ (util_list.at_idx_over H_at_idx (by tactic.dec_triv))
+namespace pdf_pos
 
--- end glogpdf_correct
+lemma mvn (shape : S) : pdf_positive (pdf.mvn shape) (pre.mvn shape)
+| ⟦μ, σ⟧, H_pre, y => T.mvn_pdf_pos μ σ H_pre y
 
--- namespace pdf_pos
+lemma mvn_std (shape : S) : pdf_positive (pdf.mvn_std shape) (pre.mvn_std shape)
+| ⟦⟧, H_pre, y => T.mvn_pdf_pos 0 1 T.one_pos y
 
--- lemma mvn (shape : S) : pdf_positive (pdf.mvn shape) (pre.mvn shape)
--- | ⟦μ, σ⟧ H_pre y => T.mvn_pdf_pos μ σ H_pre y
+end pdf_pos
 
--- lemma mvn_std (shape : S) : pdf_positive (pdf.mvn_std shape) (pre.mvn_std shape)
--- | ⟦⟧ H_pre y => T.mvn_pdf_pos 0 1 T.one_pos y
+namespace pdf_int1
 
--- end pdf_pos
+lemma mvn (shape : S) : pdf_integrates_to_one (pdf.mvn shape) (pre.mvn shape)
+| ⟦μ, σ⟧, H_pre => T.mvn_pdf_int1 μ σ H_pre
 
--- namespace pdf_int1
+lemma mvn_std (shape : S) : pdf_integrates_to_one (pdf.mvn_std shape) (pre.mvn_std shape)
+| ⟦⟧, H_pre => T.mvn_pdf_int1 0 1 T.one_pos
 
--- lemma mvn (shape : S) : pdf_integrates_to_one (pdf.mvn shape) (pre.mvn shape)
--- | ⟦μ, σ⟧ H_pre => T.mvn_pdf_int1 μ σ H_pre
+end pdf_int1
 
--- lemma mvn_std (shape : S) : pdf_integrates_to_one (pdf.mvn_std shape) (pre.mvn_std shape)
--- | ⟦⟧ H_pre => T.mvn_pdf_int1 0 1 T.one_pos
+namespace cont
 
--- end pdf_int1
+lemma mvn (shape : S) : continuous (pdf.mvn shape) (pre.mvn shape)
+    | ⟦μ, σ⟧, x, 0, tshape, H_at_idx,H_pre => by
+        clear mvn
+        let H_ishape_eq := H_at_idx.right
+        simp [util_list.dnth] at H_ishape_eq
+        rw [H_ishape_eq]
+        simp
+        apply T.continuous_mvn_pdf_μ
+        exact H_pre
+    | ⟦μ, σ⟧, x, 1, tshape, H_at_idx, H_pre => by
+        clear mvn
+        let H_ishape_eq := H_at_idx.right
+        simp [util_list.dnth] at H_ishape_eq
+        rw [H_ishape_eq]
+        simp
+        apply T.continuous_mvn_pdf_σ
+        exact H_pre
+    | ⟦μ, σ⟧, x, (n+2), tshape, H_at_idx, H_pre => False.recOn _ (util_list.at_idx_over H_at_idx (by simp))
 
--- namespace cont
+lemma mvn_std (shape : S) : continuous (pdf.mvn_std shape) (pre.mvn_std shape)
+    | ⟦⟧, x, 0, tshape, H_at_idx, H_pre => False.recOn _ (util_list.at_idx_over H_at_idx (by simp))
 
--- lemma mvn (shape : S) : continuous (pdf.mvn shape) (pre.mvn shape)
--- | ⟦μ, σ⟧ x 0     tshape H_at_idx H_pre :=
--- begin
--- clear mvn,
--- note H_ishape_eq := H_at_idx^.right,
--- dsimp [list.dnth] at H_ishape_eq,
--- subst H_ishape_eq,
--- dsimp [dvec.update_at, dvec.get],
--- simp,
--- apply T.continuous_mvn_pdf_μ,
--- exact H_pre
--- end
--- | ⟦μ, σ⟧ x 1     tshape H_at_idx H_pre :=
--- begin
--- clear mvn,
--- note H_ishape_eq := H_at_idx^.right,
--- dsimp [list.dnth] at H_ishape_eq,
--- subst H_ishape_eq,
--- dsimp [dvec.update_at, dvec.get],
--- simp,
--- apply T.continuous_mvn_pdf_σ,
--- exact H_pre
--- end
-
--- | ⟦μ, σ⟧ x (n+2) tshape H_at_idx H_pre => false.rec _ (util_list.at_idx_over H_at_idx (by tactic.dec_triv))
-
--- lemma mvn_std (shape : S) : continuous (pdf.mvn_std shape) (pre.mvn_std shape)
--- | ⟦⟧ x 0     tshape H_at_idx H_pre => false.rec _ (util_list.at_idx_over H_at_idx (by tactic.dec_triv))
-
--- end cont
+end cont
 
 -- inductive op : Π (ishapes : List S) (oshape : S), Type
 -- | mvn : ∀ (shape : S), op [shape, shape] shape
@@ -319,60 +307,69 @@ inductive op : ∀ (ishapes : List S) (oshape : S), Type
 | mvn_std : ∀ (shape : S), op [] shape
 
 
+namespace op
+-- noncomputable
+-- def pdf : ∀ {ishapes : List S} {oshape : S}, op ishapes oshape → pdf_function ishapes oshape
+-- | [shape, .(shape)], .(shape), (mvn .(shape)) => certigrad.rand.pdf.mvn shape
+-- | [], shape, (mvn_std .(shape)) => certigrad.rand.pdf.mvn_std shape
+
+-- noncomputable
+-- def run : ∀ {ishapes : List S} {oshape : S}, op ishapes oshape → rng_function ishapes oshape
+-- | [shape, .(shape)], .(shape), (mvn .(shape)) => certigrad.rand.run.mvn shape
+-- | [], shape, (mvn_std .(shape)) => certigrad.rand.run.mvn_std shape
+
+
 
 noncomputable
-def op.pdf : ∀ {ishapes : List S} {oshape : S}, op ishapes oshape → pdf_function ishapes oshape
+def pdf : Π {ishapes : List S} {oshape : S}, op ishapes oshape → pdf_function ishapes oshape
 | [shape, .(shape)], .(shape), (mvn .(shape)) => certigrad.rand.pdf.mvn shape
 | [], shape, (mvn_std .(shape)) => certigrad.rand.pdf.mvn_std shape
 
 noncomputable
-def op.run : ∀ {ishapes : List S} {oshape : S}, op ishapes oshape → rng_function ishapes oshape
+def run : Π {ishapes : List S} {oshape : S}, op ishapes oshape → rng_function ishapes oshape
 | [shape, .(shape)], .(shape), (mvn .(shape)) => certigrad.rand.run.mvn shape
 | [], shape, (mvn_std .(shape)) => certigrad.rand.run.mvn_std shape
 
--- namespace op
+noncomputable
+def pre : Π {ishapes : List S} {oshape : S}, op ishapes oshape → precondition ishapes
+| [shape, .(shape)], .(shape),(mvn .(shape)) => certigrad.rand.pre.mvn shape
+| [], shape, (mvn_std .(shape)) => certigrad.rand.pre.mvn_std shape
 
--- def pdf : Π {ishapes : List S} {oshape : S}, op ishapes oshape → pdf_function ishapes oshape
--- | [shape, .(shape)] .(shape) (mvn .(shape)) => _root_.certigrad.rand.pdf.mvn shape
--- | []               shape (mvn_std .(shape)) => _root_.certigrad.rand.pdf.mvn_std shape
+noncomputable
+def pdf_cdiff : Π {ishapes : List S} {oshape : S} (p : op ishapes oshape), pdf_cdiff (op.pdf p) (op.pre p)
+| [shape, .(shape)], .(shape),(mvn .(shape)) => certigrad.rand.pdiff.mvn shape
+| [], shape, (mvn_std .(shape)) => certigrad.rand.pdiff.mvn_std shape
 
--- def run : Π {ishapes : List S} {oshape : S}, op ishapes oshape → rng_function ishapes oshape
--- | [shape, .(shape)] .(shape) (mvn .(shape)) => _root_.certigrad.rand.run.mvn shape
--- | []               shape (mvn_std .(shape)) => _root_.certigrad.rand.run.mvn_std shape
+noncomputable
+def glogpdf : Π {ishapes : List S} {oshape : S}, op ishapes oshape → grad_logpdf ishapes oshape
+| [shape, .(shape)], .(shape), (mvn .(shape)) => certigrad.rand.glogpdf.mvn shape
+| [], shape, (mvn_std .(shape)) => certigrad.rand.glogpdf.mvn_std shape
 
--- def pre : Π {ishapes : List S} {oshape : S}, op ishapes oshape → precondition ishapes
--- | [shape, .(shape)] .(shape) (mvn .(shape)) => _root_.certigrad.rand.pre.mvn shape
--- | []               shape (mvn_std .(shape)) => _root_.certigrad.rand.pre.mvn_std shape
+noncomputable
+def glogpdf_correct : Π {ishapes : List S} {oshape : S} (p : op ishapes oshape), grad_logpdf_correct (op.pdf p) (op.pre p) (op.glogpdf p)
+| [shape, .(shape)], .(shape),(mvn .(shape)) => certigrad.rand.glogpdf_correct.mvn shape
+| [], shape, (mvn_std .(shape)) => certigrad.rand.glogpdf_correct.mvn_std shape
 
--- def pdf_cdiff : Π {ishapes : List S} {oshape : S} (p : op ishapes oshape), pdf_cdiff p^.pdf p^.pre
--- | [shape, .(shape)] .(shape) (mvn .(shape)) => _root_.certigrad.rand.pdiff.mvn shape
--- | []               shape (mvn_std .(shape)) => _root_.certigrad.rand.pdiff.mvn_std shape
+noncomputable
+def pdf_pos : Π {ishapes : List S} {oshape : S} (p : op ishapes oshape), pdf_positive (op.pdf p) (op.pre p)
+| [shape, .(shape)], .(shape),(mvn .(shape)) => certigrad.rand.pdf_pos.mvn shape
+| [], shape,(mvn_std .(shape)) => certigrad.rand.pdf_pos.mvn_std shape
 
--- def glogpdf : Π {ishapes : List S} {oshape : S}, op ishapes oshape → grad_logpdf ishapes oshape
--- | [shape, .(shape)] .(shape) (mvn .(shape)) => _root_.certigrad.rand.glogpdf.mvn shape
--- | []               shape (mvn_std .(shape)) => _root_.certigrad.rand.glogpdf.mvn_std shape
+noncomputable
+def pdf_int1 : Π {ishapes : List S} {oshape : S} (p : op ishapes oshape), pdf_integrates_to_one (op.pdf p) (op.pre p)
+| [shape, .(shape)], .(shape),(mvn .(shape)) => _root_.certigrad.rand.pdf_int1.mvn shape
+| [], shape, (mvn_std .(shape)) => _root_.certigrad.rand.pdf_int1.mvn_std shape
 
--- def glogpdf_correct : Π {ishapes : List S} {oshape : S} (p : op ishapes oshape), grad_logpdf_correct p^.pdf p^.pre p^.glogpdf
--- | [shape, .(shape)] .(shape) (mvn .(shape)) => _root_.certigrad.rand.glogpdf_correct.mvn shape
--- | []               shape (mvn_std .(shape)) => _root_.certigrad.rand.glogpdf_correct.mvn_std shape
+noncomputable
+def cont : Π {ishapes : List S} {oshape : S} (p : op ishapes oshape), continuous (op.pdf p) (op.pre p)
+| [shape, .(shape)], .(shape),(mvn .(shape)) => _root_.certigrad.rand.cont.mvn shape
+| [], shape, (mvn_std .(shape)) => _root_.certigrad.rand.cont.mvn_std shape
 
--- def pdf_pos : Π {ishapes : List S} {oshape : S} (p : op ishapes oshape), pdf_positive p^.pdf p^.pre
--- | [shape, .(shape)] .(shape) (mvn .(shape)) => _root_.certigrad.rand.pdf_pos.mvn shape
--- | []               shape (mvn_std .(shape)) => _root_.certigrad.rand.pdf_pos.mvn_std shape
-
--- def pdf_int1 : Π {ishapes : List S} {oshape : S} (p : op ishapes oshape), pdf_integrates_to_one p^.pdf p^.pre
--- | [shape, .(shape)] .(shape) (mvn .(shape)) => _root_.certigrad.rand.pdf_int1.mvn shape
--- | []               shape (mvn_std .(shape)) => _root_.certigrad.rand.pdf_int1.mvn_std shape
-
--- def cont : Π {ishapes : List S} {oshape : S} (p : op ishapes oshape), continuous p^.pdf p^.pre
--- | [shape, .(shape)] .(shape) (mvn .(shape)) => _root_.certigrad.rand.cont.mvn shape
--- | []               shape (mvn_std .(shape)) => _root_.certigrad.rand.cont.mvn_std shape
-
--- end op
+end op
 
 end rand
 
--- lemma mvn_pre {shape : S} (xs : Dvec T [shape, shape]) :
---   (rand.op.mvn shape)^.pre xs = (dvec.head2 xs > 0) := rfl
+lemma mvn_pre {shape : S} (xs : Dvec T [shape, shape]) :
+  rand.op.pre (rand.op.mvn shape) xs = (Dvec.head2 xs > 0) := rfl
 
 end certigrad
