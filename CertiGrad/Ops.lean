@@ -894,14 +894,18 @@ lemma f_pb_correct {shape : S} : pullback_correct (@f shape) (@f_pre shape) (@f_
       have H_fshape_eq : shape = fshape := Eq.symm H_fshape_at_idx.right
       subst H_fshape_eq
       let k : TReal → TReal := λ x => x * g_out
-      have H_k_grad : ∇ k y = g_out := by { erw [T.grad_mul₁ id, T.grad_id, one_mul] }
+      have H_k_grad : ∇ ( λ x => x * g_out) y = g_out := by { erw [T.grad_mul₁ id, T.grad_id, one_mul] }
       rw [← H_k_grad]
       subst H_y
       dsimp
       simp
       rw [← T.grad_tmulT]
+      unfold T.mvn_kl
       simplifyGrad
-      simp [T.smul.def]
+      simp [T.smul.def, two_shape_eq_two, force]
+      have H: g_out.const shape * 2⁻¹ * 2 * μ = g_out.const shape * μ* (2 * 2⁻¹) := by ring
+      simp [H, T.mul_inv_cancel two_pos]
+
 
 | ⟦μ, σ⟧, y, H_y, g_out, 1, fshape, H_at_idx, H_pre =>
     let H_σ₂ := square_pos_of_pos H_pre
@@ -912,7 +916,6 @@ lemma f_pb_correct {shape : S} : pullback_correct (@f shape) (@f_pre shape) (@f_
       have H_fshape_eq : shape = fshape := Eq.symm H_at_idx.right
       subst H_fshape_eq
       let k : TReal → TReal := λ x => x * g_out
-
       have H_k_grad : ∇ (λ x => x * g_out) y = g_out := by { erw [T.grad_mul₁ id, T.grad_id, one_mul] }
       rw [← H_k_grad]
       subst H_y
@@ -920,12 +923,11 @@ lemma f_pb_correct {shape : S} : pullback_correct (@f shape) (@f_pre shape) (@f_
       simp
       rw [← T.grad_tmulT]
       unfold T.mvn_kl
-      dsimp [force]
       simplifyGrad
       simp [T.smul.def, T.const_neg, T.const_mul, T.const_zero,
             T.const_one, T.const_bit0, T.const_bit1, T.const_inv,
             left_distrib, right_distrib]
-      rw [T.mul_inv_cancel two_pos]
+
       erw [T.neg_div]
       simp [mul_neg_eq_neg_mul_symm, neg_mul_eq_neg_mul_symm]
       apply congr_arg; apply congr_arg
@@ -996,11 +998,12 @@ lemma f_pb_correct {shape : S} : pullback_correct (@f shape) (@f_pre shape) (@f_
       have H_k_grad :  g_out = ∇ (λ z => T.dot z g_out) y := by
           rw [certigrad.T.grad_dot₁]
       rw [ H_k_grad ]
-      -- simp only [mul_comm, add_comm]
-      dsimp
+      subst H_y
+      simp
       rw [← T.grad_tmulT]
+      dsimp [force]
       simplifyGrad
-      rfl
+      simp
 
 | ⟦z, σ, μ⟧, y, H_y, g_out, 2, fshape, H_at_idx, H_pre =>
     by
@@ -1010,11 +1013,13 @@ lemma f_pb_correct {shape : S} : pullback_correct (@f shape) (@f_pre shape) (@f_
       have H_k_grad :  g_out = ∇ (λ z => T.dot z g_out) y := by
           rw [certigrad.T.grad_dot₁]
       rw [ H_k_grad ]
+      subst H_y
       -- simp (config := { contextual := true }) only [mul_comm, add_comm]
-      dsimp
+      simp
       rw [← T.grad_tmulT]
+      dsimp [force]
       simplifyGrad
-      rfl
+      simp
 
 | xs, y, H_y, g_out, (n+3), fshape, H_at_idx, H_pre => by idx_over
 
@@ -1074,7 +1079,8 @@ lemma f_pb_correct {shape : S} : pullback_correct (@f shape) (@f_pre shape) (@f_
       simp
       rw [← T.grad_tmulT]
       unfold T.bernoulli_neglogpdf
-      rw [T.grad_binary (λ θ₁ θ₂ => g_out * - T.sum (z * T.log (eps shape + θ₁) + (1 - z) * T.log (eps shape + (1 - θ₂)))) _ H_diff₁ H_diff₂]
+      simp [force]
+      rw [T.grad_binary (λ θ₁ θ₂ => g_out * ( - T.sum (z * T.log (eps shape + θ₁) + (1 - z) * T.log (eps shape + (1 - θ₂))))) _ H_diff₁ H_diff₂]
       dsimp
       let H₁ := H_pre.left
       let H₂ := lt1_alt H_pre.right
@@ -1090,16 +1096,17 @@ lemma f_pb_correct {shape : S} : pullback_correct (@f shape) (@f_pre shape) (@f_
       clear f_pb_correct
       have H_fshape_eq : shape = fshape := Eq.symm H_at_idx.right
       subst H_fshape_eq
-      let k : TReal → TReal := λ x => x * g_out
-      have H_k_grad : ∇ k y = g_out := by erw [T.grad_mul₁ id, T.grad_id, one_mul]
+      have H_k_grad : ∇ (λ x => x * g_out) y = g_out := by erw [T.grad_mul₁ id, T.grad_id, one_mul]
       rw [← H_k_grad]
       subst H_y
       dsimp
       simp
       rw [← T.grad_tmulT]
+      simp [force]
       unfold T.bernoulli_neglogpdf
-      rw [T.grad_binary (λ θ₁ θ₂ => g_out * - T.sum (θ₁ * T.log (eps shape + p) + (1 - θ₂) * T.log (eps shape + (1 - p)))) _ H_diff₁ H_diff₂]
-      dsimp
+      -- simp
+      rw [T.grad_binary (λ θ₁ θ₂ => g_out * - T.sum (θ₁ * T.log (eps shape + 1 - p) + (1 - θ₂) * T.log (eps shape + p))) _ H_diff₁ H_diff₂]
+      -- dsimp
       simplifyGrad
       simp [T.smul.def, const_neg]
 
