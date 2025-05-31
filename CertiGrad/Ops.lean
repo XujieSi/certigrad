@@ -18,11 +18,10 @@ open Lean Elab Tactic Meta
 
 namespace certigrad
 open T util_list
-
+set_option linter.unusedVariables false
 namespace ops
 
 section tactic
-
 -- open tactic
 
 -- meta def idx_over :TacticM Unit :=
@@ -487,8 +486,8 @@ lemma f_pb_correct {shape : S} : pullback_correct (@f shape) (@f_pre shape) (@f_
 | xs, y, H_y, g_out, (n+1), fshape, H_at_idx, H_pre => by idx_over
 
 lemma f_ocont {shape : S} : is_ocontinuous (@f shape) (@f_pre shape)
-| ⟦x⟧, 0, ishape, H_at_idx, H_pre => by prove_ocont
-| ⟦x⟧, (n+1), ishape, H_at_idx, H_pre => by idx_over
+  | ⟦x⟧, 0, ishape, H_at_idx, H_pre => by prove_ocont
+  | ⟦x⟧, (n+1), ishape, H_at_idx, H_pre => by idx_over
 
 end sigmoid
 
@@ -532,8 +531,8 @@ lemma f_pb_correct {shape : S} : pullback_correct (@f shape) (@f_pre shape) (@f_
 | xs, y, H_y, g_out, (n+1), fshape, H_at_idx, H_pre => by idx_over
 
 lemma f_ocont {shape : S} : is_ocontinuous (@f shape) (@f_pre shape)
-| ⟦x⟧, 0, ishape, H_at_idx, H_pre => by prove_ocont
-| xs, (n+1), ishape, H_at_idx, H_pre => by idx_over
+  | ⟦x⟧, 0, ishape, H_at_idx, H_pre => by prove_ocont
+  | xs, (n+1), ishape, H_at_idx, H_pre => by idx_over
 
 end softplus
 
@@ -913,7 +912,8 @@ lemma f_pb_correct {shape : S} : pullback_correct (@f shape) (@f_pre shape) (@f_
       have H_fshape_eq : shape = fshape := Eq.symm H_at_idx.right
       subst H_fshape_eq
       let k : TReal → TReal := λ x => x * g_out
-      have H_k_grad : ∇ k y = g_out := by { erw [T.grad_mul₁ id, T.grad_id, one_mul] }
+
+      have H_k_grad : ∇ (λ x => x * g_out) y = g_out := by { erw [T.grad_mul₁ id, T.grad_id, one_mul] }
       rw [← H_k_grad]
       subst H_y
       dsimp
