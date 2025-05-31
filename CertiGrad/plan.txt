@@ -1,4 +1,6 @@
 
+     466 SimpGrad.lean
+     375 Rand.lean
       92 Det.lean
       80 Dvec.lean
      314 Env.lean
@@ -11,7 +13,7 @@
      211 Tcont.lean
      356 Tensor.lean
      691 Tfacts.lean
-     683 Tgrads.lean   <--- many TacticM funcs need to be fixed, especially prove_differentiable
+     683 Tgrads.lean
      826 Util.lean
 
      132 examples.nolean
@@ -36,7 +38,6 @@
      199 graph.lean <--- g3
       52 sprog.lean <--- g2
      741 ops.lean   <--- g1: can be done in parallel with rand.lean, also depends on Tgrad TacticM (e.g., prove_differentiable)
-     268 rand.lean  <--- current target, which depends on Tgrads TacticM funcs
    10031 total
 
 Lean3/mathlib3 documentation: https://leanprover-community.github.io/mathlib_docs/tactic/core.html

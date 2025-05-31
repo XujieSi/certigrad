@@ -1,7 +1,6 @@
 import CertiGrad.Tensor
 import CertiGrad.Tfacts
 import CertiGrad.Tactics
-import CertiGrad.SimpAttr
 import CertiGrad.Tgrads
 import Init.Prelude
 
@@ -255,19 +254,17 @@ lemma grad_sumr {X : Type} {shape : S} (θ : T shape) (f : T shape → X → TRe
 
 
 
-def SimpGradRewrite (tid : MVarId) (exprs : List (MetaM Expr)) : TacticM RewriteResult := do
+def SimpGradRewrite (tid : MVarId) (lhs: Expr) (exprs : List (MetaM Expr)) : TacticM RewriteResult := do
   match exprs with
   | [] => --pure []
     throwError "SimpGradRewrite: None is successful:("
   | e :: es =>
     try
-      let target ← instantiateMVars (← tid.getType)
-      let target ← whnf target
-      let rr ← tid.rewrite target (← e)
+      let rr ← tid.rewrite lhs (← e)
       Term.synthesizeSyntheticMVarsNoPostponing
       return rr
     catch _ =>
-      SimpGradRewrite tid es
+      SimpGradRewrite tid lhs es
 
 def BuildSimpGradLemmas (k: Expr) : TacticM (List (MetaM Expr)) := do
     let rules : List (MetaM  Expr) := [
@@ -308,18 +305,9 @@ partial def SimpGradCoreLoop
     if fn.isConstOf ``certigrad.T.grad && args.size == 3 then
         let k ←  computeK lhs
         let rules ← BuildSimpGradLemmas k
-        let ty ← inferType lhs
-        let olhs ← mkFreshExprMVar ty
-        let tgt ← mkEq olhs lhs
-        let newGoal ← mkFreshExprMVar tgt
         try
-          let subresult ← SimpGradRewrite newGoal.mvarId! rules
-          let subgoals: List MVarId := subresult.mvarIds
-          let rwproof: Expr := subresult.eqProof
-          olhs.mvarId!.assign lhs
-          let eqlhs_lhs ← mkEqRefl lhs
-          let proof ← mkAppM ``Eq.mp #[ rwproof, eqlhs_lhs]
-          return (some (subgoals, proof))
+          let subresult ← SimpGradRewrite (← getMainGoal) lhs rules
+          return (some (subresult.mvarIds, subresult.eqProof))
         catch _ =>
           return some ([], ← mkEqRefl lhs)
     else
@@ -343,26 +331,32 @@ partial def SimpGradCoreLoop
 
 partial def SimpGradCore (tid: MVarId)  : TacticM Unit := do
   let e ← tid.getType
-  -- [WARNING!!!]
   let e ← whnf e
   match e.eq? with
-  | some (_, lhs, _) =>
-    let (subgoals, proof) ← (←  SimpGradCoreLoop lhs)
+  | some (_, lhs, rhs) =>
+    logInfo m!"SimpGradCore: {e}"
+    let (lhs_subgoals, lhs_proof) ← (← SimpGradCoreLoop lhs)
+    logInfo m!"SimpGradCore: {← tid.getType}"
+    let (rhs_subgoals, rhs_proof) ← (← SimpGradCoreLoop rhs)
+    let eq_proof ← mkAppM ``Eq.congr #[lhs_proof, rhs_proof]
     let target ← instantiateMVars e
-    let rewriteResult ← tid.rewrite target proof
+    let rewriteResult ← tid.rewrite target eq_proof
     let goal' ← tid.replaceTargetEq rewriteResult.eNew rewriteResult.eqProof
     let gens := rewriteResult.mvarIds.filter fun g => g != tid
-    replaceMainGoal (goal' :: gens ++ subgoals)
-    -- tid.assign (← mkEqRefl lhs)
+    replaceMainGoal (goal' :: gens ++ lhs_subgoals ++ rhs_subgoals)
     if rewriteResult.eNew == e then
+      logInfo m!"SimpGradCore: goal is unchanged, skipping further simplification."
       return ()
-    else  -- let newGoals ← SimpGradCore tid
-      SimpGradCore (←getMainGoal)
+    else
+      logInfo m!"SimpGradCore: goal is changed, continuing simplification."
+      SimpGradCore (← getMainGoal)
   | none =>
     throwError "SimpGradCore: goal is not an equality, got: {e}"
 
 
-elab "simplifyGrad": tactic => do
+
+
+def simplify_Grad: TacticM Unit := do
   SimpGradCore (← getMainGoal)
   let varIds ← Meta.repeat' proveDifferentiableCore (← getGoals)
 
@@ -374,6 +368,8 @@ elab "simplifyGrad": tactic => do
 
   setGoals varIds
 
+elab "simplifyGrad": tactic => do
+    simplify_Grad
 
 
 
@@ -461,3 +457,6 @@ lemma grad_bernoulli_neglogpdf₂ (k : TReal → TReal) (shape : S) (p z : T sha
   simp [T.smul.def]
   set A := (∇ (fun x => k x) (-(z * (eps shape + p).log + (1 - z) * (eps shape + (1 - p)).log).sum)).const shape
   ring
+
+end T
+end certigrad

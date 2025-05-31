@@ -11,7 +11,7 @@ import CertiGrad.Tgrads
 import CertiGrad.Util
 import CertiGrad.Tcont
 import CertiGrad.Det
-
+import CertiGrad.SimpGrad
 import Lean
 open Lean Elab Tactic Meta
 
@@ -55,46 +55,9 @@ def idxOver : TacticM Unit := do
     log m!"cannot find hypothesis at_idx_over"
     return ()
 
-  -- for localDecl in (← getLCtx) do
-  --   -- let fvarId := localDecl.fvarId
-  --   let userName ← localDecl.fvarId.getUserName
-  --   log m!"localDecl.name: {userName}"
-  --   if userName = `H_at_idx then
-  --     let e' ←  mkAppM ``at_idx_over #[localDecl.toExpr]
-  --     let mvarIds ← newId.apply e'
-  --     setGoals mvarIds
-  --     return ()
-
-  -- MetavarContext.findUserName? (← getLCtx)
-  -- match (← getLCtx).
-
-  -- setGoals [varId]
-  -- setGoals [newId]
-
-
-  -- Lean.MVarID.exfalso varID
-  -- sorry
 
 elab "idx_over" : tactic => do idxOver
 
--- meta def simp_simple :TacticM Unit :=
--- do s₀ ← simp_lemmas.mk_default,
---    s ← return $ simp_lemmas.erase s₀ $ [`add_comm, `add_left_comm, `mul_comm, `mul_left_comm],
---    simplify_goal s {} >> try triv >> try (reflexivity reducible)
-
-def simpSimple : TacticM Unit := do
-  sorry
-
-elab "simp_simple" : tactic => do simpSimple
-
--- meta def prove_odiff :TacticM Unit :=
--- do get_local `f_odiff >>= clear,
---    to_expr ```(shape = fshape) >>= λ ty, to_expr ```(eq.symm H_at_idx.right) >>= λ val, assertv `H_fshape_eq ty val,
---    get_local `H_fshape_eq >>= subst,
---    dunfold [`certigrad.det.is_odifferentiable],
---    try simp_simple,
---    try dsimp,
---    prove_differentiable
 
 def substEqThenApplyCore (Hname s1 s2 : Name) (f : MVarId → TacticM (List MVarId)) : TacticM Unit := do
   -- `let` tactic corresponds to `Lean.MVarId.define`
@@ -128,83 +91,49 @@ def substEqThenApplyCore (Hname s1 s2 : Name) (f : MVarId → TacticM (List MVar
 def proveODiff : TacticM Unit := do
   substEqThenApplyCore `H_at_idx `fshape `shape proveDifferentiableCore
 
-  -- let goalId ← getMainGoal
-  -- -- `let` tactic corresponds to `Lean.MVarId.define`
-  -- -- `have` roughly corresponds to `Lean.MVarId.assert`, `mvarId.assign` Lean.MVarId.assign
-  -- -- `intro` corresponds to `introStep`, `Lean.MVarId.intro`,
-
-  -- let H ← (← getLCtx).findFromUserName? `H_at_idx
-  -- let fshape ← (← getLCtx).findFromUserName? `fshape
-  -- let shape ← (← getLCtx).findFromUserName? `shape
-  -- let eqH ← mkAppM `Eq #[fshape.toExpr, shape.toExpr]
-  -- let eqV ← mkAppM `And.right #[H.toExpr]
-  -- let assertId ← goalId.assert `H_fshape_eq eqH eqV
-  -- let (fid, vid) ← Lean.Meta.intro1Core assertId true
-
-  -- let vid2 ← subst vid fid
-
-  -- let (result?, stats) ← simpGoal vid2 { simpTheorems := #[(← getSimpTheorems)]}
-  -- match result? with
-  -- | none => replaceMainGoal []
-  -- | some (_, mvarId) =>
-  --   let subGoals ← Meta.repeat' proveDifferentiableCore [mvarId]
-  --   match subGoals with
-  --   | [] => replaceMainGoal []
-  --   | [g] => try Lean.MVarId.assumption  g
-  --     catch exp => setGoals subGoals
-  --   | _ => setGoals subGoals
-
-    -- replaceMainGoal [mvarId]
-
-
-  -- setGoals [vid2]
-  -- match (← getLCtx).findFromUserName? `H_at_idx with
-  -- | some l => return ()
-  -- | none => return ()
 
 elab "prove_odiff" : tactic => do proveODiff
 
--- meta def prove_pb_correct_init :TacticM Unit :=
--- do get_local `f_pb_correct >>= clear,
---    to_expr ```(shape = fshape) >>= λ ty, to_expr ```(eq.symm H_at_idx.right) >>= λ val, assertv `H_fshape_eq ty val,
---    get_local `H_fshape_eq >>= subst,
---    to_expr ```(T shape → TReal) >>= λ ty, to_expr ```(λ (z : T shape), T.dot z g_out) >>= definev `k ty,
---    to_expr ```(∇ k y = g_out) >>= assert `H_k_grad, dsimp, rewrite `certigrad.T.grad_dot₁,
---    get_local `H_k_grad >>= rewrite_core reducible tt tt occurrences.all tt,
---    get_local `H_y >>= subst
 
-def provePbCorrectInit : TacticM Unit := do sorry
+-- def PbCorrectApplyCore (Hname s1 s2 s3 s4: Name) (f : TacticM Unint) : TacticM Unit := do
+--   -- `let` tactic corresponds to `Lean.MVarId.define`
+--   -- `have` roughly corresponds to `Lean.MVarId.assert`, `mvarId.assign` Lean.MVarId.assign
+--   -- `intro` corresponds to `introStep`, `Lean.MVarId.intro`,
 
-elab "prove_pb_correct_init" : tactic => do provePbCorrectInit
+--   let goalId ← getMainGoal
+--   logInfo m!"PbCorrectApplyCore is Called : {← goalId.getType}"
 
--- meta def prove_pb_correct :TacticM Unit :=
--- do prove_pb_correct_init,
---    try simp_simple,
---    try dsimp,
---    mk_const `certigrad.T.grad_tmulT >>= rewrite_core reducible tt tt occurrences.all tt,
---    simplify_grad,
---    try simp,
---    try reflexivity
+--   let H ← (← getLCtx).findFromUserName? Hname
+--   let fshape ← (← getLCtx).findFromUserName? s1
+--   let shape ← (← getLCtx).findFromUserName? s2
+--   let g_out ← (← getLCtx).findFromUserName? s3
+--   let y ← (← getLCtx).findFromUserName? s4
+--   let eqH ← mkAppM `Eq #[fshape.toExpr, shape.toExpr]
+--   let eqV ← mkAppM `And.right #[H.toExpr]
+--   logInfo m!"{g_out.toExpr}"
+--   let assertId ← goalId.assert `H_fshape_eq eqH eqV
+--   let (fid, vid) ← Lean.Meta.intro1Core assertId true
+--   let vid2 ← subst vid fid
+--   let pf ← mkAppM ``certigrad.T.grad_dot₂ #[g_out.toExpr, y.toExpr]
+--   evalTactic (← `(rw[pf]))
+--   let HkGrad ← assert `H_k_grad (← mkEq lhs rhs) (← mkFreshExprMVar (← mkEq lhs rhs))
+--   -- 然后用 `erw`（在 TacticM 里是 `Tactic.erw`）
+--   Tactic.erw (← getLocalDecl `H_k_grad).toExpr (← `(certigrad.T.grad_dot₁))
 
-def provePbCorrect :TacticM Unit := do sorry
+--   -- let H_k_grad ← (← getLCtx).findFromUserName? `H_k_grad
+--   -- logInfo m!"H_k_grad: {H_k_grad.toExpr}"
 
-elab "prove_pb_correct" : tactic => do provePbCorrect
 
-#print provePbCorrect
+--   evalTactic (← `(tactic| simp))
 
--- meta def prove_ocont_init :TacticM Unit :=
--- do get_local `f_ocont >>= clear,
---    to_expr ```(shape = ishape) >>= λ ty, to_expr ```(eq.symm H_at_idx.right) >>= λ val, assertv `H_ishape_eq ty val,
---    get_local `H_ishape_eq >>= subst,
---    try simp_simple,
---    try dsimp
+--   evalTactic (← `(tactic|rw [← certigrad.T.grad_tmulT]))
 
-def proveOContInit :TacticM Unit := do sorry
-elab "prove_ocont_init" : tactic => do proveOContInit
+--   evalTactic (← `(tactic|dsimp [force]))
 
--- meta def prove_ocont :TacticM Unit :=
--- do prove_ocont_init,
---    repeat (prove_continuous_core <|> prove_preconditions_core)
+--   simplify_Grad
+
+--   evalTactic (← `(tactic|rfl))
+
 
 def proveOCont :TacticM Unit := do
   substEqThenApplyCore `H_at_idx `ishape `shape proveContinuousCore
@@ -225,6 +154,8 @@ noncomputable
 def f_pb (α : TReal) {shape : S} (xs : Dvec T [shape]) (y gy : T shape) (idx : Nat) (fshape : S) : T fshape := force (α • gy) fshape
 
 attribute [simp] f f_pre f_pb
+
+
 
 /-
 
@@ -488,8 +419,24 @@ lemma f_odiff {shape : S} : is_odifferentiable (@f shape) (@f_pre shape)
 | ⟦x⟧, H_pre, 0, fshape, H_at_idx, k, H_k => by prove_odiff
 | ⟦x⟧, H_pre, (n+1), fshape, H_at_idx, k, H_k => by idx_over
 
+
 lemma f_pb_correct {shape : S} : pullback_correct (@f shape) (@f_pre shape) (@f_pb shape)
-| ⟦x⟧, y, H_y, g_out, 0, fshape, H_at_idx, H_pre => sorry --by prove_pb_correct
+| ⟦x⟧, y, H_y, g_out, 0, fshape, H_at_idx, H_pre =>
+  by
+    -- provePbCorrect
+    try clear f_pb_correct
+    have H_fshape_eq : shape = fshape := Eq.symm H_at_idx.right
+    subst H_fshape_eq
+    have H_k_grad :  g_out = ∇ (λ z => T.dot z g_out) y := by
+        rw [certigrad.T.grad_dot₁]
+    rw [ H_k_grad ]
+    subst H_y
+    simp
+    rw [← certigrad.T.grad_tmulT]
+    dsimp [force]
+    simplifyGrad
+    simp
+
 | xs, y, H_y, g_out, (n+1), fshape, H_at_idx, H_pre => by idx_over
 
 lemma f_ocont {shape : S} : is_ocontinuous (@f shape) (@f_pre shape)
@@ -504,554 +451,675 @@ def sqrt (shape : S) : det.op [shape] shape :=
 det.op.mk "sqrt" f f_pre f_pb f_odiff f_pb_correct f_ocont
 end
 
-/-
+
 namespace sigmoid
 
 noncomputable
 def f {shape : S} (xs : Dvec T [shape]) : T shape := sigmoid xs.head
-def f_pre {shape : S} : precondition [shape] := λ xs => True
 
 noncomputable
-def f_pb {shape : S} (xs : Dvec T [shape]) (y gy : T shape) (idx : Nat) (fshape : S) : T fshape :=
+def f_pre {shape : S} : precondition [shape] := λ xs => true
+
+noncomputable
+def f_pb {shape : S} (xs : Dvec T [shape]) (y gy : T shape) (idx : ℕ) (fshape : S) : T fshape :=
 force (gy * y * (1 - y)) fshape
 
 attribute [simp] f f_pre f_pb
 
 lemma f_odiff {shape : S} : is_odifferentiable (@f shape) (@f_pre shape)
-| ⟦x⟧, H_pre, 0, fshape, H_at_idx, k, H_k => by
-  simp [f] at H_k
-  prove_odiff
+| ⟦x⟧, H_pre, 0, fshape, H_at_idx, k, H_k => by prove_odiff
 | ⟦x⟧, H_pre, (n+1), fshape, H_at_idx, k, H_k => by idx_over
 
 lemma f_pb_correct {shape : S} : pullback_correct (@f shape) (@f_pre shape) (@f_pb shape)
-| ⟦x⟧, y, H_y, g_out, 0, fshape, H_at_idx, H_pre => sorry --by prove_pb_correct
+| ⟦x⟧, y, H_y, g_out, 0, fshape, H_at_idx, H_pre =>  by
+    try clear f_pb_correct
+    have H_fshape_eq : shape = fshape := Eq.symm H_at_idx.right
+    subst H_fshape_eq
+    have H_k_grad :  g_out = ∇ (λ z => T.dot z g_out) y := by
+        rw [certigrad.T.grad_dot₁]
+    rw [ H_k_grad ]
+    subst H_y
+    simp
+    rw [← certigrad.T.grad_tmulT]
+    dsimp [force]
+    simplifyGrad
+    simp
 | xs, y, H_y, g_out, (n+1), fshape, H_at_idx, H_pre => by idx_over
 
 lemma f_ocont {shape : S} : is_ocontinuous (@f shape) (@f_pre shape)
-| ⟦x⟧, 0, ishape, H_at_idx, H_pre => by
-  prove_ocont
-  unfold sigmoid
-  prove_ocont
+| ⟦x⟧, 0, ishape, H_at_idx, H_pre => by prove_ocont
 | ⟦x⟧, (n+1), ishape, H_at_idx, H_pre => by idx_over
 
 end sigmoid
 
 section open sigmoid
-def sigmoid (shape : S) : det.op [shape] shape :=
-det.op.mk "sigmoid" f f_pre f_pb f_odiff f_pb_correct f_ocont
+  def sigmoid (shape : S) : det.op [shape] shape :=
+    det.op.mk "sigmoid" f f_pre f_pb f_odiff f_pb_correct f_ocont
 end
 
 
 namespace softplus
 
+noncomputable
 def f {shape : S} (xs : Dvec T [shape]) : T shape := softplus xs.head
+noncomputable
 def f_pre {shape : S} : precondition [shape] := λ xs => True
+noncomputable
 def f_pb {shape : S} (xs : Dvec T [shape]) (y gy : T shape) (idx : Nat) (fshape : S) : T fshape :=
-force (gy / (1 + T.exp (- xs.head))) fshape
+  force (gy / (1 + T.exp (- xs.head))) fshape
 
 attribute [simp] f f_pre f_pb
 
 lemma f_odiff {shape : S} : is_odifferentiable (@f shape) (@f_pre shape)
 | ⟦x⟧, H_pre, 0, fshape, H_at_idx, k, H_k => by prove_odiff
-| xs H_pre (n+1) fshape H_at_idx k H_k => by idx_over
+| xs, H_pre, (n+1), fshape, H_at_idx, k, H_k => by idx_over
 
 lemma f_pb_correct {shape : S} : pullback_correct (@f shape) (@f_pre shape) (@f_pb shape)
-| ⟦x⟧, y, H_y, g_out, 0, fshape, H_at_idx, H_pre => sorry --by prove_pb_correct
+| ⟦x⟧, y, H_y, g_out, 0, fshape, H_at_idx, H_pre =>
+    by
+      try clear f_pb_correct
+      have H_fshape_eq : shape = fshape := Eq.symm H_at_idx.right
+      subst H_fshape_eq
+      have H_k_grad :  g_out = ∇ (λ z => T.dot z g_out) y := by
+          rw [certigrad.T.grad_dot₁]
+      rw [ H_k_grad ]
+      subst H_y
+      simp
+      rw [← certigrad.T.grad_tmulT]
+      dsimp [force]
+      simplifyGrad
+      simp
 | xs, y, H_y, g_out, (n+1), fshape, H_at_idx, H_pre => by idx_over
 
 lemma f_ocont {shape : S} : is_ocontinuous (@f shape) (@f_pre shape)
 | ⟦x⟧, 0, ishape, H_at_idx, H_pre => by prove_ocont
-| xs (n+1) ishape H_at_idx H_pre => by idx_over
+| xs, (n+1), ishape, H_at_idx, H_pre => by idx_over
 
 end softplus
 
 section open softplus
+noncomputable
 def softplus (shape : S) : det.op [shape] shape :=
-det.op.mk "softplus" f f_pre f_pb f_odiff f_pb_correct f_ocont
+  det.op.mk "softplus" f f_pre f_pb f_odiff f_pb_correct f_ocont
 end
 
 namespace add
 
+noncomputable
 def f {shape : S} (xs : Dvec T [shape, shape]) : T shape := xs.head + xs.head2
+noncomputable
 def f_pre {shape : S} : precondition [shape, shape] := λ xs => True
-def f_pb {shape : S} (xs : Dvec T [shape, shape]) (y gy : T shape) (idx : Nat) (fshape : S) : T fshape := force (gy) fshape
+noncomputable
+def f_pb {shape : S} (xs : Dvec T [shape, shape]) (y gy : T shape) (idx : Nat) (fshape : S) : T fshape :=
+  force gy fshape
 
 attribute [simp] f f_pre f_pb
 
 lemma f_odiff {shape : S} : is_odifferentiable (@f shape) (@f_pre shape)
-| ⟦x, y⟧ H_pre 0 fshape H_at_idx k H_k => by { prove_odiff }
-| ⟦x, y⟧ H_pre 1 fshape H_at_idx k H_k => by { prove_odiff }
-| xs    H_pre (n+2) fshape H_at_idx k H_k => by idx_over
+| ⟦x, y⟧, H_pre, 0, fshape, H_at_idx, k, H_k => by prove_odiff
+| ⟦x, y⟧, H_pre, 1, fshape, H_at_idx, k, H_k => by prove_odiff
+| xs, H_pre, (n+2), fshape, H_at_idx, k, H_k => by idx_over
 
 lemma f_pb_correct {shape : S} : pullback_correct (@f shape) (@f_pre shape) (@f_pb shape)
-| ⟦x₁, x₂⟧ y H_y g_out 0 fshape H_at_idx H_pre => sorry --by prove_pb_correct
-| ⟦x₁, x₂⟧ y H_y g_out 1 fshape H_at_idx H_pre => sorry --by prove_pb_correct
-| xs      y H_y g_out (n+2) fshape H_at_idx H_pre => by idx_over
+| ⟦x₁, x₂⟧, y, H_y, g_out, 0, fshape, H_at_idx, H_pre =>
+    by
+      try clear f_pb_correct
+      have H_fshape_eq : shape = fshape := Eq.symm H_at_idx.right
+      subst H_fshape_eq
+      have H_k_grad :  g_out = ∇ (λ z => T.dot z g_out) y := by
+          rw [certigrad.T.grad_dot₁]
+      rw [ H_k_grad ]
+      subst H_y
+      simp
+      rw [← certigrad.T.grad_tmulT]
+      dsimp [force]
+      simplifyGrad
+      simp
+| ⟦x₁, x₂⟧, y, H_y, g_out, 1, fshape, H_at_idx, H_pre =>
+    by
+      try clear f_pb_correct
+      have H_fshape_eq : shape = fshape := Eq.symm H_at_idx.right
+      subst H_fshape_eq
+      have H_k_grad :  g_out = ∇ (λ z => T.dot z g_out) y := by
+          rw [certigrad.T.grad_dot₁]
+      rw [ H_k_grad ]
+      subst H_y
+      simp
+      rw [← certigrad.T.grad_tmulT]
+      dsimp [force]
+      simplifyGrad
+      simp
+| xs, y, H_y, g_out, (n+2), fshape, H_at_idx, H_pre => by idx_over
 
 lemma f_ocont {shape : S} : is_ocontinuous (@f shape) (@f_pre shape)
-| ⟦x₁, x₂⟧ 0     ishape H_at_idx H_pre => by prove_ocont
-| ⟦x₁, x₂⟧ 1     ishape H_at_idx H_pre => by prove_ocont
-| xs      (n+2) ishape H_at_idx H_pre => by idx_over
+| ⟦x₁, x₂⟧, 0, ishape, H_at_idx, H_pre => by prove_ocont
+| ⟦x₁, x₂⟧, 1, ishape, H_at_idx, H_pre => by prove_ocont
+| xs, (n+2), ishape, H_at_idx, H_pre => by idx_over
 
 end add
 
 section open add
+noncomputable
 def add (shape : S) : det.op [shape, shape] shape :=
-det.op.mk "add" f f_pre f_pb f_odiff f_pb_correct f_ocont
+  det.op.mk "add" f f_pre f_pb f_odiff f_pb_correct f_ocont
 end
 
 namespace mul
 
-def f {shape : S} (xs : Dvec T [shape, shape]) : T shape := xs.head * xs.head2
-def f_pre {shape : S} : precondition [shape, shape] := λ xs => True
+noncomputable def f {shape : S} (xs : Dvec T [shape, shape]) : T shape := xs.head * xs.head2
+noncomputable def f_pre {shape : S} : precondition [shape, shape] := λ xs => True
 
+noncomputable
 def f_pb {shape : S} (xs : Dvec T [shape, shape]) (y gy : T shape) : Π (idx : Nat) (fshape : S), T fshape
-| 0     fshape := force (gy * xs.head2) fshape
-| 1     fshape := force (gy * xs.head) fshape
-| (n+2) fshape := T.error "mul: index too large"
+| 0, fshape => force (gy * xs.head2) fshape
+| 1, fshape => force (gy * xs.head) fshape
+| (n+2), fshape => T.error "mul: index too large"
 
 attribute [simp] f f_pre f_pb
 
 lemma f_odiff {shape : S} : is_odifferentiable (@f shape) (@f_pre shape)
-| ⟦x, y⟧ H_pre 0 fshape H_at_idx k H_k => by { prove_odiff }
-| ⟦x, y⟧ H_pre 1 fshape H_at_idx k H_k => by { prove_odiff }
-| xs    H_pre (n+2) fshape H_at_idx k H_k => by idx_over
+| ⟦x, y⟧, H_pre, 0, fshape, H_at_idx, k, H_k => by prove_odiff
+| ⟦x, y⟧, H_pre, 1, fshape, H_at_idx, k, H_k => by prove_odiff
+| xs, H_pre, (n+2), fshape, H_at_idx, k, H_k => by idx_over
 
 lemma f_pb_correct {shape : S} : pullback_correct (@f shape) (@f_pre shape) (@f_pb shape)
-| ⟦x₁, x₂⟧ y H_y g_out 0 fshape H_at_idx H_pre => sorry --by prove_pb_correct
-| ⟦x₁, x₂⟧ y H_y g_out 1 fshape H_at_idx H_pre => sorry --by prove_pb_correct
-| xs      y H_y g_out (n+2) fshape H_at_idx H_pre => by idx_over
+| ⟦x₁, x₂⟧, y, H_y, g_out, 0, fshape, H_at_idx, H_pre =>
+  by
+    try clear f_pb_correct
+    have H_fshape_eq : shape = fshape := Eq.symm H_at_idx.right
+    subst H_fshape_eq
+    have H_k_grad :  g_out = ∇ (λ z => T.dot z g_out) y := by
+      rw [certigrad.T.grad_dot₁]
+    rw [ H_k_grad ]
+    subst H_y
+    simp
+    rw [← certigrad.T.grad_tmulT]
+    dsimp [force]
+    simplifyGrad
+    simp
+| ⟦x₁, x₂⟧, y, H_y, g_out, 1, fshape, H_at_idx, H_pre =>
+  by
+    try clear f_pb_correct
+    have H_fshape_eq : shape = fshape := Eq.symm H_at_idx.right
+    subst H_fshape_eq
+    have H_k_grad :  g_out = ∇ (λ z => T.dot z g_out) y := by
+      rw [certigrad.T.grad_dot₁]
+    rw [ H_k_grad ]
+    subst H_y
+    simp
+    rw [← certigrad.T.grad_tmulT]
+    dsimp [force]
+    simplifyGrad
+    simp
+| xs, y, H_y, g_out, (n+2), fshape, H_at_idx, H_pre => by idx_over
+
+attribute [simp] f f_pre f_pb
+
+
 
 lemma f_ocont {shape : S} : is_ocontinuous (@f shape) (@f_pre shape)
-| ⟦x₁, x₂⟧ 0     ishape H_at_idx H_pre => by prove_ocont
-| ⟦x₁, x₂⟧ 1     ishape H_at_idx H_pre => by prove_ocont
-| xs      (n+2) ishape H_at_idx H_pre => by idx_over
+| ⟦x₁, x₂⟧, 0, ishape, H_at_idx, H_pre => by prove_ocont
+| ⟦x₁, x₂⟧, 1, ishape, H_at_idx, H_pre => by prove_ocont
+| xs, (n+2), ishape, H_at_idx, H_pre => by idx_over
 
 end mul
 
 section open mul
+noncomputable
 def mul (shape : S) : det.op [shape, shape] shape :=
-det.op.mk "mul" f f_pre f_pb f_odiff f_pb_correct f_ocont
+  det.op.mk "mul" f f_pre f_pb f_odiff f_pb_correct f_ocont
 end
 
 namespace sub
 
+noncomputable
 def f {shape : S} (xs : Dvec T [shape, shape]) : T shape := xs.head - xs.head2
+noncomputable
 def f_pre {shape : S} : precondition [shape, shape] := λ xs => True
 
+noncomputable
 def f_pb {shape : S} (xs : Dvec T [shape, shape]) (y gy : T shape) : Π (idx : Nat) (fshape : S), T fshape
-| 0     fshape := force (gy) fshape
-| 1     fshape := force (- gy) fshape
-| (n+2) fshape := T.error "sub: index too large"
+| 0, fshape => force gy fshape
+| 1, fshape => force (- gy) fshape
+| (n+2), fshape => T.error "sub: index too large"
 
 attribute [simp] f f_pre f_pb
 
 lemma f_odiff {shape : S} : is_odifferentiable (@f shape) (@f_pre shape)
-| ⟦x, y⟧ H_pre 0 fshape H_at_idx k H_k => by { prove_odiff }
-| ⟦x, y⟧ H_pre 1 fshape H_at_idx k H_k => by { prove_odiff }
-| xs    H_pre (n+2) fshape H_at_idx k H_k => by idx_over
+| ⟦x, y⟧, H_pre, 0, fshape, H_at_idx, k, H_k => by prove_odiff
+| ⟦x, y⟧, H_pre, 1, fshape, H_at_idx, k, H_k => by prove_odiff
+| xs, H_pre, (n+2), fshape, H_at_idx, k, H_k => by idx_over
 
 lemma f_pb_correct {shape : S} : pullback_correct (@f shape) (@f_pre shape) (@f_pb shape)
-| ⟦x₁, x₂⟧ y H_y g_out 0 fshape H_at_idx H_pre => sorry --by prove_pb_correct
-| ⟦x₁, x₂⟧ y H_y g_out 1 fshape H_at_idx H_pre => sorry --by prove_pb_correct
-| xs      y H_y g_out (n+2) fshape H_at_idx H_pre => by idx_over
+| ⟦x₁, x₂⟧, y, H_y, g_out, 0, fshape, H_at_idx, H_pre =>
+    by
+      try clear f_pb_correct
+      have H_fshape_eq : shape = fshape := Eq.symm H_at_idx.right
+      subst H_fshape_eq
+      have H_k_grad :  g_out = ∇ (λ z => T.dot z g_out) y := by
+          rw [certigrad.T.grad_dot₁]
+      rw [ H_k_grad ]
+      subst H_y
+      simp
+      rw [← certigrad.T.grad_tmulT]
+      dsimp [force]
+      simplifyGrad
+      simp
+| ⟦x₁, x₂⟧, y, H_y, g_out, 1, fshape, H_at_idx, H_pre =>
+    by
+      try clear f_pb_correct
+      have H_fshape_eq : shape = fshape := Eq.symm H_at_idx.right
+      subst H_fshape_eq
+      have H_k_grad :  g_out = ∇ (λ z => T.dot z g_out) y := by
+          rw [certigrad.T.grad_dot₁]
+      rw [ H_k_grad ]
+      subst H_y
+      simp
+      rw [← certigrad.T.grad_tmulT]
+      dsimp [force]
+      simplifyGrad
+      simp
+| xs, y, H_y, g_out, (n+2), fshape, H_at_idx, H_pre => by idx_over
 
 lemma f_ocont {shape : S} : is_ocontinuous (@f shape) (@f_pre shape)
-| ⟦x₁, x₂⟧ 0     ishape H_at_idx H_pre => by prove_ocont
-| ⟦x₁, x₂⟧ 1     ishape H_at_idx H_pre => by prove_ocont
-| xs      (n+2) ishape H_at_idx H_pre => by idx_over
+| ⟦x₁, x₂⟧, 0, ishape, H_at_idx, H_pre => by prove_ocont
+| ⟦x₁, x₂⟧, 1, ishape, H_at_idx, H_pre => by prove_ocont
+| xs, (n+2), ishape, H_at_idx, H_pre => by idx_over
 
 end sub
 
 section open sub
+noncomputable
 def sub (shape : S) : det.op [shape, shape] shape :=
-det.op.mk "sub" f f_pre f_pb f_odiff f_pb_correct f_ocont
+  det.op.mk "sub" f f_pre f_pb f_odiff f_pb_correct f_ocont
 end
 
 namespace div
 
+noncomputable
 def f {shape : S} (xs : Dvec T [shape, shape]) : T shape := xs.head / xs.head2
+noncomputable
 def f_pre {shape : S} : precondition [shape, shape] := λ xs => 0 < T.square xs.head2
 
+noncomputable
 def f_pb {shape : S} (xs : Dvec T [shape, shape]) (y gy : T shape) : Π (idx : Nat) (fshape : S), T fshape
-| 0     fshape := force (gy / xs.head2) fshape
-| 1     fshape := force (- (gy * xs.head) / (T.square xs.head2)) fshape
-| (n+2) fshape := T.error "div: index too large"
+| 0, fshape => force (gy / xs.head2) fshape
+| 1, fshape => force (- (gy * xs.head) / (T.square xs.head2)) fshape
+| (n+2), fshape => T.error "div: index too large"
 
 attribute [simp] f f_pre f_pb
 
 lemma f_odiff {shape : S} : is_odifferentiable (@f shape) (@f_pre shape)
-| ⟦x, y⟧ H_pre 0 fshape H_at_idx k H_k => by { prove_odiff }
-| ⟦x, y⟧ H_pre 1 fshape H_at_idx k H_k => by { prove_odiff }
-| xs    H_pre (n+2) fshape H_at_idx k H_k => by idx_over
+| ⟦x, y⟧, H_pre, 0, fshape, H_at_idx, k, H_k => by prove_odiff
+| ⟦x, y⟧, H_pre, 1, fshape, H_at_idx, k, H_k => by prove_odiff
+| xs, H_pre, (n+2), fshape, H_at_idx, k, H_k => by idx_over
 
 lemma f_pb_correct {shape : S} : pullback_correct (@f shape) (@f_pre shape) (@f_pb shape)
-| ⟦x₁, x₂⟧ y H_y g_out 0 fshape H_at_idx H_pre := begin prove_pb_correct end
-| ⟦x₁, x₂⟧ y H_y g_out 1 fshape H_at_idx H_pre => sorry --by prove_pb_correct
-| xs      y H_y g_out (n+2) fshape H_at_idx H_pre => by idx_over
+| ⟦x₁, x₂⟧, y, H_y, g_out, 0, fshape, H_at_idx, H_pre =>
+    by
+      try clear f_pb_correct
+      have H_fshape_eq : shape = fshape := Eq.symm H_at_idx.right
+      subst H_fshape_eq
+      have H_k_grad :  g_out = ∇ (λ z => T.dot z g_out) y := by
+          rw [certigrad.T.grad_dot₁]
+      rw [ H_k_grad ]
+      subst H_y
+      simp
+      rw [← certigrad.T.grad_tmulT]
+      dsimp [force]
+      simplifyGrad
+      simp
+| ⟦x₁, x₂⟧, y, H_y, g_out, 1, fshape, H_at_idx, H_pre =>
+    by
+      try clear f_pb_correct
+      have H_fshape_eq : shape = fshape := Eq.symm H_at_idx.right
+      subst H_fshape_eq
+      have H_k_grad :  g_out = ∇ (λ z => T.dot z g_out) y := by
+          rw [certigrad.T.grad_dot₁]
+      rw [ H_k_grad ]
+      subst H_y
+      simp
+      rw [← certigrad.T.grad_tmulT]
+      dsimp [force]
+      simplifyGrad
+      simp
+| xs, y, H_y, g_out, (n+2), fshape, H_at_idx, H_pre => by idx_over
 
 lemma f_ocont {shape : S} : is_ocontinuous (@f shape) (@f_pre shape)
-| ⟦x₁, x₂⟧ 0     ishape H_at_idx H_pre => by prove_ocont
-| ⟦x₁, x₂⟧ 1     ishape H_at_idx H_pre => by prove_ocont
-| xs      (n+2) ishape H_at_idx H_pre => by idx_over
+| ⟦x₁, x₂⟧, 0, ishape, H_at_idx, H_pre => by prove_ocont
+| ⟦x₁, x₂⟧, 1, ishape, H_at_idx, H_pre => by prove_ocont
+| xs, (n+2), ishape, H_at_idx, H_pre => by idx_over
 
 end div
 
-section open div
-def div (shape : S) : det.op [shape, shape] shape :=
-det.op.mk "div" f f_pre f_pb f_odiff f_pb_correct f_ocont
-end
-
 namespace sum
 
+
+noncomputable
 def f {shape : S} (xs : Dvec T [shape]) : TReal := T.sum xs.head
 def f_pre {shape : S} : precondition [shape] := λ xs => True
+noncomputable
 def f_pb {shape : S} (xs : Dvec T [shape]) (y gy : TReal) (idx : Nat) (fshape : S) : T fshape := force (T.const gy shape) fshape
-
-attribute [simp] f f_pre f_pb
-
-lemma f_odiff {shape : S} : is_odifferentiable (@f shape) (@f_pre shape)
-| ⟦x⟧, H_pre, 0, fshape, H_at_idx, k, H_k => by prove_odiff
-| ⟦x⟧, H_pre, (n+1), fshape, H_at_idx, k, H_k => by idx_over
-
-lemma f_pb_correct {shape : S} : pullback_correct (@f shape) (@f_pre shape) (@f_pb shape)
-| ⟦x⟧, y, H_y, g_out, 0, fshape, H_at_idx, H_pre :=
-begin
-clear f_pb_correct,
-assertv H_fshape_eq : shape = fshape := eq.symm H_at_idx.right,
-subst H_fshape_eq,
-definev k : TReal → TReal := (λ θ, dot g_out θ),
-assert H_grad : ∇ k y = g_out,
-{ change ∇ (λ θ, dot g_out θ) y = g_out, rw certigrad.T.grad_dot₂ },
-rw -H_grad,
-subst H_y,
-simp, dsimp,
-dunfold dvec.get dvec.head dvec.update_at,
-rw -T.grad_tmulT,
-rw T.grad_sum k,
-simp [T.smul.def]
-end
-
-| xs, y, H_y, g_out, (n+1), fshape, H_at_idx, H_pre => by idx_over
-
-lemma f_ocont {shape : S} : is_ocontinuous (@f shape) (@f_pre shape)
-| ⟦x⟧, 0, ishape, H_at_idx, H_pre => by prove_ocont
-| ⟦x⟧, (n+1), ishape, H_at_idx, H_pre => by idx_over
-
-end sum
 
 section open sum
 -- TODO(dhs): why won't it find `f` without `sum.`? Bug in Lean?
+noncomputable
 def sum (shape : S) : det.op [shape] [] :=
-det.op.mk "sum" sum.f sum.f_pre sum.f_pb sum.f_odiff sum.f_pb_correct sum.f_ocont
+  det.op.mk "sum" sum.f sum.f_pre sum.f_pb sum.f_odiff sum.f_pb_correct sum.f_ocont
 end
 
 namespace gemm
 
+noncomputable
 def f {m n p : TReal} (xs : Dvec T [[m, n], [n, p]]) : T [m, p] := gemm xs.head xs.head2
+noncomputable
 def f_pre {m n p : TReal} : precondition [[m, n], [n, p]] := λ xs => True
+noncomputable
 def f_pb {m n p : TReal} (xs : Dvec T [[m, n], [n, p]]) (y gy : T [m, p]) : Π (idx : Nat) (fshape : S), T fshape
-| 0 fshape := force (T.gemm gy (transpose $ xs.head2)) fshape
-| 1 fshape := force (T.gemm (transpose $ xs.head) gy) fshape
-| (n+2) fshape := T.error "gemm: index too large"
+| 0, fshape => force (T.gemm gy (transpose $ xs.head2)) fshape
+| 1, fshape => force (T.gemm (transpose $ xs.head) gy) fshape
+| (n+2), fshape => T.error "gemm: index too large"
 
 attribute [simp] f f_pre f_pb
 
 lemma f_odiff {m n p : TReal} : is_odifferentiable (@f m n p) (@f_pre m n p)
-| ⟦x₁, x₂⟧ H_pre 0 fshape H_at_idx k H_k := begin definev shape : S := [m, n], prove_odiff end
-| ⟦x₁, x₂⟧ H_pre 1 fshape H_at_idx k H_k := begin definev shape : S := [n, p], prove_odiff end
-| xs      H_pre (n+2) fshape H_at_idx k H_k => by idx_over
+| ⟦x₁, x₂⟧, H_pre, 0, fshape, H_at_idx, k, H_k => by { let shape := [m, n]; prove_odiff }
+| ⟦x₁, x₂⟧, H_pre, 1, fshape, H_at_idx, k, H_k => by { let shape := [n, p]; prove_odiff }
+| xs, H_pre, (n+2), fshape, H_at_idx, k, H_k => by idx_over
 
 lemma f_pb_correct {m n p : TReal} : pullback_correct (@f m n p) (@f_pre m n p) (@f_pb m n p)
-| ⟦x₁, x₂⟧ y H_y g_out 0 fshape H_fshape_at_idx H_pre :=
-begin
-clear f_pb_correct,
-assertv H_fshape_eq : [m, n] = fshape := eq.symm H_fshape_at_idx.right,
-subst H_fshape_eq,
-definev k : T [m, p] → TReal := (λ θ, dot g_out θ),
-assert H_grad : ∇ k y = g_out,
-{ change ∇ (λ θ, dot g_out θ) y = g_out, rw certigrad.T.grad_dot₂ },
-rw -H_grad,
-subst H_y,
-simp, dsimp,
-rw [-T.grad_tmulT, T.grad_gemm₁ k]
-end
+| ⟦x₁, x₂⟧, y, H_y, g_out, 0, fshape, H_fshape_at_idx, H_pre =>
+    by
+      clear f_pb_correct
+      have H_fshape_eq : [m, n] = fshape := Eq.symm H_fshape_at_idx.right
+      rw [H_fshape_eq]
+      let k : T [m, p] → TReal := (λ θ => dot g_out θ)
+      have H_grad : ∇ k y = g_out := by { change ∇ (λ θ=>dot g_out θ) y = g_out; rw [certigrad.T.grad_dot₂] }
+      rw [← H_grad]
+      subst H_y
+      simp; dsimp
+      rw [← T.grad_tmulT, T.grad_gemm₁ k]
 
-| ⟦x₁, x₂⟧ y H_y g_out 1 fshape H_fshape_at_idx H_pre :=
-begin
-clear f_pb_correct,
-assertv H_fshape_eq : [n, p] = fshape := eq.symm H_fshape_at_idx.right,
-subst H_fshape_eq,
-definev k : T [m, p] → TReal := (λ θ, dot g_out θ),
-assert H_grad : ∇ k y = g_out,
-{ change ∇ (λ θ, dot g_out θ) y = g_out, rw certigrad.T.grad_dot₂ },
-rw -H_grad,
-subst H_y,
-simp, dsimp,
-rw [-T.grad_tmulT, T.grad_gemm₂ k]
-end
+| ⟦x₁, x₂⟧, y, H_y, g_out, 1, fshape, H_fshape_at_idx, H_pre =>
+    by
+      clear f_pb_correct
+      have H_fshape_eq : [n, p] = fshape := Eq.symm H_fshape_at_idx.right
+      subst H_fshape_eq
+      let k : T [m, p] → TReal := (λ θ => dot g_out θ)
+      have H_grad : ∇ k y = g_out := by { change ∇ (λ θ=>dot g_out θ) y = g_out; rw [certigrad.T.grad_dot₂] }
+      rw [← H_grad]
+      subst H_y
+      simp; dsimp
+      rw [← T.grad_tmulT, T.grad_gemm₂ k]
 
-| xs y H_y g_out (n+2) fshape H_fshape_at_idx H_pre := false.rec _ (at_idx_over H_fshape_at_idx (by tactic.dec_triv))
+| xs, y, H_y, g_out, (n+2), fshape, H_fshape_at_idx, H_pre =>
+    False.elim (at_idx_over H_fshape_at_idx (by decide))
 
 lemma f_ocont {m n p : TReal} : is_ocontinuous (@f m n p) (@f_pre m n p)
-| ⟦x₁, x₂⟧ 0     ishape H_at_idx H_pre => by { pose shape := [m, n], prove_ocont }
-| ⟦x₁, x₂⟧ 1     ishape H_at_idx H_pre => by { pose shape := [n, p], prove_ocont }
-| xs      (n+2) ishape H_at_idx H_pre => by idx_over
+| ⟦x₁, x₂⟧, 0, ishape, H_at_idx, H_pre => by { let shape := [m, n]; prove_ocont }
+| ⟦x₁, x₂⟧, 1, ishape, H_at_idx, H_pre => by { let shape := [n, p]; prove_ocont }
+| xs, (n+2), ishape, H_at_idx, H_pre => by idx_over
 
 end gemm
 
 section open gemm
+noncomputable
 def gemm (m n p : TReal) : det.op [[m, n], [n, p]] [m, p] :=
-det.op.mk "gemm" f f_pre f_pb f_odiff f_pb_correct f_ocont
+  det.op.mk "gemm" f f_pre f_pb f_odiff f_pb_correct f_ocont
 end
 
 namespace mvn_kl
 
+noncomputable
 def f {shape : S} (xs : Dvec T [shape, shape]) : TReal := mvn_kl xs.head xs.head2
+noncomputable
 def f_pre {shape : S} : precondition [shape, shape] := λ xs => 0 < xs.head2
 
+noncomputable
 def f_pb {shape : S} (xs : Dvec T [shape, shape]) (y gy : TReal) : Π (idx : Nat) (fshape : S), T fshape
-| 0     fshape := force (gy • xs.head) fshape
-| 1     fshape := force (gy • (xs.head2 - (1 / xs.head2))) fshape
-| (n+2) fshape := T.error "mvn_kl: index too large"
+| 0, fshape => force (gy • xs.head) fshape
+| 1, fshape => force (gy • (xs.head2 - (1 / xs.head2))) fshape
+| (n+2), fshape => T.error "mvn_kl: index too large"
 
 attribute [simp] f f_pre f_pb
 
 lemma f_odiff {shape : S} : is_odifferentiable (@f shape) (@f_pre shape)
-| ⟦μ, σ⟧ H_pre 0     fshape H_at_idx k H_k => by prove_odiff
-| ⟦μ, σ⟧ H_pre 1     fshape H_at_idx k H_k => by prove_odiff
-| xs    H_pre (n+2) fshape H_at_idx k H_k => by idx_over
+| ⟦μ, σ⟧, H_pre, 0, fshape, H_at_idx, k, H_k => by prove_odiff
+| ⟦μ, σ⟧, H_pre, 1, fshape, H_at_idx, k, H_k => by prove_odiff
+| xs, H_pre, (n+2), fshape, H_at_idx, k, H_k => by idx_over
 
 lemma f_pb_correct {shape : S} : pullback_correct (@f shape) (@f_pre shape) (@f_pb shape)
-| ⟦μ, σ⟧ y H_y g_out 0 fshape H_fshape_at_idx H_pre :=
-begin
-clear f_pb_correct,
-assertv H_fshape_eq : shape = fshape := eq.symm H_fshape_at_idx.right,
-subst H_fshape_eq,
-definev k : TReal → TReal := λ (x : TReal), x * g_out,
-assertv H_k_grad : ∇ k y = g_out :=  by { dsimp, erw [T.grad_mul₁ id, T.grad_id, one_mul] },
-rw -H_k_grad,
-subst H_y,
-dsimp,
-simp,
-rw -T.grad_tmulT,
-simplify_grad,
-simp [T.smul.def]
-end
+| ⟦μ, σ⟧, y, H_y, g_out, 0, fshape, H_fshape_at_idx, H_pre =>
+    by
+      clear f_pb_correct
+      have H_fshape_eq : shape = fshape := Eq.symm H_fshape_at_idx.right
+      subst H_fshape_eq
+      let k : TReal → TReal := λ x => x * g_out
+      have H_k_grad : ∇ k y = g_out := by { erw [T.grad_mul₁ id, T.grad_id, one_mul] }
+      rw [← H_k_grad]
+      subst H_y
+      dsimp
+      simp
+      rw [← T.grad_tmulT]
+      simplifyGrad
+      simp [T.smul.def]
 
-| ⟦μ, σ⟧ y H_y g_out 1 fshape H_at_idx H_pre :=
-have H_σ₂ : square σ > 0, from square_pos_of_pos H_pre,
-have H_diff₁ : is_cdifferentiable (λ (θ₀ : T shape), g_out * (-2⁻¹ * T.sum (1 + T.log (square θ₀) - square μ - square σ))) σ, by prove_differentiable,
-have H_diff₂ : is_cdifferentiable (λ (θ₀ : T shape), g_out * (-2⁻¹ * T.sum (1 + T.log (square σ) - square μ - square θ₀))) σ, by prove_differentiable,
-begin
-clear f_pb_correct,
-assertv H_fshape_eq : shape = fshape := eq.symm H_at_idx.right,
-subst H_fshape_eq,
-definev k : TReal → TReal := λ (x : TReal), x * g_out,
-assertv H_k_grad : ∇ k y = g_out :=  by { dsimp, erw [T.grad_mul₁ id, T.grad_id, one_mul] },
-rw -H_k_grad,
-subst H_y,
-dsimp,
-simp,
-rw -T.grad_tmulT,
-dunfold T.mvn_kl,
+| ⟦μ, σ⟧, y, H_y, g_out, 1, fshape, H_at_idx, H_pre =>
+    let H_σ₂ := square_pos_of_pos H_pre
+    let H_diff₁ := by proveDifferentiable
+    let H_diff₂ := by proveDifferentiable
+    by
+      clear f_pb_correct
+      have H_fshape_eq : shape = fshape := Eq.symm H_at_idx.right
+      subst H_fshape_eq
+      let k : TReal → TReal := λ x => x * g_out
+      have H_k_grad : ∇ k y = g_out := by { erw [T.grad_mul₁ id, T.grad_id, one_mul] }
+      rw [← H_k_grad]
+      subst H_y
+      dsimp
+      simp
+      rw [← T.grad_tmulT]
+      unfold T.mvn_kl
+      dsimp [force]
+      simplifyGrad
+      simp [T.smul.def, T.const_neg, T.const_mul, T.const_zero,
+            T.const_one, T.const_bit0, T.const_bit1, T.const_inv,
+            left_distrib, right_distrib]
+      rw [T.mul_inv_cancel two_pos]
+      erw [T.neg_div]
+      simp [mul_neg_eq_neg_mul_symm, neg_mul_eq_neg_mul_symm]
+      apply congr_arg; apply congr_arg
+      simp only [T.mul_div_mul, square]
+      rw [← mul_assoc, T.mul_div_mul, (@T.div_self_square _ σ H_pre)]
+      simp
+      rw [T.mul_inv_cancel two_pos]
+      simp
+      rw [T.div_mul_inv]
 
-rw (T.grad_binary (λ θ₁ θ₂, g_out * ((- 2⁻¹) * T.sum (1 + T.log (square θ₁) - square μ - square θ₂))) _ H_diff₁ H_diff₂),
-dsimp,
-simplify_grad,
-
-simp [T.smul.def, T.const_neg, T.const_mul, T.const_zero,
-      T.const_one, T.const_bit0, T.const_bit1, T.const_inv,
-      left_distrib, right_distrib],
-rw T.mul_inv_cancel two_pos,
-erw T.neg_div,
-simp [mul_neg_eq_neg_mul_symm, neg_mul_eq_neg_mul_symm],
-apply congr_arg, apply congr_arg,
-simp only [T.mul_div_mul, square],
-rw [-mul_assoc, T.mul_div_mul, (@T.div_self_square _ σ H_pre)],
-simp,
-rw [T.mul_inv_cancel two_pos],
-simp,
-rw T.div_mul_inv,
-end
-
-| ⟦μ, σ⟧ y H_y g_out (n+2) fshape H_at_idx H_pre => by idx_over
+| xs, y, H_y, g_out, (n+2), fshape, H_at_idx, H_pre => by idx_over
 
 lemma f_ocont {shape : S} : is_ocontinuous (@f shape) (@f_pre shape)
-| ⟦μ, σ⟧ 0     ishape H_at_idx H_pre => by { prove_ocont, apply T.continuous_mvn_kl₁, exact H_pre }
-| ⟦μ, σ⟧ 1     ishape H_at_idx H_pre => by { prove_ocont }
-| ⟦μ, σ⟧ (n+2) ishape H_at_idx H_pre => by idx_over
+| ⟦μ, σ⟧, 0, ishape, H_at_idx, H_pre => by { prove_ocont; apply T.continuous_mvn_kl₁; exact H_pre }
+| ⟦μ, σ⟧, 1, ishape, H_at_idx, H_pre => by { prove_ocont }
+| ⟦μ, σ⟧, (n+2), ishape, H_at_idx, H_pre => by idx_over
 
 end mvn_kl
 
 section open mvn_kl
+noncomputable
 def mvn_kl (shape : S) : det.op [shape, shape] [] :=
-det.op.mk "mvn_kl" f f_pre f_pb f_odiff f_pb_correct f_ocont
+  det.op.mk "mvn_kl" f f_pre f_pb f_odiff f_pb_correct f_ocont
 end
 
--- Seems silly but saves some fresh-name tracking in reparam
 namespace mul_add
 
+noncomputable
 def f {shape : S} (xs : Dvec T [shape, shape, shape]) : T shape := (xs.head * xs.head2) + xs.head3
+noncomputable
 def f_pre {shape : S} : precondition [shape, shape, shape] := λ xs => True
+noncomputable
 def f_pb {shape : S} (xs : Dvec T [shape, shape, shape]) (y gy : T shape) : Π (idx : Nat) (fshape : S), T fshape
-| 0     fshape := force (gy * xs.head2) fshape
-| 1     fshape := force (gy * xs.head) fshape
-| 2     fshape := force gy fshape
-| (n+3) _      := T.error "mul_add: index too large"
+| 0, fshape => force (gy * xs.head2) fshape
+| 1, fshape => force (gy * xs.head) fshape
+| 2, fshape => force gy fshape
+| (n+3), _ => T.error "mul_add: index too large"
 
 attribute [simp] f f_pre f_pb
 
 lemma f_odiff {shape : S} : is_odifferentiable (@f shape) (@f_pre shape)
-| ⟦z, σ, μ⟧ H_pre 0     fshape H_at_idx k H_k => by prove_odiff
-| ⟦z, σ, μ⟧ H_pre 1     fshape H_at_idx k H_k => by prove_odiff
-| ⟦z, σ, μ⟧ H_pre 2     fshape H_at_idx k H_k => by prove_odiff
-| xs       H_pre (n+3) fshape H_at_idx k H_k => by idx_over
+| ⟦z, σ, μ⟧, H_pre, 0, fshape, H_at_idx, k, H_k => by prove_odiff
+| ⟦z, σ, μ⟧, H_pre, 1, fshape, H_at_idx, k, H_k => by prove_odiff
+| ⟦z, σ, μ⟧, H_pre, 2, fshape, H_at_idx, k, H_k => by prove_odiff
+| xs, H_pre, (n+3), fshape, H_at_idx, k, H_k => by idx_over
 
 lemma f_pb_correct {shape : S} : pullback_correct (@f shape) (@f_pre shape) (@f_pb shape)
-| ⟦z, σ, μ⟧ y H_y g_out 0 fshape H_at_idx H_pre :=
-begin
-prove_pb_correct_init,
-simp only [f, f_pre, f_pb, force_ok, dif_pos],
-dsimp,
-simp only [dif_pos, dif_neg],
-dsimp,
-rw -T.grad_tmulT,
-simplify_grad,
-reflexivity
-end
+| ⟦z, σ, μ⟧, y, H_y, g_out, 0, fshape, H_at_idx, H_pre =>
+    by
+      try clear f_pb_correct
+      have H_fshape_eq : shape = fshape := Eq.symm H_at_idx.right
+      subst H_fshape_eq
+      have H_k_grad :  g_out = ∇ (λ z => T.dot z g_out) y := by
+          rw [certigrad.T.grad_dot₁]
+      rw [ H_k_grad ]
+      subst H_y
+      simp
+      rw [← certigrad.T.grad_tmulT]
+      dsimp [force]
+      simplifyGrad
+      simp
 
-| ⟦z, σ, μ⟧ y H_y g_out 1 fshape H_at_idx H_pre :=
-begin
-prove_pb_correct_init,
-simp without mul_comm add_comm,
-dsimp,
-rw -T.grad_tmulT,
-simplify_grad,
-reflexivity
-end
+| ⟦z, σ, μ⟧, y, H_y, g_out, 1, fshape, H_at_idx, H_pre =>
+    by
+      try clear f_pb_correct
+      have H_fshape_eq : shape = fshape := Eq.symm H_at_idx.right
+      subst H_fshape_eq
+      have H_k_grad :  g_out = ∇ (λ z => T.dot z g_out) y := by
+          rw [certigrad.T.grad_dot₁]
+      rw [ H_k_grad ]
+      -- simp only [mul_comm, add_comm]
+      dsimp
+      rw [← T.grad_tmulT]
+      simplifyGrad
+      rfl
 
-| ⟦z, σ, μ⟧ y H_y g_out 2 fshape H_at_idx H_pre :=
-begin
-prove_pb_correct_init,
-simp without mul_comm add_comm,
-dsimp,
-rw -T.grad_tmulT,
-simplify_grad,
-reflexivity
-end
+| ⟦z, σ, μ⟧, y, H_y, g_out, 2, fshape, H_at_idx, H_pre =>
+    by
+      try clear f_pb_correct
+      have H_fshape_eq : shape = fshape := Eq.symm H_at_idx.right
+      subst H_fshape_eq
+      have H_k_grad :  g_out = ∇ (λ z => T.dot z g_out) y := by
+          rw [certigrad.T.grad_dot₁]
+      rw [ H_k_grad ]
+      -- simp (config := { contextual := true }) only [mul_comm, add_comm]
+      dsimp
+      rw [← T.grad_tmulT]
+      simplifyGrad
+      rfl
 
-| xs y H_y g_out (n+3) fshape H_at_idx H_pre => by idx_over
+| xs, y, H_y, g_out, (n+3), fshape, H_at_idx, H_pre => by idx_over
 
 lemma f_ocont {shape : S} : is_ocontinuous (@f shape) (@f_pre shape)
-| ⟦z, σ, μ⟧ 0     ishape H_at_idx H_pre => by prove_ocont
-| ⟦z, σ, μ⟧ 1     ishape H_at_idx H_pre => by prove_ocont
-| ⟦z, σ, μ⟧ 2     ishape H_at_idx H_pre => by prove_ocont
-| xs       (n+3) ishape H_at_idx H_pre => by idx_over
+| ⟦z, σ, μ⟧, 0, ishape, H_at_idx, H_pre => by prove_ocont
+| ⟦z, σ, μ⟧, 1, ishape, H_at_idx, H_pre => by prove_ocont
+| ⟦z, σ, μ⟧, 2, ishape, H_at_idx, H_pre => by prove_ocont
+| xs, (n+3), ishape, H_at_idx, H_pre => by idx_over
 
 end mul_add
 
 section open mul_add
+noncomputable
 def mul_add (shape : S) : det.op [shape, shape, shape] shape :=
-det.op.mk "mul_add" f f_pre f_pb f_odiff f_pb_correct f_ocont
+  det.op.mk "mul_add" f f_pre f_pb f_odiff f_pb_correct f_ocont
 end
 
 namespace bernoulli_neglogpdf
 
+noncomputable
 def f {shape : S} (xs : Dvec T [shape, shape]) : TReal := bernoulli_neglogpdf xs.head xs.head2
+noncomputable
 def f_pre {shape : S} : precondition [shape, shape] := λ xs => 0 < xs.head ∧ xs.head < 1
 
+noncomputable
 def f_pb {shape : S} (xs : Dvec T [shape, shape]) (y gy : TReal) : Π (idx : Nat) (fshape : S), T fshape
-| 0     fshape := force (gy • (1 - xs.head2) / (eps shape + (1 - xs.head)) - gy • (xs.head2 / (eps shape + xs.head))) fshape
-| 1     fshape := force (gy • T.log (eps shape + (1 - xs.head)) - gy • T.log (eps shape + xs.head)) fshape
-| (n+2) fshape := T.error "bernoulli_neglogpdf: index too large"
+| 0, fshape => force (gy • (1 - xs.head2) / (eps shape + (1 - xs.head)) - gy • (xs.head2 / (eps shape + xs.head))) fshape
+| 1, fshape => force (gy • T.log (eps shape + (1 - xs.head)) - gy • T.log (eps shape + xs.head)) fshape
+| (n+2), fshape => T.error "bernoulli_neglogpdf: index too large"
 
 attribute [simp] f f_pre f_pb
 
 lemma f_odiff {shape : S} : is_odifferentiable (@f shape) (@f_pre shape)
-| ⟦p, z⟧ H_pre 0 fshape H_at_idx k H_k :=
-have H_p₁ : p > 0, from H_pre.left,
-have H_p₂ : p < 1, from H_pre.right,
-by prove_odiff
+| ⟦p, z⟧, H_pre, 0, fshape, H_at_idx, k, H_k =>
+    have H_p₁ : p > 0 := H_pre.left
+    have H_p₂ : p < 1 := H_pre.right
+    by prove_odiff
 
-| ⟦p, z⟧ H_pre 1 fshape H_at_idx k H_k => by prove_odiff
-| ⟦μ, σ⟧ H_pre (n+2) fshape H_at_idx k H_k => by idx_over
-
+| ⟦p, z⟧, H_pre, 1, fshape, H_at_idx, k, H_k => by prove_odiff
+| ⟦μ, σ⟧, H_pre, (n+2), fshape, H_at_idx, k, H_k => by idx_over
 
 lemma f_pb_correct {shape : S} : pullback_correct (@f shape) (@f_pre shape) (@f_pb shape)
-| ⟦p, z⟧ y H_y g_out 0 fshape H_at_idx H_pre :=
-have H_p : p > 0, from H_pre.left,
-have H_1mp : 1 - p > 0, from lt1_alt H_pre.right,
-have H_diff₁ : is_cdifferentiable (λ (θ₀ : T shape), g_out * -T.sum (z * T.log (eps shape + θ₀) + (1 - z) * T.log (eps shape + (1 - p)))) p, by prove_differentiable,
-have H_diff₂ : is_cdifferentiable (λ (θ₀ : T shape), g_out * -T.sum (z * T.log (eps shape + p) + (1 - z) * T.log (eps shape + (1 - θ₀)))) p, by prove_differentiable,
+| ⟦p, z⟧, y, H_y, g_out, 0, fshape, H_at_idx, H_pre =>
+    let H_p := H_pre.left
+    let H_1mp := lt1_alt H_pre.right
+    let H_diff₁ := by proveDifferentiable
+    let H_diff₂ := by proveDifferentiable
+    by
+      clear f_pb_correct
+      have H_fshape_eq : shape = fshape := Eq.symm H_at_idx.right
+      subst H_fshape_eq
+      let k : TReal → TReal := λ x => x * g_out
+      have H_k_grad : ∇ k y = g_out := by erw [T.grad_mul₁ id, T.grad_id, one_mul]
+      rw [← H_k_grad]
+      subst H_y
+      dsimp
+      simp
+      rw [← T.grad_tmulT]
+      unfold T.bernoulli_neglogpdf
+      rw [T.grad_binary (λ θ₁ θ₂ => g_out * - T.sum (z * T.log (eps shape + θ₁) + (1 - z) * T.log (eps shape + (1 - θ₂)))) _ H_diff₁ H_diff₂]
+      dsimp
+      let H₁ := H_pre.left
+      let H₂ := lt1_alt H_pre.right
+      simplifyGrad
+      simp [T.smul.def, T.neg_div, T.const_neg]
+      rw [T.mul_div_mul]
+      simp [T.div_mul_inv]
 
-begin
-clear f_pb_correct,
-assertv H_fshape_eq : shape = fshape := eq.symm H_at_idx.right,
-subst H_fshape_eq,
-definev k : TReal → TReal := λ (x : TReal), x * g_out,
-assertv H_k_grad : ∇ k y = g_out :=  by { dsimp, erw [T.grad_mul₁ id, T.grad_id, one_mul] },
-rw -H_k_grad,
-subst H_y,
-dsimp,
-simp ,
-rw -T.grad_tmulT,
-dunfold T.bernoulli_neglogpdf,
-rw T.grad_binary (λ θ₁ θ₂, g_out * - T.sum (z * T.log (eps shape + θ₁) + (1 - z) * T.log (eps shape + (1 - θ₂)))) _ H_diff₁ H_diff₂,
-dsimp,
-note H₁ := H_pre.left,
-note H₂ := lt1_alt H_pre.right,
-simplify_grad,
-simp [T.smul.def, T.neg_div, T.const_neg],
-rw [T.mul_div_mul],
-simp [T.div_mul_inv],
-end
+| ⟦p, z⟧, y, H_y, g_out, 1, fshape, H_at_idx, H_pre =>
+    let H_diff₁ := by proveDifferentiable
+    let H_diff₂ := by proveDifferentiable
+    by
+      clear f_pb_correct
+      have H_fshape_eq : shape = fshape := Eq.symm H_at_idx.right
+      subst H_fshape_eq
+      let k : TReal → TReal := λ x => x * g_out
+      have H_k_grad : ∇ k y = g_out := by erw [T.grad_mul₁ id, T.grad_id, one_mul]
+      rw [← H_k_grad]
+      subst H_y
+      dsimp
+      simp
+      rw [← T.grad_tmulT]
+      unfold T.bernoulli_neglogpdf
+      rw [T.grad_binary (λ θ₁ θ₂ => g_out * - T.sum (θ₁ * T.log (eps shape + p) + (1 - θ₂) * T.log (eps shape + (1 - p)))) _ H_diff₁ H_diff₂]
+      dsimp
+      simplifyGrad
+      simp [T.smul.def, const_neg]
 
-| ⟦p, z⟧ y H_y g_out 1 fshape H_at_idx H_pre :=
-have H_diff₁ : is_cdifferentiable (λ (θ₀ : T shape), g_out * -T.sum (θ₀ * T.log (eps shape + p) + (1 - z) * T.log (eps shape + (1 - p)))) z, by prove_differentiable,
-have H_diff₂ : is_cdifferentiable (λ (θ₀ : T shape), g_out * -T.sum (z * T.log (eps shape + p) + (1 - θ₀) * T.log (eps shape + (1 - p)))) z, by prove_differentiable,
-
-begin
-clear f_pb_correct,
-assertv H_fshape_eq : shape = fshape := eq.symm H_at_idx.right,
-subst H_fshape_eq,
-definev k : TReal → TReal := λ (x : TReal), x * g_out,
-assertv H_k_grad : ∇ k y = g_out :=  by { dsimp, erw [T.grad_mul₁ id, T.grad_id, one_mul] },
-rw -H_k_grad,
-subst H_y,
-dsimp,
-simp,
-rw -T.grad_tmulT,
-dunfold T.bernoulli_neglogpdf,
-rw T.grad_binary (λ θ₁ θ₂, g_out * - T.sum (θ₁ * T.log (eps shape + p) + (1 - θ₂) * T.log (eps shape + (1 - p)))) _ H_diff₁ H_diff₂,
-dsimp,
-simplify_grad,
-simp [T.smul.def, const_neg],
-end
-
-| xs y H_y g_out (n+2) fshape H_at_idx H_pre => by idx_over
+| xs, y, H_y, g_out, (n+2), fshape, H_at_idx, H_pre => by idx_over
 
 lemma f_ocont {shape : S} : is_ocontinuous (@f shape) (@f_pre shape)
-| ⟦μ, σ⟧ 0     ishape H_at_idx H_pre => by { prove_ocont_init, apply continuous_bernoulli_neglogpdf₁, exact H_pre.left, exact lt1_alt H_pre.right }
-| ⟦μ, σ⟧ 1     ishape H_at_idx H_pre => by { prove_ocont_init, apply continuous_bernoulli_neglogpdf₂, exact H_pre.left, exact lt1_alt H_pre.right }
-| ⟦μ, σ⟧ (n+2) ishape H_at_idx H_pre => by idx_over
+| ⟦μ, σ⟧, 0, ishape, H_at_idx, H_pre => by { prove_ocont_init; apply continuous_bernoulli_neglogpdf₁; exact H_pre.left; exact lt1_alt H_pre.right }
+| ⟦μ, σ⟧, 1, ishape, H_at_idx, H_pre => by { prove_ocont_init; apply continuous_bernoulli_neglogpdf₂; exact H_pre.left; exact lt1_alt H_pre.right }
+| ⟦μ, σ⟧, (n+2), ishape, H_at_idx, H_pre => by idx_over
 
 end bernoulli_neglogpdf
 
 section
 open bernoulli_neglogpdf
+noncomputable
 def bernoulli_neglogpdf (shape : S) : det.op [shape, shape] [] :=
-det.op.mk "bernoulli_neglogpdf" f f_pre f_pb f_odiff f_pb_correct f_ocont
+  det.op.mk "bernoulli_neglogpdf" f f_pre f_pb f_odiff f_pb_correct f_ocont
 end
-
--/
 
 
 end ops
 
--- TODO(dhs): confirm I don't need this any more
-/-
-lemma mvn_kl_pre {shape : S} (xs : Dvec T [shape, shape]) :
-  det.op.pre (det.op.special (det.special.mvn_kl shape)) xs = (dvec.head2 xs > 0) := rfl
--/
 end certigrad
