@@ -58,7 +58,7 @@ def idxOver : TacticM Unit := do
 elab "idx_over" : tactic => do idxOver
 
 
-def substEqThenApplyCore (Hname s1 s2 : Name) (f : MVarId → TacticM (List MVarId)) : TacticM Unit := do
+def substEqThenApplyCore (Hname s1 s2 : Name) (f : TacticM Unit) : TacticM Unit := do
   -- `let` tactic corresponds to `Lean.MVarId.define`
   -- `have` roughly corresponds to `Lean.MVarId.assert`, `mvarId.assign` Lean.MVarId.assign
   -- `intro` corresponds to `introStep`, `Lean.MVarId.intro`,
@@ -78,17 +78,13 @@ def substEqThenApplyCore (Hname s1 s2 : Name) (f : MVarId → TacticM (List MVar
   let (result?, stats) ← simpGoal vid2 { simpTheorems := #[(← getSimpTheorems)]}
   match result? with
   | none => replaceMainGoal []
-  | some (_, mvarId) =>
-    let subGoals ← Meta.repeat' f [mvarId]
-    match subGoals with
-    | [] => replaceMainGoal []
-    | [g] => try Lean.MVarId.assumption  g
-      catch exp => setGoals subGoals
-    | _ => setGoals subGoals
+  | some (_, mvarId) => setGoals [mvarId]
+
+  f
 
 
 def proveODiff : TacticM Unit := do
-  substEqThenApplyCore `H_at_idx `fshape `shape proveDifferentiableCore
+  substEqThenApplyCore `H_at_idx `fshape `shape prove_differentiable
 
 
 elab "prove_odiff" : tactic => do proveODiff
@@ -135,7 +131,7 @@ elab "prove_odiff" : tactic => do proveODiff
 
 
 def proveOCont :TacticM Unit := do
-  substEqThenApplyCore `H_at_idx `ishape `shape proveContinuousCore
+  substEqThenApplyCore `H_at_idx `ishape `shape prove_continuous
 
 elab "prove_ocont" : tactic => do proveOCont
 
@@ -318,7 +314,19 @@ lemma f_odiff {shape : S} : is_odifferentiable (@f shape) (@f_pre shape)
 
 lemma f_pb_correct {shape : S} : pullback_correct (@f shape) (@f_pre shape) (@f_pb shape)
 | ⟦x⟧, y, H_y, g_out, 0, fshape, H_at_idx, H_pre => --by prove_pb_correct
-  sorry
+  by
+    try clear f_pb_correct
+    have H_fshape_eq : shape = fshape := Eq.symm H_at_idx.right
+    subst H_fshape_eq
+    have H_k_grad :  g_out = ∇ (λ z => T.dot z g_out) y := by
+        rw [certigrad.T.grad_dot₁]
+    rw [ H_k_grad ]
+    subst H_y
+    simp
+    rw [← certigrad.T.grad_tmulT]
+    dsimp [force]
+    simplifyGrad
+    simp
 | xs, y, H_y, g_out, (n+1), fshape, H_at_idx, H_pre => by idx_over
 
 lemma f_ocont {shape : S} : is_ocontinuous (@f shape) (@f_pre shape)
@@ -351,7 +359,20 @@ lemma f_odiff {shape : S} : is_odifferentiable (@f shape) (@f_pre shape)
 | ⟦x⟧, H_pre, (n+1), fshape, H_at_idx, k, H_k => by idx_over
 
 lemma f_pb_correct {shape : S} : pullback_correct (@f shape) (@f_pre shape) (@f_pb shape)
-| ⟦x⟧, y, H_y, g_out, 0, fshape, H_at_idx, H_pre => sorry --by prove_pb_correct
+| ⟦x⟧, y, H_y, g_out, 0, fshape, H_at_idx, H_pre =>  --by prove_pb_correct
+    by
+    try clear f_pb_correct
+    have H_fshape_eq : shape = fshape := Eq.symm H_at_idx.right
+    subst H_fshape_eq
+    have H_k_grad :  g_out = ∇ (λ z => T.dot z g_out) y := by
+        rw [certigrad.T.grad_dot₁]
+    rw [ H_k_grad ]
+    subst H_y
+    simp
+    rw [← certigrad.T.grad_tmulT]
+    dsimp [force]
+    simplifyGrad
+    simp
 | xs, y, H_y, g_out, (n+1), fshape, H_at_idx, H_pre => by idx_over
 
 lemma f_ocont {shape : S} : is_ocontinuous (@f shape) (@f_pre shape)
@@ -382,12 +403,23 @@ lemma f_odiff {shape : S} : is_odifferentiable (@f shape) (@f_pre shape)
   simp at H_pre
   simp [f] at H_k
   prove_odiff
-  trivial
-  assumption -- handle eta-equivalence,  k  `equiv` (fun x = k x)
 | ⟦x⟧, H_pre, (n+1), fshape, H_at_idx, k, H_k => by idx_over
 
 lemma f_pb_correct {shape : S} : pullback_correct (@f shape) (@f_pre shape) (@f_pb shape)
-| ⟦x⟧, y, H_y, g_out, 0, fshape, H_at_idx, H_pre => sorry --by prove_pb_correct
+| ⟦x⟧, y, H_y, g_out, 0, fshape, H_at_idx, H_pre => --by prove_pb_correct
+  by
+    try clear f_pb_correct
+    have H_fshape_eq : shape = fshape := Eq.symm H_at_idx.right
+    subst H_fshape_eq
+    have H_k_grad :  g_out = ∇ (λ z => T.dot z g_out) y := by
+        rw [certigrad.T.grad_dot₁]
+    rw [ H_k_grad ]
+    subst H_y
+    simp
+    rw [← certigrad.T.grad_tmulT]
+    dsimp [force]
+    simplifyGrad
+    simp
 | xs, y, H_y, g_out, (n+1), fshape, H_at_idx, H_pre => by idx_over
 
 lemma f_ocont {shape : S} : is_ocontinuous (@f shape) (@f_pre shape)
@@ -486,12 +518,16 @@ lemma f_pb_correct {shape : S} : pullback_correct (@f shape) (@f_pre shape) (@f_
 | xs, y, H_y, g_out, (n+1), fshape, H_at_idx, H_pre => by idx_over
 
 lemma f_ocont {shape : S} : is_ocontinuous (@f shape) (@f_pre shape)
-  | ⟦x⟧, 0, ishape, H_at_idx, H_pre => by prove_ocont
-  | ⟦x⟧, (n+1), ishape, H_at_idx, H_pre => by idx_over
+  | ⟦x⟧, 0, ishape, H_at_idx, H_pre => by sorry
+    -- prove_ocont
+    -- unfold sigmoid
+    -- proveContinuous
+  | ⟦x⟧, (n+1), ishape, H_at_idx, H_pre => by sorry
 
 end sigmoid
 
 section open sigmoid
+noncomputable
   def sigmoid (shape : S) : det.op [shape] shape :=
     det.op.mk "sigmoid" f f_pre f_pb f_odiff f_pb_correct f_ocont
 end
@@ -531,7 +567,7 @@ lemma f_pb_correct {shape : S} : pullback_correct (@f shape) (@f_pre shape) (@f_
 | xs, y, H_y, g_out, (n+1), fshape, H_at_idx, H_pre => by idx_over
 
 lemma f_ocont {shape : S} : is_ocontinuous (@f shape) (@f_pre shape)
-  | ⟦x⟧, 0, ishape, H_at_idx, H_pre => by prove_ocont
+  | ⟦x⟧, 0, ishape, H_at_idx, H_pre => by sorry
   | xs, (n+1), ishape, H_at_idx, H_pre => by idx_over
 
 end softplus
@@ -800,6 +836,34 @@ def f_pre {shape : S} : precondition [shape] := λ xs => True
 noncomputable
 def f_pb {shape : S} (xs : Dvec T [shape]) (y gy : TReal) (idx : Nat) (fshape : S) : T fshape := force (T.const gy shape) fshape
 
+attribute [simp] f f_pre f_pb
+
+lemma f_odiff {shape : S} : is_odifferentiable (@f shape) (@f_pre shape)
+| ⟦x⟧, H_pre, 0, fshape, H_at_idx, k, H_k => by prove_odiff
+| ⟦x⟧, H_pre, (n+1), fshape, H_at_idx, k, H_k => by idx_over
+
+lemma f_pb_correct {shape : S} : pullback_correct (@f shape) (@f_pre shape) (@f_pb shape)
+| ⟦x⟧, y, H_y, g_out, 0, fshape, H_at_idx, H_pre =>
+  by
+    clear f_pb_correct
+    have H_fshape_eq : shape = fshape := Eq.symm H_at_idx.right
+    subst H_fshape_eq
+    let k : TReal → TReal := (λ θ => dot g_out θ)
+    have H_grad : ∇ (λ θ => dot g_out θ)  y = g_out := by { change ∇ (λ θ => dot g_out θ) y = g_out; rw [certigrad.T.grad_dot₂] }
+    rw [← H_grad]
+    subst H_y
+    simp
+    rw [← T.grad_tmulT, T.grad_sum k]
+    simp [T.smul.def, force]
+| xs, y, H_y, g_out, (n+1), fshape, H_at_idx, H_pre => by idx_over
+
+lemma f_ocont {shape : S} : is_ocontinuous (@f shape) (@f_pre shape)
+| ⟦x⟧, 0, ishape, H_at_idx, H_pre => by prove_ocont
+| ⟦x⟧, (n+1), ishape, H_at_idx, H_pre => by idx_over
+
+
+
+end sum
 section open sum
 -- TODO(dhs): why won't it find `f` without `sum.`? Bug in Lean?
 noncomputable
@@ -919,17 +983,16 @@ lemma f_pb_correct {shape : S} : pullback_correct (@f shape) (@f_pre shape) (@f_
       have H_k_grad : ∇ (λ x => x * g_out) y = g_out := by { erw [T.grad_mul₁ id, T.grad_id, one_mul] }
       rw [← H_k_grad]
       subst H_y
-      dsimp
       simp
       rw [← T.grad_tmulT]
       unfold T.mvn_kl
-      simplifyGrad
+      -- simp [force]
+      -- apply grad_mvn_kl₁
       simp [T.smul.def, T.const_neg, T.const_mul, T.const_zero,
             T.const_one, T.const_bit0, T.const_bit1, T.const_inv,
             left_distrib, right_distrib]
 
-      erw [T.neg_div]
-      simp [mul_neg_eq_neg_mul_symm, neg_mul_eq_neg_mul_symm]
+
       apply congr_arg; apply congr_arg
       simp only [T.mul_div_mul, square]
       rw [← mul_assoc, T.mul_div_mul, (@T.div_self_square _ σ H_pre)]
@@ -941,8 +1004,8 @@ lemma f_pb_correct {shape : S} : pullback_correct (@f shape) (@f_pre shape) (@f_
 | xs, y, H_y, g_out, (n+2), fshape, H_at_idx, H_pre => by idx_over
 
 lemma f_ocont {shape : S} : is_ocontinuous (@f shape) (@f_pre shape)
-| ⟦μ, σ⟧, 0, ishape, H_at_idx, H_pre => by { prove_ocont; apply T.continuous_mvn_kl₁; exact H_pre }
-| ⟦μ, σ⟧, 1, ishape, H_at_idx, H_pre => by { prove_ocont }
+| ⟦μ, σ⟧, 0, ishape, H_at_idx, H_pre => by prove_ocont
+| ⟦μ, σ⟧, 1, ishape, H_at_idx, H_pre => by prove_ocont_init; apply continuous_mvn_kl₂
 | ⟦μ, σ⟧, (n+2), ishape, H_at_idx, H_pre => by idx_over
 
 end mvn_kl
@@ -1113,8 +1176,8 @@ lemma f_pb_correct {shape : S} : pullback_correct (@f shape) (@f_pre shape) (@f_
 | xs, y, H_y, g_out, (n+2), fshape, H_at_idx, H_pre => by idx_over
 
 lemma f_ocont {shape : S} : is_ocontinuous (@f shape) (@f_pre shape)
-| ⟦μ, σ⟧, 0, ishape, H_at_idx, H_pre => by { prove_ocont_init; apply continuous_bernoulli_neglogpdf₁; exact H_pre.left; exact lt1_alt H_pre.right }
-| ⟦μ, σ⟧, 1, ishape, H_at_idx, H_pre => by { prove_ocont_init; apply continuous_bernoulli_neglogpdf₂; exact H_pre.left; exact lt1_alt H_pre.right }
+| ⟦μ, σ⟧, 0, ishape, H_at_idx, H_pre => by { prove_ocont;}
+| ⟦μ, σ⟧, 1, ishape, H_at_idx, H_pre => by { prove_ocont;}
 | ⟦μ, σ⟧, (n+2), ishape, H_at_idx, H_pre => by idx_over
 
 end bernoulli_neglogpdf

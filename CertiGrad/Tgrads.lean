@@ -609,21 +609,40 @@ def myAssumption (varIds : List MVarId) : MetaM (List MVarId) := do
       catch _ => return true)
       varIds
 
+def prove_differentiable : TacticM Unit := do
+  -- logInfo m!"prove_differentiable is invoked"
+  -- logInfo m!"number of goals {(← getGoals).length}"
+  let varIds ← Meta.repeat' proveDifferentiableCore (← getGoals)
+
+  -- attempt to run `assumption` on each sub-goal
+  let varIds ← myAssumption varIds
+
+  let varIds ← Meta.repeat' provePreconditionsCore varIds
+
+  -- attempt to run `assumption` on each sub-goal
+  let varIds ← myAssumption varIds
+
+  -- save the remaining sub-goals (if any left)
+  setGoals varIds
+
+
 elab "proveDifferentiable" : tactic => do
-    -- setGoals (← Meta.repeat' proveDifferentiableCore (← getGoals))
 
-    let varIds ← Meta.repeat' proveDifferentiableCore (← getGoals)
+      prove_differentiable
+    -- -- setGoals (← Meta.repeat' proveDifferentiableCore (← getGoals))
 
-    -- attempt to run `assumption` on each sub-goal
-    let varIds ← myAssumption varIds
+    -- let varIds ← Meta.repeat' proveDifferentiableCore (← getGoals)
 
-    let varIds ← Meta.repeat' provePreconditionsCore varIds
+    -- -- attempt to run `assumption` on each sub-goal
+    -- let varIds ← myAssumption varIds
 
-    -- attempt to run `assumption` on each sub-goal
-    let varIds ← myAssumption varIds
+    -- let varIds ← Meta.repeat' provePreconditionsCore varIds
 
-    -- save the remaining sub-goals (if any left)
-    setGoals varIds
+    -- -- attempt to run `assumption` on each sub-goal
+    -- let varIds ← myAssumption varIds
+
+    -- -- save the remaining sub-goals (if any left)
+    -- setGoals varIds
 
 
     -- logInfo m!"proveDifferentiable is invoked"

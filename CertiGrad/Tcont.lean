@@ -222,19 +222,53 @@ def proveContinuousCore (goalId : MVarId) : TacticM (List MVarId) := do
   myFirstApply goalId candidate_exprs
 
 
--- meta def prove_continuous : tactic unit := repeat (prove_continuous_core <|> prove_preconditions_core)
+def myAssumption (varIds : List MVarId) : MetaM (List MVarId) := do
+  filterM (fun vid : MVarId => do try
+      let _ ← vid.assumption; return false
+      catch _ => return true)
+      varIds
 
+
+def prove_continuous : TacticM Unit := do
+  let varIds ← Meta.repeat' proveContinuousCore (← getGoals)
+  let varIds ← myAssumption varIds
+  let varIds ← Meta.repeat' provePreconditionsCore varIds
+  let varIds ← myAssumption varIds
+  setGoals varIds
 elab "proveContinuous" : tactic => do
-  let goalId ← getMainGoal
-  setGoals (← proveContinuousCore goalId)
-
--- end tactic
+  prove_continuous
 
 namespace T
 
--- lemma continuous_mvn_kl₁ {shape : S} (μ σ : T shape) (H_σ : σ > 0) : is_continuous (λ μ₀ => mvn_kl μ₀ σ) μ := by
---   unfold mvn_kl
---   proveContinuous
+lemma continuous_mvn_kl₁ {shape : S} (μ σ : T shape) (H_σ : σ > 0) : is_continuous (λ μ₀ => mvn_kl μ₀ σ) μ := by
+  unfold mvn_kl
+  proveContinuous
+
+
+lemma continuous_mvn_kl₂ {shape : S} (μ σ : T shape) (H_σ : σ > 0) : is_continuous (λ σ₀=>mvn_kl μ σ₀) σ := by
+    unfold mvn_kl
+    proveContinuous
+
+
+lemma continuous_bernoulli_neglogpdf₁ {shape : S} (p x : T shape) (H_p₁ : p > 0) (H_p₂ : p < 1) :
+is_continuous (λ p₀ => bernoulli_neglogpdf p₀ x) p :=
+by
+  unfold bernoulli_neglogpdf
+  proveContinuous
+
+lemma continuous_bernoulli_neglogpdf₂ {shape : S} (p x : T shape) (H_p₁ : p > 0) (H_p₂ : p < 1) : is_continuous (λ x₀ => bernoulli_neglogpdf p x₀) x :=
+    by
+    unfold bernoulli_neglogpdf
+
+    apply continuous_binary (λ θ₁ θ₂ => - T.sum (θ₁ * T.log (eps shape + p) + (1 - θ₂) * T.log (eps shape + (1 - p))))
+    dsimp
+    proveContinuous
+
+    apply continuous_chain (λ x => 1 - x) (λ y => y * log (eps shape + (1 - p)))
+    proveContinuous
+
+
+    -- TODO(dhs): not sure why this is necessary
 
 -- -- by { dunfold mvn_kl, prove_continuous }
 
