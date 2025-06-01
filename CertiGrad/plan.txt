@@ -1,4 +1,6 @@
 
+      52 Sprog.lean
+    1205 Ops.lean   
      466 SimpGrad.lean
      375 Rand.lean
       92 Det.lean
@@ -36,8 +38,8 @@
      233 program.lean  <--- g4 (in parallel with tvec)
       86 tvec.lean     <--- g4
      199 graph.lean <--- g3
-      52 sprog.lean <--- g2
-     741 ops.lean   <--- g1: can be done in parallel with rand.lean, also depends on Tgrad TacticM (e.g., prove_differentiable)
+      
+     
    10031 total
 
 Lean3/mathlib3 documentation: https://leanprover-community.github.io/mathlib_docs/tactic/core.html
