@@ -559,7 +559,9 @@ def proveDifferentiableCore (tid : MVarId): TacticM (List MVarId) := do
     (mkAppM `certigrad.T.is_cdifferentiable_mvn_kl₁ #[k]),
     (mkAppM `certigrad.T.is_cdifferentiable_mvn_kl₂ #[k]),
     (mkAppM `certigrad.T.is_cdifferentiable_bernoulli_neglogpdf₁ #[k]),
-    (mkAppM `certigrad.T.is_cdifferentiable_bsernoulli_neglogpdf₂ #[k]),
+    (mkAppM `certigrad.T.is_cdifferentiable_bernoulli_neglogpdf₂ #[k]),
+    (mkAppM `certigrad.T.is_cdifferentiable_gemm₁ #[k]),
+    (mkAppM `certigrad.T.is_cdifferentiable_gemm₂ #[k])
   ]
   -- logInfo m!"constructed all candidates"
   -- logInfo m!"candidate_exprs: {tid}"

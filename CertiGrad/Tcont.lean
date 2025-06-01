@@ -214,6 +214,12 @@ def proveContinuousCore (goalId : MVarId) : TacticM (List MVarId) := do
      (mkAppM ``certigrad.T.continuous_scale_fs #[]),
      (mkAppM ``certigrad.T.continuous_scale_f #[]),
      (mkAppM ``certigrad.T.continuous_chain #[]),
+
+    (mkAppM `certigrad.T.continuous_mvn_kl₁ #[]),
+    (mkAppM `certigrad.T.continuous_mvn_kl₂ #[]),
+    (mkAppM `certigrad.T.continuous_bernoulli_neglogpdf₁ #[]),
+    (mkAppM `certigrad.T.continuous_bernoulli_neglogpdf₂ #[])
+
     --  assumption
   ]
 

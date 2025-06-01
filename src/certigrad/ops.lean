@@ -661,7 +661,7 @@ have H_p₁ : p > 0, from H_pre^.left,
 have H_p₂ : p < 1, from H_pre^.right,
 by prove_odiff
 
-| ⟦p, z⟧ H_pre 1 fshape H_at_idx k H_k := by prove_odiff
+| ⟦p, z⟧ H_pre 1 fshape H_at_idx   k H_k := by prove_odiff
 | ⟦μ, σ⟧ H_pre (n+2) fshape H_at_idx k H_k := by idx_over
 
 

@@ -291,7 +291,16 @@ def BuildSimpGradLemmas (k: Expr) : TacticM (List (MetaM Expr)) := do
           (mkAppM ``certigrad.T.grad_gemm₁ #[k]),
           (mkAppM ``certigrad.T.grad_gemm₂ #[k]),
           (mkAppM ``certigrad.T.grad_sum #[k]),
-          (mkAppM ``certigrad.T.grad_scale_f #[k])
+          (mkAppM ``certigrad.T.grad_scale_f #[k]),
+
+          ---- The following rules are finished later therefore they are used by sing quote.
+          (mkAppM `certigrad.T.grad_mvn_kl₁ #[k]),
+          (mkAppM `certigrad.T.grad_mvn_kl₂ #[k]),
+          (mkAppM `certigrad.T.mvn_grad_logpdf_μ_correct #[k]),
+          (mkAppM `certigrad.T.mvn_grad_logpdf_σ_correct #[k]),
+          (mkAppM `certigrad.T.grad_bernoulli_neglogpdf₁ #[k]),
+          (mkAppM `certigrad.T.grad_bernoulli_neglogpdf₂ #[k])
+
         ]
     return rules
 
@@ -334,9 +343,7 @@ partial def SimpGradCore (tid: MVarId)  : TacticM Unit := do
   let e ← whnf e
   match e.eq? with
   | some (_, lhs, rhs) =>
-    logInfo m!"SimpGradCore: {e}"
     let (lhs_subgoals, lhs_proof) ← (← SimpGradCoreLoop lhs)
-    logInfo m!"SimpGradCore: {← tid.getType}"
     let (rhs_subgoals, rhs_proof) ← (← SimpGradCoreLoop rhs)
     let eq_proof ← mkAppM ``Eq.congr #[lhs_proof, rhs_proof]
     let target ← instantiateMVars e
@@ -345,10 +352,8 @@ partial def SimpGradCore (tid: MVarId)  : TacticM Unit := do
     let gens := rewriteResult.mvarIds.filter fun g => g != tid
     replaceMainGoal (goal' :: gens ++ lhs_subgoals ++ rhs_subgoals)
     if rewriteResult.eNew == e then
-      logInfo m!"SimpGradCore: goal is unchanged, skipping further simplification."
       return ()
     else
-      logInfo m!"SimpGradCore: goal is changed, continuing simplification."
       SimpGradCore (← getMainGoal)
   | none =>
     throwError "SimpGradCore: goal is not an equality, got: {e}"
