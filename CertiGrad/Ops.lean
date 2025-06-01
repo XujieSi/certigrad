@@ -957,18 +957,12 @@ lemma f_pb_correct {shape : S} : pullback_correct (@f shape) (@f_pre shape) (@f_
       clear f_pb_correct
       have H_fshape_eq : shape = fshape := Eq.symm H_fshape_at_idx.right
       subst H_fshape_eq
-      let k : TReal → TReal := λ x => x * g_out
       have H_k_grad : ∇ ( λ x => x * g_out) y = g_out := by { erw [T.grad_mul₁ id, T.grad_id, one_mul] }
       rw [← H_k_grad]
       subst H_y
-      dsimp
-      simp
+      simp [force]
       rw [← T.grad_tmulT]
-      unfold T.mvn_kl
-      simplifyGrad
-      simp [T.smul.def, two_shape_eq_two, force]
-      have H: g_out.const shape * 2⁻¹ * 2 * μ = g_out.const shape * μ* (2 * 2⁻¹) := by ring
-      simp [H, T.mul_inv_cancel two_pos]
+      simp [← grad_mvn_kl₁]
 
 
 | ⟦μ, σ⟧, y, H_y, g_out, 1, fshape, H_at_idx, H_pre =>
@@ -983,29 +977,20 @@ lemma f_pb_correct {shape : S} : pullback_correct (@f shape) (@f_pre shape) (@f_
       have H_k_grad : ∇ (λ x => x * g_out) y = g_out := by { erw [T.grad_mul₁ id, T.grad_id, one_mul] }
       rw [← H_k_grad]
       subst H_y
-      simp
-      rw [← T.grad_tmulT]
-      unfold T.mvn_kl
-      -- simp [force]
-      -- apply grad_mvn_kl₁
-      simp [T.smul.def, T.const_neg, T.const_mul, T.const_zero,
-            T.const_one, T.const_bit0, T.const_bit1, T.const_inv,
-            left_distrib, right_distrib]
+      simp [force]
+      rw [← T.grad_tmulT, ← grad_mvn_kl₂]
+      proveDifferentiable
 
-
-      apply congr_arg; apply congr_arg
-      simp only [T.mul_div_mul, square]
-      rw [← mul_assoc, T.mul_div_mul, (@T.div_self_square _ σ H_pre)]
-      simp
-      rw [T.mul_inv_cancel two_pos]
-      simp
-      rw [T.div_mul_inv]
 
 | xs, y, H_y, g_out, (n+2), fshape, H_at_idx, H_pre => by idx_over
 
 lemma f_ocont {shape : S} : is_ocontinuous (@f shape) (@f_pre shape)
 | ⟦μ, σ⟧, 0, ishape, H_at_idx, H_pre => by prove_ocont
-| ⟦μ, σ⟧, 1, ishape, H_at_idx, H_pre => by prove_ocont_init; apply continuous_mvn_kl₂
+| ⟦μ, σ⟧, 1, ishape, H_at_idx, H_pre =>
+    by
+      -- prove_ocont
+      -- rw [continuous_mvn_kl₂]
+
 | ⟦μ, σ⟧, (n+2), ishape, H_at_idx, H_pre => by idx_over
 
 end mvn_kl
