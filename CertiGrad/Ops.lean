@@ -28,26 +28,22 @@ section tactic
 -- do exfalso, to_expr ```(at_idx_over H_at_idx dec_trivial) >>= exact
 
 def idxOver : TacticM Unit := do
-  -- let varId ← getMainGoal
-  -- let newId ← Lean.MVarId.falseOrByContra varId
-  -- setGoals [newId]
-
-  -- mkAppM ``certigrad.T.is_cdifferentiable_log #[k]
-  -- let mvarIds ← tid.apply e'
-  -- apply at_idx_over H_at_idx (by simp)
 
   match (← getLCtx).findFromUserName? `H_at_idx with
   | some l =>
       let e' ←  mkAppM ``at_idx_over #[l.toExpr]
       let falseGoalId ← Lean.MVarId.falseOrByContra (← getMainGoal)
-      -- setGoals (← falseGoalId.apply e')
-      -- there should be only one sub-goal at this point, i.e., not (n+1 < 1)
-      for subGoalId in (← falseGoalId.apply e') do
-        -- empty Simp.Context: { simpTheorems := #[]}
-        let (result?, stats) ← simpGoal subGoalId { simpTheorems := #[(← getSimpTheorems)]}
-        match result? with
-        | none => replaceMainGoal []
-        | some (_, mvarId) => replaceMainGoal [mvarId]
+      match falseGoalId with
+      | some mvarId =>
+          let mvarIds ← mvarId.apply e'
+          for subGoalId in mvarIds do
+            let ctx ← Simp.Context.mkDefault
+            let (result?, stats) ← simpGoal subGoalId ctx
+            match result? with
+            | none => replaceMainGoal []
+            | some (_, mvarId) => replaceMainGoal [mvarId]
+      | none =>
+          throwError "apply failed in idxOver"
 
       return ()
   | none =>
@@ -65,20 +61,26 @@ def substEqThenApplyCore (Hname s1 s2 : Name)  : TacticM Unit := do
 
   let goalId ← getMainGoal
 
-  let H ← (← getLCtx).findFromUserName? Hname
-  let fshape ← (← getLCtx).findFromUserName? s1
-  let shape ← (← getLCtx).findFromUserName? s2
-  let eqH ← mkAppM `Eq #[fshape.toExpr, shape.toExpr]
-  let eqV ← mkAppM `And.right #[H.toExpr]
-  let assertId ← goalId.assert `H_fshape_eq eqH eqV
-  let (fid, vid) ← Lean.Meta.intro1Core assertId true
+  let lctx ← getLCtx
+  let H? := lctx.findFromUserName? Hname
+  let fshape? := lctx.findFromUserName? s1
+  let shape? := lctx.findFromUserName? s2
+  match H?, fshape?, shape? with
+  | some H, some fshape, some shape =>
+      let eqH ← mkAppM `Eq #[fshape.toExpr, shape.toExpr]
+      let eqV ← mkAppM `And.right #[H.toExpr]
+      let assertId ← goalId.assert `H_fshape_eq eqH eqV
+      let (fid, vid) ← Lean.Meta.intro1Core assertId true
+      let vid2 ← subst vid fid
+      let ctx ← Simp.Context.mkDefault
+      let (result?, stats) ← simpGoal vid2 ctx
+      match result? with
+      | none => replaceMainGoal []
+      | some (_, mvarId) => setGoals [mvarId]
+  | _, _, _ => throwError "substEqThenApplyCore: context not found"
 
-  let vid2 ← subst vid fid
 
-  let (result?, stats) ← simpGoal vid2 { simpTheorems := #[(← getSimpTheorems)]}
-  match result? with
-  | none => replaceMainGoal []
-  | some (_, mvarId) => setGoals [mvarId]
+
 
 def proveODiff : TacticM Unit := do
   substEqThenApplyCore `H_at_idx `fshape `shape
@@ -138,6 +140,95 @@ elab "prove_ocont_init":tactic => do
   substEqThenApplyCore `H_at_idx `ishape `shape
 
 elab "prove_ocont" : tactic => do proveOCont
+
+
+
+
+-- def provePdCorrectCore(Hname s1 s2 s3 s4 s5: Name)  : TacticM Unit := do
+--   let goalId ← getMainGoal
+
+--   let lctx ← getLCtx
+--   let H? := lctx.findFromUserName? Hname
+--   let fshape? := lctx.findFromUserName? s1
+--   let shape? := lctx.findFromUserName? s2
+--   let Hy?  := lctx.findFromUserName? s3
+--   let gout? := lctx.findFromUserName? s4
+--   let y? := lctx.findFromUserName? s5
+--   match H?, fshape?, shape?, Hy?, gout?, y? with
+--   | some H, some fshape, some shape, some Hy, some gout, some y =>
+--       let eqH ← mkAppM `Eq #[fshape.toExpr, shape.toExpr]
+--       let eqV ← mkAppM `And.right #[H.toExpr]
+--       let assertId ← goalId.assert `H_fshape_eq eqH eqV
+--       logInfo m!"assertId: {assertId}"
+--       let (fid, vid) ← Lean.Meta.intro1Core assertId true
+--       let vid2 ← subst vid fid
+--       logInfo m!"vid2: {vid2}"
+--       -- Introduce all remaining variables in the context
+--       let (_, vid3) ← vid2.intros
+--       logInfo m!"vid3: {vid3}"
+--       setGoals [vid3]
+      -- let yTerm ← Lean.Elab.Term.exprToSyntax (y.toExpr)
+      -- let goutTerm ← Lean.Elab.Term.exprToSyntax (gout.toExpr)
+      -- evalTactic (← `(tactic| have H_k_grad : $goutTerm = ∇ (λ z => T.dot z $goutTerm) $yTerm := by rw [certigrad.T.grad_dot₁]))
+      -- -- let yExpr := quoteExpr (y.toExpr)
+      -- -- let goutExpr := quoteExpr (gout.toExpr)
+      -- -- -- let lctx3 ← Lean.MonadLCtx.getLCtx
+      -- -- logInfo m!"vid3 lctx: {lctx3.getFVars.map (·.UserName)}"
+      -- ---Note that if we want to use evalTactic we need a goal.
+      -- evalTactic (← `(tactic| have H_k_grad : g_out = ∇ (λ z => T.dot z g_out ) `y := by rw [certigrad.T.grad_dot₁]))
+      -- logInfo m!"asdsa"
+
+
+      -- let zFVarId ← mkFreshFVarId
+      -- let zExpr := mkFVar zFVarId
+      -- let y_expr := y.toExpr
+      -- -- 构造 ∇ (λ z => T.dot z g_out) y
+      -- let grad_expr ← Lean.Meta.withLocalDeclD `z (← inferType gout.toExpr) fun zExpr => do
+      --   let lam ← mkLambdaFVars #[zExpr] (← mkAppM ``T.dot #[zExpr, gout.toExpr])
+      --   mkAppM ``certigrad.T.grad #[lam, y_expr]
+
+      -- -- 构造等式类型
+      -- let H_k_grad ← mkEq gout.toExpr grad_expr
+      -- -- logInfo m!"H_k_grad: {H_k_grad}"
+      -- -- 构造证明 by rw [certigrad.T.grad_dot₁]
+      -- let pf ← mkAppM ``certigrad.T.grad_dot₁ #[gout.toExpr, y_expr]
+
+      -- let vid4 ← vid3.assert `H_k_grad H_k_grad pf
+      -- setGoals [vid4]
+      -- evalTactic (← `(tactic| rw [H_k_grad]))
+      -- let (fid5, vid5) ← Lean.Meta.intro1Core vid4 true
+      -- let vid6 ← subst vid5 fid5
+
+      -- setGoals [vid6]
+
+      -- logInfo m!"vid4: {vid4}"
+      -- let pf ← mkAppM ``certigrad.T.grad_dot₁ #[gout.toExpr, Hy.toExpr]
+      -- logInfo m!"pf: {pf}"
+      -- evalTactic (← `(tactic| have H_k_grad :  g_out = ∇ (λ z => T.dot z g_out) y := by rw [certigrad.T.grad_dot₁]))
+  --     evalTactic (← `(tactic| rw [← certigrad.T.grad_tmulT]))
+  --     evalTactic (← `(tactic| dsimp [force]))
+  --     simplify_Grad
+  --     let ctx ← Simp.Context.mkDefault
+  --     let (result?, stats) ← simpGoal vid2 ctx
+  --     match result? with
+  --     | none => replaceMainGoal []
+  --     | some (_, mvarId) => setGoals [mvarId]
+  -- | _, _, _ ,_, _, _=> throwError "substEqThenApplyCore: context not found"
+
+-- elab "prove_pb_correct":tactic => do
+--     provePdCorrectCore `H_at_idx `fshape `shape `H_y `g_out `y
+    -- try clear f_pb_correct
+    -- have H_fshape_eq : shape = fshape := Eq.symm H_at_idx.right
+    -- subst H_fshape_eq
+    -- have H_k_grad :  g_out = ∇ (λ z => T.dot z g_out) y := by
+    --     rw [certigrad.T.grad_dot₁]
+    -- rw [ H_k_grad ]
+    -- subst H_y
+    -- simp
+    -- rw [← certigrad.T.grad_tmulT]
+    -- dsimp [force]
+    -- simplifyGrad
+    -- simp
 
 end tactic
 
@@ -854,12 +945,12 @@ lemma f_pb_correct {shape : S} : pullback_correct (@f shape) (@f_pre shape) (@f_
     clear f_pb_correct
     have H_fshape_eq : shape = fshape := Eq.symm H_at_idx.right
     subst H_fshape_eq
-    let k : TReal → TReal := (λ θ => dot g_out θ)
-    have H_grad : ∇ (λ θ => dot g_out θ)  y = g_out := by { change ∇ (λ θ => dot g_out θ) y = g_out; rw [certigrad.T.grad_dot₂] }
+    have H_grad : ∇ (λ θ => dot g_out θ)  y = g_out := by rw [certigrad.T.grad_dot₂]
     rw [← H_grad]
     subst H_y
     simp
-    rw [← T.grad_tmulT, T.grad_sum k]
+    rw [← T.grad_tmulT]
+    simplifyGrad
     simp [T.smul.def, force]
 | xs, y, H_y, g_out, (n+1), fshape, H_at_idx, H_pre => by idx_over
 
@@ -893,13 +984,24 @@ attribute [simp] f f_pre f_pb
 
 lemma f_odiff {m n p : ℕ } : is_odifferentiable (@f m n p) (@f_pre m n p)
   | ⟦x₁, x₂⟧, H_pre, 0, fshape, H_at_idx, k, H_k =>
-    let shape: S := [m, n]
+    let shape := [m, n]
     by
-      prove_odiff
+      -- Note: If we directly use proveOcdiff here, it will not work because `shape` is not a constant that can be substituted into `vid2`. In the context of `vid2`, there is no hypothesis `H : shape = [m, n]`.
+
+      have H: shape = [m, n] := rfl
+      have H_fshape_eq : [m, n] = fshape := Eq.symm H_at_idx.right
+      subst H_fshape_eq
+      simp [H]
+      proveDifferentiable
+
   | ⟦x₁, x₂⟧, H_pre, 1, fshape, H_at_idx, k, H_k =>
-    let shape : S := [n, p]
+    let shape := [n, p]
     by
-      prove_odiff
+      have H: shape = [ n, p] := rfl
+      have H_fshape_eq : [n, p] = fshape := Eq.symm H_at_idx.right
+      subst H_fshape_eq
+      simp [H]
+      proveDifferentiable
   | xs, H_pre, (n+2), fshape, H_at_idx, k, H_k => by idx_over
 
 lemma f_pb_correct {m n p : ℕ} : pullback_correct (@f m n p) (@f_pre m n p) (@f_pb m n p)
@@ -909,7 +1011,7 @@ lemma f_pb_correct {m n p : ℕ} : pullback_correct (@f m n p) (@f_pre m n p) (@
       have H_fshape_eq : [m, n] = fshape := Eq.symm H_fshape_at_idx.right
       subst H_fshape_eq
       let k : T [m, p] → TReal := (λ θ => dot g_out θ)
-      have H_grad : ∇ k y = g_out := by { change ∇ (λ θ=>dot g_out θ) y = g_out; rw [certigrad.T.grad_dot₂] }
+      have H_grad : ∇ k y = g_out := by { change ∇ (λ θ => dot g_out θ) y = g_out; rw [certigrad.T.grad_dot₂] }
       rw [← H_grad]
       subst H_y
       simp [force]
@@ -921,13 +1023,11 @@ lemma f_pb_correct {m n p : ℕ} : pullback_correct (@f m n p) (@f_pre m n p) (@
       have H_fshape_eq : [n, p] = fshape := Eq.symm H_fshape_at_idx.right
       subst H_fshape_eq
       let k : T [m, p] → TReal := (λ θ => dot g_out θ)
-      have H_grad : ∇ k y = g_out := by { change ∇ (λ θ=>dot g_out θ) y = g_out; rw [certigrad.T.grad_dot₂] }
+      have H_grad : ∇ k y = g_out := by { change ∇ (λ θ => dot g_out θ) y = g_out; rw [certigrad.T.grad_dot₂] }
       rw [← H_grad]
       subst H_y
-      simp
-      rw [← T.grad_tmulT, T.grad_gemm₂ k]
       simp [force]
-
+      rw [← T.grad_tmulT, T.grad_gemm₂ k]
 
 
 | xs, y, H_y, g_out, (n+2), fshape, H_fshape_at_idx, H_pre =>
@@ -937,12 +1037,21 @@ lemma f_ocont {m n p : ℕ} : is_ocontinuous (@f m n p) (@f_pre m n p)
 | ⟦x₁, x₂⟧, 0, ishape, H_at_idx, H_pre =>
   let shape: S := [m, n]
   by
-    prove_ocont
+    have H: shape = [m, n] := rfl
+    have H_fshape_eq : [m, n] = ishape := Eq.symm H_at_idx.right
+    subst H_fshape_eq
+    simp [H]
+    proveContinuous
 
 | ⟦x₁, x₂⟧, 1, ishape, H_at_idx, H_pre =>
  let shape: S := [n, p]
   by
-      prove_ocont
+    have H: shape = [n, p] := rfl
+    have H_fshape_eq : [n, p] = ishape := Eq.symm H_at_idx.right
+    subst H_fshape_eq
+    simp [H]
+    proveContinuous
+
 
 | xs, (n+2), ishape, H_at_idx, H_pre => by idx_over
 

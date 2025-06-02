@@ -10,7 +10,6 @@ Environments.
 -- data.hash_map is from mathlib3
 -- https://leanprover-community.github.io/mathlib_docs/data/hash_map.html#hash_map
 -- hash_map (α : Type u) [decidable_eq α] (β : α → Type v)
-import Std.Classes.Ord
 import CertiGrad.Tensor
 import CertiGrad.Id
 import CertiGrad.Util

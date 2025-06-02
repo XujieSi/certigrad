@@ -31,11 +31,11 @@ namespace tactic
 -- do { fail "dec_triv failed" }
 
 -- ChatGPT suggestion
-elab "dec_triv" : tactic => do
-  let tgt ← getMainTarget
-  let inst ← synthInstance (← mkAppM ``Decidable #[tgt])
-  -- exact (← mkAppM ``ofDecidable #[inst, ← mkAppM ``True.intro #[]]) <|> throwError "dec_triv failed"
-  closeMainGoal `dec_triv (← mkAppM ``AsTrue #[inst]) <|> throwError "dec_triv failed"
+-- elab "dec_triv" : tactic => do
+--   let tgt ← getMainTarget
+--   let inst ← synthInstance (← mkAppM ``Decidable #[tgt])
+--   -- exact (← mkAppM ``ofDecidable #[inst, ← mkAppM ``True.intro #[]]) <|> throwError "dec_triv failed"
+--   closeMainGoal `dec_triv (← mkAppM ``AsTrue #[inst]) <|> throwError "dec_triv failed"
 
 
 /-

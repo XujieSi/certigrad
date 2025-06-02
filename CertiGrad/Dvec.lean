@@ -60,6 +60,20 @@ def get {X : Type} [DecidableEq X] {Y : X → Type} (x₀ : X) [Inhabited (Y x�
 | (x::xs), (dcons y ys), 0     => if H : x = x₀ then (by rw [H] at y; assumption) else (default :(Y x₀))
 | (x::xs), (dcons y ys), (n+1) => get x₀ xs ys n
 
+-- def get {X : Type} [DecidableEq X] {Y : X → Type} (x₀ : X) [Inhabited (Y x₀)] : (xs : List X) → Dvec Y xs → Nat → Y x₀
+-- | [],      _ ,          _     => (default :(Y x₀))
+-- | (x::xs), (dcons y ys), 0     =>
+--   -- 使用 match decide 替代 if else
+--   match decide (x = x₀) with
+--   | true => -- h : x = x₀
+--     have y_eq_y_at_x0 : y = (y : Y x₀) := by intro hrw [h] at y; rfl
+--     y -- 现在 y 的类型可以被视为 Y x₀
+--     -- 或者更直接地使用证明: by rw [h] at y; exact y
+--   | false => -- h : ¬ (x = x₀)
+--     -- x ≠ x₀, 无法使用 y，返回默认值
+--     (default :(Y x₀))
+-- | (x::xs), (dcons y ys), (n+1) => get x₀ xs ys n
+
 -- theorem singleton_congr {X : Type} {Y : X → Type} {x : X} (y₁ y₂ : Y x) : y₁ = y₂ → ⟦y₁⟧ = ⟦y₂⟧ := assume H, by rw H
 
 -- theorem get₀_head {X : Type} [DecidableEq X] {Y : X → Type} (x₀ : X) [Inhabited (Y x₀)] :

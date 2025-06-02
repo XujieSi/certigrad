@@ -134,17 +134,14 @@ lemma id_rule {A : Type} (a : A) : id a = a := rfl
 -- withMainContext resolves unknown free variable error
 -- Now reduceK is indirectly wrapped in tid.withcontex
 def reduceK (k : Expr) : MetaM Expr :=  do
-  -- Create a SimpTheorems object
-  let slss ← Meta.SimpTheorems.addConst {} `certigrad.T.id_rule
 
-  -- Attempt to simplify `k` using the simplification theorems
-  let simpResult ← Meta.simp k { simpTheorems := #[slss] }
+  let emptySimpTheorems : SimpTheorems := {}
 
-  -- If simplification results in a different expression, return it; otherwise, return the original `k`
-  if simpResult.1.expr != k then
-    return simpResult.1.expr
-  else
-    return k
+  let ctx ← Simp.mkContext (simpTheorems := #[ ← emptySimpTheorems.addConst `certigrad.T.id_rule])
+
+  let (result, _) ← simp k ctx
+
+  return result.expr
 
 partial def has_x (x e : Expr) : Option Bool :=
   if e.eqv x then pure true
@@ -606,7 +603,7 @@ elab "proveDifferentiableOnly" : tactic => do
     setGoals (← Meta.repeat' proveDifferentiableCore (← getGoals))
 
 def myAssumption (varIds : List MVarId) : MetaM (List MVarId) := do
-  filterM (fun vid : MVarId => do try
+  List.filterM (fun vid : MVarId => do try
       let _ ← vid.assumption; return false
       catch _ => return true)
       varIds

@@ -17,7 +17,7 @@ Note: the axioms are by no means minimal.
 import CertiGrad.Tensor
 import CertiGrad.Id
 import CertiGrad.Reference
-import CertiGrad.Env
+-- import CertiGrad.Env
 import CertiGrad.Dvec
 
 import Mathlib.Data.Nat.Cast.Defs

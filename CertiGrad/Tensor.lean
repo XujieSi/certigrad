@@ -17,16 +17,10 @@ import Mathlib.Algebra.Order.Ring.Defs
 
 namespace certigrad
 
-
--- @[reducible] def S : Type := list ℕ
-
 abbrev S := List Nat
 
 axiom T (shape : S) : Type
 
-
--- notation `ℝ` := T []
--- notation:max "ℝ"  => T []
 abbrev TReal := T ([] : S)
 
 namespace T
@@ -69,31 +63,10 @@ noncomputable instance {shape : S} : Inv (T shape) where
   inv := T.inv
 
 
--- Algebraic instances
--- @[inline, priority 10000] instance (shape : S) : has_zero (T shape) := ⟨T.zero shape⟩
--- @[inline, priority 10000] instance (shape : S) : has_one (T shape) := ⟨T.one shape⟩
--- @[inline, priority 10000] instance (shape : S) : has_neg (T shape) := ⟨T.neg⟩
--- @[inline, priority 10000] instance (shape : S) : has_add (T shape) := ⟨T.add⟩
--- @[inline, priority 10000] instance (shape : S) : has_mul (T shape) := ⟨T.mul⟩
--- @[inline, priority 10000] instance (shape : S) : has_lt (T shape) := ⟨T.lt⟩
--- @[inline, priority 10000] instance (shape : S) : has_le (T shape) := ⟨T.le⟩
--- @[inline, priority 10000] instance (shape : S) : has_inv (T shape) := ⟨T.inv⟩
--- @[inline, priority 10000] instance (shape : S) : has_div (T shape) := ⟨λ x y, x * y⁻¹⟩
-
--- instance (shape : S) : Zero (T shape) := ⟨T.zero shape⟩
--- instance (shape : S) : One (T shape) := ⟨T.one shape⟩
-
--- noncomputable instance (shape : S) : OfNat (T shape) 0 := ⟨T.zero shape⟩
--- noncomputable instance (shape : S) : OfNat (T shape) 1 := ⟨T.one shape⟩
--- noncomputable instance : OfNat (T []) n := ⟨T.of_nat n⟩
-
+--- CommonRing axioms ---
 
 def bit0 {α : Type u} [s₁ : Add α] (a  : α)             : α := a + a
 def bit1 {α : Type u} [s₁ : One α] [s₂ : Add α] (a : α) : α := (bit0 a) + 1
-
--- noncomputable instance : OfNat TReal 0 := ⟨T.zero⟩ -- both zeros have to the same, otherwise, many proofs will be problematic
--- noncomputable instance : OfNat TReal 1 := ⟨T.one⟩
--- noncomputable instance : OfNat TReal n := ⟨T.of_nat n⟩
 
 noncomputable instance (shape : S) : Neg (T shape) := ⟨T.neg⟩
 noncomputable instance (shape : S) : Add (T shape) := ⟨T.add⟩
@@ -103,7 +76,7 @@ instance (shape : S) : LE (T shape) := ⟨T.le⟩
 
 -- instance (shape : S) : Inv (T shape) := ⟨T.inv⟩
 noncomputable instance (shape : S) : Div (T shape) := ⟨λ x y => x * y⁻¹⟩
--- noncomputable instance (shape : S) : Div (T shape) := ⟨T.div⟩
+
 
 namespace IL
 -- Instance Lemmas
@@ -118,25 +91,13 @@ axiom one_mul {shape : S} : ∀ (x : T shape), one * x = x
 axiom mul_one {shape : S} : ∀ (x : T shape), x * one = x
 axiom left_distrib {shape : S} : ∀ (x y z : T shape), x * (y + z) = x * y + x * z
 axiom right_distrib {shape : S} : ∀ (x y z : T shape), (x + y) * z = x * z + y * z
-axiom le_refl {shape : S} : ∀ (x : T shape), x ≤ x
-axiom le_trans {shape : S} : ∀ (x y z : T shape), x ≤ y → y ≤ z → x ≤ z
-axiom le_antisymm {shape : S} : ∀ (x y : T shape), x ≤ y → y ≤ x → x = y
--- axiom le_of_lt {shape : S} : ∀ (x y : T shape), x < y → x ≤ y
--- axiom lt_of_lt_of_le {shape : S} : ∀ (x y z : T shape), x < y → y ≤ z → x < z
--- axiom lt_of_le_of_lt {shape : S} : ∀ (x y z : T shape), x ≤ y → y < z → x < z
--- axiom lt_irrefl {shape : S} : ∀ (x : T shape), ¬x < x
-axiom add_le_add_left {shape : S} : ∀ (x y : T shape), x ≤ y → ∀ (z : T shape), z + x ≤ z + y
+
 axiom add_lt_add_left {shape : S} : ∀ (x y : T shape), x < y → ∀ (z : T shape), z + x < z + y
 axiom zero_ne_one {shape : S} : (zero : T shape) ≠ (one : T shape)
 axiom mul_nonneg {shape : S} : ∀ (x y : T shape), zero ≤ x → zero ≤ y → zero ≤ x * y
 axiom mul_pos {shape : S} : ∀ (x y : T shape), zero < x → zero < y → zero < x * y
--- axiom le_iff_lt_or_eq {shape : S} : ∀ (x y : T shape), x ≤ y ↔ x < y ∨ x = y
-
-axiom lt_iff_le_not_le {shape : S} : ∀ (a b : T shape), a < b ↔ a ≤ b ∧ ¬b ≤ a
-
 axiom zero_mul {shape : S} : ∀ (x : T shape), zero * x = zero
 axiom mul_zero {shape : S} : ∀ (x : T shape), x * zero = zero
-axiom zero_le_one {shape : S} : (zero : T shape) ≤ (one : T shape)
 
 noncomputable def nsmul {shape : S} (n : Nat) (m : T shape) : (T shape) :=
   match n with
@@ -150,44 +111,41 @@ noncomputable def zsmul {shape : S} (i : Int) (m : T shape) : (T shape) :=
   | Int.negSucc n => neg (nsmul (n + 1) m)
 
 
+--- PartialOrder axioms ---
+
+axiom le_refl {shape : S} : ∀ (x : T shape), x ≤ x
+
+axiom le_trans {shape : S} : ∀ (x y z : T shape), x ≤ y → y ≤ z → x ≤ z
+
+axiom le_antisymm {shape : S} : ∀ (x y : T shape), x ≤ y → y ≤ x → x = y
+
+axiom lt_iff_le_not_le {shape : S} : ∀ (a b : T shape), a < b ↔ a ≤ b ∧ ¬b ≤ a
+
+
+--- IsOrderedRing axioms ---
+
+axiom add_le_add_left {shape : S} : ∀ (x y : T shape), x ≤ y → ∀ (z : T shape), z + x ≤ z + y
+
+axiom zero_le_one {shape : S} : (zero : T shape) ≤ (one : T shape)
+
+axiom mul_le_mul_of_nonneg_left {shape : S} (a b c : T shape) : a ≤ b → zero ≤ c → c * a ≤ c * b
+
+axiom mul_le_mul_of_nonneg_right {shape : S} (a b c : T shape) : a ≤ b → zero ≤ c → a * c ≤ b * c
+
 end IL
 
 
-
-
-
--- @[inline] instance (shape : S) : ordered_comm_ring (T shape) :=
--- {
---   -- defs
---   zero := T.zero shape, one := T.one shape, add := T.add, neg := T.neg, mul := T.mul,
---   -- noncomputable defs
---   le := T.le, lt := T.lt,
---   -- axioms
---   add_comm := T.IL.add_comm, add_assoc := T.IL.add_assoc, zero_add := T.IL.zero_add,
---   add_zero := T.IL.add_zero, add_left_neg := T.IL.add_left_neg,
---   mul_comm := T.IL.mul_comm, mul_assoc := T.IL.mul_assoc, one_mul := T.IL.one_mul, mul_one := T.IL.mul_one,
---   left_distrib := T.IL.left_distrib, right_distrib := T.IL.right_distrib,
---   le_refl := T.IL.le_refl, le_trans := T.IL.le_trans, le_antisymm := T.IL.le_antisymm,
---   le_of_lt := T.IL.le_of_lt, lt_of_lt_of_le := T.IL.lt_of_lt_of_le, lt_of_le_of_lt := T.IL.lt_of_le_of_lt,
---   lt_irrefl := T.IL.lt_irrefl, add_le_add_left := T.IL.add_le_add_left, add_lt_add_left := T.IL.add_lt_add_left,
---   zero_ne_one := T.IL.zero_ne_one, mul_nonneg := T.IL.mul_nonneg, mul_pos := T.IL.mul_pos
--- }
-
-noncomputable instance (shape : S) : OrderedCommRing (T shape) where
-  -- zero := T.zero shape
-  -- one := T.one shape
+-- CommRing --
+noncomputable instance (shape : S) : CommRing (T shape) where
   zero := T.zero
   one := T.one
   add := T.add
   neg := T.neg
   mul := T.mul
-  le := T.le
-  lt := T.lt
   add_comm := T.IL.add_comm
   add_assoc := T.IL.add_assoc
   zero_add := T.IL.zero_add
   add_zero := T.IL.add_zero
-  -- add_left_neg := T.IL.add_left_neg
   neg_add_cancel := T.IL.add_left_neg
   mul_comm := T.IL.mul_comm
   mul_assoc := T.IL.mul_assoc
@@ -195,27 +153,26 @@ noncomputable instance (shape : S) : OrderedCommRing (T shape) where
   mul_one := T.IL.mul_one
   left_distrib := T.IL.left_distrib
   right_distrib := T.IL.right_distrib
+  nsmul := T.IL.nsmul
+  zero_mul := T.IL.zero_mul
+  mul_zero := T.IL.mul_zero
+  zsmul := T.IL.zsmul
+
+-- PartialOrder --
+
+noncomputable instance (shape : S) : PartialOrder (T shape) where
   le_refl := T.IL.le_refl
   le_trans := T.IL.le_trans
   le_antisymm := T.IL.le_antisymm
-  -- le_of_lt := T.IL.le_of_lt
-  -- lt_of_lt_of_le := T.IL.lt_of_lt_of_le
-  -- lt_of_le_of_lt := T.IL.lt_of_le_of_lt
-  -- lt_irrefl := T.IL.lt_irrefl
-  add_le_add_left := T.IL.add_le_add_left
-  -- add_lt_add_left := T.IL.add_lt_add_left
-  -- zero_ne_one := T.IL.zero_ne_one
-  mul_nonneg := T.IL.mul_nonneg
-  -- mul_pos := T.IL.mul_pos
-  zero_mul := T.IL.zero_mul
-  mul_zero := T.IL.mul_zero
-  zero_le_one := T.IL.zero_le_one
-  nsmul := T.IL.nsmul
-  zsmul := T.IL.zsmul
   lt_iff_le_not_le := T.IL.lt_iff_le_not_le
 
--- @[inline] instance (shape : S) : has_sub (T shape) := by apply_instance
--- attribute [inline] ordered_comm_ring.to_ordered_ring ordered_ring.to_ring ring.to_add_comm_group add_comm_group.to_add_group algebra.sub
+-- IsOrderedRing --
+
+noncomputable instance (shape : S) : IsOrderedRing (T shape) where
+  add_le_add_left := T.IL.add_le_add_left
+  zero_le_one := T.IL.zero_le_one
+  mul_le_mul_of_nonneg_right := T.IL.mul_le_mul_of_nonneg_right
+  mul_le_mul_of_nonneg_left := T.IL.mul_le_mul_of_nonneg_left
 
 
 

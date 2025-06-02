@@ -1,7 +1,0 @@
-[package]
-name = "certigrad"
-version = "0.1"
-path = "src"
-
-[dependencies]
-library_dev = {git = "https://github.com/dselsam/library_dev.git", rev = "1b4e34e7fb067ea5211714d6d3ecef5132fc8218"}

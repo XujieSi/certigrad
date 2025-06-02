@@ -229,7 +229,7 @@ def proveContinuousCore (goalId : MVarId) : TacticM (List MVarId) := do
 
 
 def myAssumption (varIds : List MVarId) : MetaM (List MVarId) := do
-  filterM (fun vid : MVarId => do try
+  List.filterM (fun vid : MVarId => do try
       let _ ← vid.assumption; return false
       catch _ => return true)
       varIds

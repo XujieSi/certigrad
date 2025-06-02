@@ -324,11 +324,14 @@ partial def SimpGradCoreLoop
         match lhs with
           | Expr.app f x =>
               try
-                let (fsubgoals, fproof) ← (← SimpGradCoreLoop f)
-                let (xsubgoals, xproof) ← (← SimpGradCoreLoop x)
-                let subgoals := fsubgoals ++ xsubgoals
-                let newproof ← mkCongr fproof xproof
-                return (some (subgoals, newproof))
+                match ← SimpGradCoreLoop f, ← SimpGradCoreLoop x with
+                  | some (fsubgoals, fproof), some (xsubgoals, xproof) =>
+                      let subgoals := fsubgoals ++ xsubgoals
+                      let newproof ← mkCongr fproof xproof
+                      return some (subgoals, newproof)
+                  | _, _ =>
+                    let proof ← mkEqRefl lhs
+                    return some ([], proof)
               catch _ =>
                 let proof ← mkEqRefl lhs
                 return (some ([], proof))
@@ -343,8 +346,8 @@ partial def SimpGradCore (tid: MVarId)  : TacticM Unit := do
   let e ← whnf e
   match e.eq? with
   | some (_, lhs, rhs) =>
-    let (lhs_subgoals, lhs_proof) ← (← SimpGradCoreLoop lhs)
-    let (rhs_subgoals, rhs_proof) ← (← SimpGradCoreLoop rhs)
+    let some (lhs_subgoals, lhs_proof) ← SimpGradCoreLoop lhs | throwError "SimpGradCore: failed to process lhs";
+    let some (rhs_subgoals, rhs_proof) ← SimpGradCoreLoop rhs | throwError "SimpGradCore: failed to process rhs";
     let eq_proof ← mkAppM ``Eq.congr #[lhs_proof, rhs_proof]
     let target ← instantiateMVars e
     let rewriteResult ← tid.rewrite target eq_proof
