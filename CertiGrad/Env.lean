@@ -368,33 +368,35 @@ lemma get_ks_insert_same {ref : Reference} {refs : List Reference} {x : T ref.2}
 --   simp [insert_all]
 
 
-lemma dvec_update_at_env {refs : List Reference} {idx : ℕ} (m : Env)
-  (h : idx < refs.length) :
-  Dvec.update_at (get (refs.get ⟨idx, h⟩) m) (get_ks refs m) idx = get_ks refs m := by
-  induction refs generalizing idx with
-  | nil =>
-    cases h
-  | cons ref refs ih =>
-    cases idx with
-    | zero =>
-      simp [get_ks, Dvec.update_at, Dvec.dcons]
-    | succ idx' =>
-      simp [get_ks, Dvec.update_at, Dvec.dcons]
-      apply congrArg
-      apply ih
+-- lemma dvec_update_at_env {refs : List Reference} {idx : ℕ} (m : Env)(h: idx < refs.length) :
+--   refs[idx]? = some ref → dvec.update_at (get ref m) (get_ks refs m) idx = get_ks refs m := by
+--     sorry
+  -- intro H_at_idx
+  -- induction refs with
+  -- | nil => rfl
+  -- | cons ref' refs' ih =>
+  --   cases idx with
+  --   | zero =>
+  --     simp [get_ks, dvec.update_at, Dvec.dcons]
+  --     intro H₁
+  --     -- have H₂: get ref m = get ref m := by rfl
+  --     simp [H₁, H₂]
+  --   | succ idx' =>
+  --     have h' : idx' < refs'.length := by
+  --       simp at h
+  --       exact Nat.lt_of_succ_lt_succ h
+  --     simp [get_ks, dvec.update_at]
+      -- rw [ih h']
+      -- simp [dvec.update_at, get_ks]
+      -- simp [dif_ctx_simp_congr, dif_pos]
 
 
-lemma dvec_get_get_ks {refs : List Reference} {idx : ℕ} (m : Env) (h : idx < refs.length) :
-      Dvec.get (refs.get ⟨idx, h⟩).2 (get_ks refs m) idx = get (refs.get ⟨idx, h⟩) m :=
-  by
-    induction refs generalizing idx with
-    | nil =>
-      cases h
-    | cons ref refs ih =>
-      cases idx with
-      | zero =>
-        simp [get_ks, Dvec.get_cons_zero]
-        rfl
-      | succ idx' =>
-        simp [get_ks, Dvec.get_cons_succ]
-        apply ih
+-- lemma dvec_get_get_ks {refs : List Reference} {idx : ℕ} {h: idx < refs.length}(m : Env):
+--       refs[idx]? = some ref  →
+--       dvec.get ref.2 refs (get_ks refs m) = get ref m := by
+
+--       intro H_at_idx
+--       have H_elem_at_idx : List.elem_at_idx refs idx ref :=  exact list.elem_at_idx_of_at_idx H_at_idx
+--       induction H_elem_at_idx with xs x xs idx' x y H_elem_at_idx IH
+--       { dunfold get_ks, erw dvec.get.equations._eqn_2, simp [dif_ctx_simp_congr, dif_pos] }
+--       { dunfold get_ks, erw dvec.get.equations._eqn_3, exact IH (list.at_idx_of_cons H_at_idx) }
