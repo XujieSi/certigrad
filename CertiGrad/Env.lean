@@ -219,7 +219,8 @@ lemma has_key_insert_diff {ref₁ ref₂ : Reference} {x₂ : T ref₂.2} {m : E
         exfalso
         apply H_neq
         apply BEq.symm at h
-        apply compare_beq_iff_eq
+        simp at h
+        exact h
       | false =>
         simp only [h] at H_hk
         exact H_hk
@@ -234,25 +235,38 @@ lemma get_insert_diff {ref₁ ref₂ : Reference} (x₂ : T ref₂.2) (m : Env) 
   Quotient.inductionOn m fun m' H_neq =>
     by
       simp [insert, get]
-      rw [Std.DHashMap.get?_insert]
-      simp [H_neq]
+      simp at H_neq
+      have H:  ¬ (ref₂ = ref₁) := fun h_eq => H_neq (Eq.symm h_eq)
+      simp [Std.DHashMap.get?_insert, H]
 
 
 lemma insert_get_same {ref : Reference} {m : Env} : has_key ref m → insert ref (get ref m) m = m :=
   Quotient.inductionOn m fun m' H_has_key =>
     by
-      simp [insert, get, has_key]
+      simp [insert, get]
       apply Quotient.sound
       intro ref'
-      by_cases h : ref' = ref
-      · subst h
-        rw [Std.DHashMap.get?_insert]
-        simp at H_has_key
-        cases m'.get? ref' with
-        | none => contradiction
-        | some _ => rfl
-      · rw [Std.DHashMap.get?_insert]
-        simp [h]
+      -- Note: Lean does not automatically use symmetry of equality in `simp` here,
+      -- so we explicitly handle `ref = ref'` as `ref' = ref` when simplifying.
+      by_cases h : ref = ref'
+      ·
+        subst h
+        cases H_get: Std.DHashMap.get? m' ref with
+        | none =>
+          simp
+          simp at H_has_key
+          -- have H: ∃ v:T ref.2, Std.DHashMap.get? m' ref = some v := by exact Option.isSome_iff_exists.mp H_has_key
+          rw [H_get] at H_has_key
+          contradiction
+          -- intro H: Std.DHashMap.get? m' ref = none
+          -- exfalso
+          -- apply H_has_key
+          -- exact H
+        | some =>
+          simp
+      ·
+        simp [Std.DHashMap.get?_insert, h]
+        -- simp [h]
 
 lemma insert_insert_flip {ref₁ ref₂ : Reference} (x₁ : T ref₁.2) (x₂ : T ref₂.2) (m : Env) :
   ref₁ ≠ ref₂ → insert ref₁ x₁ (insert ref₂ x₂ m) = insert ref₂ x₂ (insert ref₁ x₁ m) :=
@@ -260,66 +274,127 @@ lemma insert_insert_flip {ref₁ ref₂ : Reference} (x₁ : T ref₁.2) (x₂ :
     by
       simp [insert]
       apply Quotient.sound
-      intro ref
-      rw [Std.DHashMap.get?_insert, Std.DHashMap.get?_insert]
-      by_cases h₁ : ref₁ = ref
-      · by_cases h₂ : ref₂ = ref
-        · exfalso; exact H_neq (Eq.trans h₁ (Eq.symm h₂))
-        · subst h₁; simp [h₂]
-      · by_cases h₂ : ref₂ = ref
 
-      · simp [h₁, h₂]
+      -- The following should be remembered --
+      -- have H:  ¬ (ref₂ = ref₁) := fun h_eq => H_neq (Eq.symm h_eq)
+      intro ref
+      -- have H₁:  ¬ (ref₂ = ref) := fun h_eq => H_neq (Eq.symm h_eq)
+      cases Decidable.em (ref₁ = ref) with
+      | inl H_eq₁ =>
+          simp [H_eq₁, Std.DHashMap.get?_insert]
+          cases Decidable.em (ref₂ = ref) with
+          | inl H_eq₂ =>
+            exfalso
+            simp [H_eq₁, H_eq₂] at H_neq
+          | inr H_neq₂=>
+            simp [H_neq₂]
+      | inr H_neq₁ =>
+          simp [H_neq₁, Std.DHashMap.get?_insert]
+
+
+
 
 lemma insert_insert_same (ref : Reference) (x₁ x₂ : T ref.2) (m : Env) :
   insert ref x₁ (insert ref x₂ m) = insert ref x₁ m :=
   Quotient.inductionOn m fun m' =>
     by
-      simp [insert]
+      -- simp [insert]
+      clear m
+      simp
       apply Quotient.sound
       intro ref'
-      rw [Std.DHashMap.get?_insert, Std.DHashMap.get?_insert, Std.DHashMap.get?_insert]
-      by_cases h : ref' = ref
-      · subst h; simp
-      · simp [h]
+      cases Decidable.em (ref = ref') with
+      | inl H_eq =>
+        subst H_eq
+        simp
+      | inr H_neq =>
+        simp [Std.DHashMap.get?_insert, H_neq]
+
 
 lemma get_ks_env_eq (m₁ m₂ : Env) :
-  ∀ (refs : List Reference), (∀ (ref : Reference), ref ∈ refs → get ref m₁ = get ref m₂) → get_ks refs m₁ = get_ks refs m₂
-| [], _ => rfl
-| (ref::refs), H =>
-  have H_get : get ref m₁ = get ref m₂ := H ref (List.mem_cons_self _ _)
-  have H_pre : ∀ (ref : Reference), ref ∈ refs → get ref m₁ = get ref m₂ :=
-    fun r H_r_mem => H r (List.mem_cons_of_mem _ H_r_mem)
-  by rw [H_get, get_ks_env_eq _ H_pre]
+  ∀ (refs : List Reference), (∀ (ref : Reference), ref ∈ refs → get ref m₁ = get ref m₂) → get_ks refs m₁ = get_ks refs m₂ := by
+  intro refs h
+  induction refs with
+  | nil => rfl
+  | cons ref refs ih =>
+    simp [get_ks]
+    have h_head : get ref m₁ = get ref m₂ := by simp [h]
+    have h_tail : ∀ (r : Reference), r ∈ refs → get r m₁ = get r m₂ := by
+      intros r hr
+      exact h r (List.mem_cons_of_mem _ hr)
+    rw [h_head, ih h_tail]
+
+
+  -- have H_get : get ref m₁ = get ref m₂ :=
+  --   H ref (List.mem_cons_self _ _)
+
+  -- have H_pre : ∀ (x : Reference), x ∈ refs → get x m₁ = get x m₂ := by
+  --   intro x hx
+  --   exact H x (List.mem_cons_of_mem _ hx)
+
+  --   dsimp [get_ks]
+  -- by rw [H_get, get_ks_env_eq _ H_pre]
 
 lemma get_ks_insert_diff :
-  ∀ {refs : List Reference} {ref : Reference} {x : T ref.2} {m : Env}, ref ∉ refs → get_ks refs (insert ref x m) = get_ks refs m
-| [], _, _, _, _ => rfl
-| (ref::refs), ref₀, x, m, H_ref₀_notin =>
-  have H₁ : get ref₀ (insert ref x m) = get ref₀ m := get_insert_diff _ _ (ne_of_mem_cons H_ref₀_notin)
-  by rw [H₁, get_ks_env_eq _ (fun r h => rfl)]
+  ∀ {refs : List Reference} {ref : Reference} {x : T ref.2} {m : Env}, ref ∉ refs → get_ks refs (insert ref x m) = get_ks refs m := by
+  intros refs ref x m hnotin
+  induction refs with
+  | nil => rfl
+  | cons ref' refs' ih =>
+    simp [get_ks]
+    have hneq : ref' ≠ ref := by
+        -- simp []
+      intro heq
+      subst heq
+      simp at hnotin
+      -- contradiction
+      -- exact hnotin (List.mem_cons_self _ _)
+    have hnotin' : ref ∉ refs' := by
+      intro hmem
+      exact hnotin (List.mem_cons_of_mem _ hmem)
+    rw [get_insert_diff x m hneq, ih hnotin']
 
-open Dvec
+-- open Dvec
 
 lemma get_ks_insert_same {ref : Reference} {refs : List Reference} {x : T ref.2} {m : Env} :
   get_ks (ref :: refs) (insert ref x m) = Dvec.dcons (get ref (insert ref x m)) (get_ks refs (insert ref x m)) :=
   rfl
 
-lemma insert_all_nil : insert_all [] Dvec.dnil = mk := by
-  simp [insert_all]
+-- lemma insert_all_nil : insert_all [] Dvec.dnil = mk := by
+--   simp [insert_all]
 
-lemma insert_all_cons {ref : Reference} {x : T ref.2} {refs : List Reference} {vs : Dvec T refs.p2} :
-  insert_all (ref :: refs) (x ::: vs) = insert ref x (insert_all refs vs) := by
-  simp [insert_all]
+-- lemma insert_all_cons {ref : Reference} {x : T ref.2} {refs : List Reference} {vs : Dvec T refs.p2} :
+--   insert_all (ref :: refs) (x ::: vs) = insert ref x (insert_all refs vs) := by
+--   simp [insert_all]
 
-lemma insert_all_app {refs₁ refs₂ : List Reference} {vs₁ : Dvec T refs₁.p2} {vs₂ : Dvec T refs₂.p2} :
-  insert_all (refs₁ ++ refs₂) (Dvec.append vs₁ vs₂) = insert_all refs₁ vs₁ (insert_all refs₂ vs₂) :=
+
+lemma dvec_update_at_env {refs : List Reference} {idx : ℕ} (m : Env)
+  (h : idx < refs.length) :
+  Dvec.update_at (get (refs.get ⟨idx, h⟩) m) (get_ks refs m) idx = get_ks refs m := by
+  induction refs generalizing idx with
+  | nil =>
+    cases h
+  | cons ref refs ih =>
+    cases idx with
+    | zero =>
+      simp [get_ks, Dvec.update_at, Dvec.dcons]
+    | succ idx' =>
+      simp [get_ks, Dvec.update_at, Dvec.dcons]
+      apply congrArg
+      apply ih
+
+
+lemma dvec_get_get_ks {refs : List Reference} {idx : ℕ} (m : Env) (h : idx < refs.length) :
+      Dvec.get (refs.get ⟨idx, h⟩).2 (get_ks refs m) idx = get (refs.get ⟨idx, h⟩) m :=
   by
-    induction refs₁ generalizing vs₁ with
+    induction refs generalizing idx with
     | nil =>
-      cases vs₁
-      case dnil => rfl
-    | cons ref refs' ih =>
-      cases vs₁ with
-      | dcons x vs₁' =>
-        simp [List.cons_append, Dvec.append, insert_all]
-        rw [ih]
+      cases h
+    | cons ref refs ih =>
+      cases idx with
+      | zero =>
+        simp [get_ks, Dvec.get_cons_zero]
+        rfl
+      | succ idx' =>
+        simp [get_ks, Dvec.get_cons_succ]
+        apply ih
