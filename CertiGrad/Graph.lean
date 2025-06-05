@@ -126,4 +126,111 @@ lemma graph_to_dist_inputs_congr {fshapes : List S} (k : Env → Dvec T fshapes)
 end graph
 
 
+
+
+noncomputable def is_gintegrable {shapes : List S} (k : Env → Dvec T shapes) {shape : S} : Env → List Node → (Dvec T shapes → T shape) → Prop
+| _, [], f => True
+
+| m, (⟨ref, parents, Operator.det op⟩ :: nodes), f =>
+  is_gintegrable k (env.insert ref (op.f (env.get_ks parents m)) m) nodes f
+
+| m, (⟨ref, parents, Operator.rand op⟩ :: nodes), f =>
+  let m' := fun (y : T ref.2) => env.insert ref y m
+  T.is_integrable (fun x => op.pdf (env.get_ks parents m) x • E (graph.to_dist k (m' x) nodes) f)
+  ∧ ∀ x, is_gintegrable k (m' x) nodes f
+
+
+open List
+open util_list
+noncomputable def is_gdifferentiable (k : Env → Dvec T [[]]) : Reference → Env → List Node → (Dvec T [[]] → TReal) → Prop
+| tgt, _, [], f => True
+
+| tgt, m, (⟨ref, parents, Operator.det op⟩ :: nodes), f =>
+  let θ := env.get tgt m
+  let x := op.f (env.get_ks parents m)
+  let g := fun (v : Dvec T parents.p2) (θ : T tgt.2) =>
+    E (graph.to_dist k (env.insert ref (det.op.f op v) (env.insert tgt θ m)) nodes) Dvec.head
+  T.is_cdifferentiable (fun (θ₀ : T tgt.2) => g (env.get_ks parents (env.insert tgt θ m)) θ₀) θ
+  ∧ T.is_cdifferentiable (fun (θ₀ : T tgt.2) =>
+      sumr (List.map (fun (idx : ℕ) =>
+        g (dvec.update_at θ₀ (env.get_ks parents (env.insert tgt θ m)) idx) θ)
+        (List.filter (fun (idx : ℕ) => tgt = dnth parents idx) (riota (List.length parents)))))
+      θ
+  ∧ is_gdifferentiable k tgt (env.insert ref x m) nodes f
+  ∧ ∀ {idx : ℕ}, idx ∈ riota (List.length parents) → tgt = dnth parents idx →
+      is_gdifferentiable k ref (env.insert ref x m) nodes f
+
+| tgt, m, (⟨ref, parents, Operator.rand op⟩ :: nodes), f =>
+  let g : Dvec T [ref.2] → T tgt.2 → TReal :=
+    fun (x : Dvec T [ref.2]) (θ₀ : T tgt.2) =>
+      E (graph.to_dist k (env.insert ref x.head (env.insert tgt θ₀ m)) nodes) Dvec.head
+  let θ : T tgt.2 := env.get tgt m
+  -- let m' := fun (y : T ref.2) => env.insert ref y m
+  T.is_cdifferentiable (fun (θ₀ : T tgt.2) =>
+      E (sprog.prim op (env.get_ks parents (env.insert tgt θ m)))
+        (fun (y : Dvec T [ref.2]) => g y θ₀))
+      θ
+  ∧ T.is_cdifferentiable (fun (θ₀ : T tgt.2) =>
+      sumr (List.map (fun (idx : ℕ) =>
+        E (sprog.prim op (dvec.update_at θ₀ (env.get_ks parents (env.insert tgt θ m)) idx))
+          (fun (y : Dvec T [ref.2]) => g y θ))
+        (List.filter (fun (idx : ℕ) => tgt = dnth parents idx) (riota (List.length parents)))))
+      θ
+  ∧ ∀ (y : T ref.2), is_gdifferentiable k tgt (env.insert ref y m) nodes f
+
+lemma is_gintegrable_k_congr {fshapes : List S} {fshape : S} (k₁ k₂ : Env → Dvec T fshapes) :
+    ∀ (inputs : Env) (nodes : List Node) (f : Dvec T fshapes → T fshape),
+      uniq_ids nodes inputs →
+      (∀ (m : Env), (∀ (ref : Reference), env.has_key ref inputs → env.get ref m = env.get ref inputs) → k₁ m = k₂ m) →
+      is_gintegrable k₁ inputs nodes f → is_gintegrable k₂ inputs nodes f
+  | inputs, [], f, H_uids, H_k_eq, H_gint₁ => trivial
+
+  | inputs, (⟨ref, parents, Operator.det op⟩ :: nodes), f, H_uids, H_k_eq, H_gint₁ =>
+    by
+      dsimp [is_gintegrable] at H_gint₁
+      dsimp [is_gintegrable]
+      apply is_gintegrable_k_congr _ _ _ _ _ (H_uids.right _) (graph.envs_match_helper k₁ k₂ _ _ _ _ H_uids H_k_eq) H_gint₁
+
+  | inputs, (⟨ref, parents, Operator.rand op⟩ :: nodes), f, H_uids, H_k_eq, H_gint₁ =>
+    by
+      dsimp [is_gintegrable] at H_gint₁
+      dsimp [is_gintegrable]
+      constructor
+      case left =>
+        have H_dist_congr : ∀ x, graph.to_dist k₁ (env.insert ref x inputs) nodes = graph.to_dist k₂ (env.insert ref x inputs) nodes :=
+          fun x => graph.to_dist_congr k₁ k₂ _ _ (H_uids.right _) (graph.envs_match_helper k₁ k₂ _ _ _ _ H_uids H_k_eq)
+        simp only [H_dist_congr] at H_gint₁
+        exact H_gint₁.left
+      case right =>
+        intro x
+        apply is_gintegrable_k_congr _ _ _ _ _ (H_uids.right _) (graph.envs_match_helper k₁ k₂ _ _ _ _ H_uids H_k_eq) (H_gint₁.right x)
+
+-- TODO(dhs): this seems like it could be provable given is_gintegrable and compute_grad_slow_correct
+noncomputable def is_nabla_gintegrable (k : Env → Dvec T [[]]) : Reference → Env → List Node → (Dvec T [[]] → TReal) → Prop
+  | tgt, m, [], f => True
+
+  | tgt, m, (⟨ref, parents, Operator.det op⟩ :: nodes), f =>
+      is_nabla_gintegrable k tgt (env.insert ref (op.f (env.get_ks parents m)) m) nodes f
+      ∧ ∀ {idx : ℕ}, idx ∈ riota (List.length parents) → tgt = dnth parents idx →
+          is_nabla_gintegrable k ref (env.insert ref (op.f (env.get_ks parents m)) m) nodes f
+
+  | tgt, m, (⟨ref, parents, Operator.rand op⟩ :: nodes), f =>
+      T.is_integrable (fun (x : T ref.snd) =>
+        op.pdf (env.get_ks parents m) x •  ∇ (fun (θ₀ : T tgt.snd) =>
+          E (graph.to_dist k (env.insert ref x (env.insert tgt θ₀ m)) nodes) f) (env.get tgt m))
+      ∧ T.is_integrable
+          (fun (x : T ref.snd) =>
+            rand.op.pdf op (env.get_ks parents m) x •
+              sumr (List.map
+                (fun (idx : ℕ) =>
+                  E (graph.to_dist k (env.insert ref x m) nodes) Dvec.head •
+                  ∇ (fun (θ₀ : T tgt.snd) =>
+                    T.log (rand.op.pdf op (dvec.update_at θ₀ (env.get_ks parents m) idx) x))
+                    (env.get tgt m))
+                (List.filter (fun (idx : ℕ) => tgt = dnth parents idx) (riota (List.length parents)))))
+      ∧ ∀ (y : T ref.snd), is_nabla_gintegrable k tgt (env.insert ref y m) nodes f
+
+
+
+
 end certigrad

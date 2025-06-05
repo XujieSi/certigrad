@@ -391,9 +391,9 @@ lemma get_ks_insert_same {ref : Reference} {refs : List Reference} {x : T ref.2}
       -- simp [dif_ctx_simp_congr, dif_pos]
 
 
--- lemma dvec_get_get_ks {refs : List Reference} {idx : ℕ} {h: idx < refs.length}(m : Env):
---       refs[idx]? = some ref  →
---       dvec.get ref.2 refs (get_ks refs m) = get ref m := by
+lemma dvec_get_get_ks {refs : List Reference} {idx : ℕ} {h: idx < refs.length}(m : Env):
+      refs[idx]? = some ref  →
+      dvec.get ref.2 _ (get_ks refs m) idx = get ref m:= by sorry
 
 --       intro H_at_idx
 --       have H_elem_at_idx : List.elem_at_idx refs idx ref :=  exact list.elem_at_idx_of_at_idx H_at_idx

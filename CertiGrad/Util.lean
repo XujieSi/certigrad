@@ -1,4 +1,3 @@
-
 -- -- import system.io data.list.set
 
 import Lean
@@ -411,9 +410,9 @@ theorem append_nil_left {α : Type} (xs : List α) : [] ++ xs = xs := rfl
 -- | i 0     := []
 -- | i (k+1) := i :: miota (i+1) k
 
--- def riota : Nat → List Nat
--- | 0 := []
--- | (n+1) := n :: riota n
+def riota : Nat → List Nat
+| 0 => []
+| (n+1) => n :: riota n
 
 -- theorem in_riota_lt : ∀ {idx n : Nat}, idx ∈ riota n → idx < n
 -- | idx 0     H_mem := false.rec _ (not_mem_nil (riota 0) H_mem)
