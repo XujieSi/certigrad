@@ -1,4 +1,5 @@
 
+     199 graph.lean
       52 Sprog.lean
     1205 Ops.lean   
      466 SimpGrad.lean
@@ -37,7 +38,7 @@
       47 optim.lean         <--- g5
      233 program.lean  <--- g4 (in parallel with tvec)
       86 tvec.lean     <--- g4
-     199 graph.lean <--- g3
+     
       
      
    10031 total
