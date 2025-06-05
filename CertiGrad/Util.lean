@@ -342,9 +342,9 @@ def sumr {α : Type} [Add α] [Zero α] : List α → α
   | (x::xs) => x + sumr xs
 
 
--- def sumrd {α : Type} [has_add α] (d : α) : List α → α
--- | [] := d
--- | (x::xs) := x + sumrd xs
+-- def sumrd {α : Type} [Add α] (d : α) : List α → α
+-- | [] => d
+-- | (x::xs) => x + sumrd xs
 
 -- theorem sumrd_sumr {α : Type} [add_comm_group α] (d : α) : ∀ (xs : List α), sumrd d xs = d + sumr xs
 -- | []      := begin dunfold sumrd sumr, rw add_zero end

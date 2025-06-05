@@ -1,12 +1,16 @@
 
-     199 graph.lean
+      95 compute_grad.lean
+     233 program.lean
+      47 optim.lean
+      86 tvec.lean    -- The lemma get_fromEnv is proved
+    199  graph.lean
       52 Sprog.lean
     1205 Ops.lean   
      466 SimpGrad.lean
      375 Rand.lean
       92 Det.lean
-      80 Dvec.lean
-     314 Env.lean
+      80 Dvec.lean 
+     314 Env.lean     -- dvec_get_get_ks, get_ks_insert_same--
      147 Id.lean
      149 Label.lean
      315 Mvn.lean
@@ -23,21 +27,21 @@
 
       49 backprop_correct.lean  <--- g11: final goal, just one theorem
 
-     556 prove_model_ok.lean  <--- g10
-     223 lemmas_extra.lean    <--- g10
-     435 compute_grad_slow_correct.lean  <--- g9 (can be done right after estimators.lean)
-     143 memoize_correct.lean            <--- g9
-     200 reparam.lean                    <--- g9 one general high-level theorem (with few lemmas)
-     482 kl.lean                         <--- g9
-    1016 lemmas.lean       <--- g8
-     253 estimators.lean   <--- g8
-     545 expected_value.lean  <--- g7
-     136 predicates.lean      <--- g6
-     117 run_utils.lean       <--- g6
-      95 compute_grad.lean  <--- g5
-      47 optim.lean         <--- g5
-     233 program.lean  <--- g4 (in parallel with tvec)
-      86 tvec.lean     <--- g4
+     556 prove_model_ok.lean  <--- g5
+     223 lemmas_extra.lean    <--- g5
+     435 compute_grad_slow_correct.lean  <--- g4 (can be done right after estimators.lean)
+     143 memoize_correct.lean            <--- g4
+     200 reparam.lean                    <--- g4 one general high-level theorem (with few lemmas)
+     482 kl.lean                         <--- g4
+    1016 lemmas.lean       <--- g3
+     253 estimators.lean   <--- g3
+     545 expected_value.lean  <--- g2
+     136 predicates.lean      <--- g1
+     117 run_utils.lean       <--- g1
+      
+      
+     
+      
      
       
      

@@ -23,60 +23,72 @@ def lift0 (f : ∀ {shape : S}, T shape) : ∀ (shapes : List S), Dvec T shapes
 | [] => Dvec.dnil
 | (shape::shapes) => Dvec.dcons (f (shape := shape)) (lift0 f shapes)
 
-instance {shapes : List S} : Zero (Dvec T shapes) :=
-⟨tvec.lift0 (λ {sh} => Zero.zero (T sh)) shapes⟩
+noncomputable instance {shapes : List S} : Zero (Dvec T shapes) where
+zero := lift0 (fun {sh} => 0) shapes
 
-instance {shapes : List S} : One (Dvec T shapes) :=
-⟨tvec.lift0 (λ {sh} => One.one (T sh)) shapes⟩
+
+noncomputable instance {shapes : List S} : One (Dvec T shapes) where
+one := lift0 (fun {sh} => 1) shapes
+
 
 def lift1 (f : ∀ {shape : S}, T shape → T shape) : ∀ {shapes : List S}, Dvec T shapes → Dvec T shapes
 | [], Dvec.dnil => Dvec.dnil
-| (shape::shapes), Dvec.dcons x xs => Dvec.dcons (f (shape := shape) x) (lift1 f xs)
+| (shape::shapes), Dvec.dcons x xs => Dvec.dcons (f x) (lift1 f xs)
 
-instance {shapes : List S} : Neg (Dvec T shapes) :=
-⟨@tvec.lift1 (λ x => - x) shapes⟩
+-- instance {shapes : List S} : Neg (Dvec T shapes) :=
+-- ⟨@tvec.lift1 (λ x => - x) shapes⟩
 
-instance {shapes : List S} : Inv (Dvec T shapes) :=
-⟨@tvec.lift1 (λ x => x⁻¹) shapes⟩
+instance negDvec {shapes : List S} [∀ sh, Neg (T sh)] : Neg (Dvec T shapes) where
+  neg := lift1 (fun x => -x)
 
-def sqrt {shapes : List S} (xs : Dvec T shapes) : Dvec T shapes :=
-lift1 @T.sqrt xs
+-- instance {shapes : List S} : Inv (Dvec T shapes) :=
+-- ⟨@tvec.lift1 (λ x => x⁻¹) shapes⟩
+
+instance invDvec {shapes : List S} [∀ sh, Inv (T sh)] : Inv (Dvec T shapes) where
+  inv := lift1 (fun x => x⁻¹)
+
+noncomputable def sqrtDvec {shapes : List S} (xs : Dvec T shapes) : Dvec T shapes :=
+ lift1 (fun x => T.sqrt (x := x)) xs
 
 def lift2 (f : ∀ {shape : S}, T shape → T shape → T shape) : ∀ (shapes : List S), Dvec T shapes → Dvec T shapes → Dvec T shapes
 | [], _, _          => Dvec.dnil
-| (shape::shapes), (Dvec.dcons x xs), (Dvec.dcons y ys) => Dvec.dcons (f (shape := shape ) x y) (lift2 f shapes xs ys)
+| (shape::shapes), (Dvec.dcons x xs), (Dvec.dcons y ys) => Dvec.dcons (f x y) (lift2 f shapes xs ys)
 
-instance {shapes : List S} : Add (Dvec T shapes) :=
-⟨tvec.lift2 (λ x y => x + y) shapes⟩
+instance addDvec {shapes : List S} [∀ sh, Add (T sh)] : Add (Dvec T shapes) where
+  add := lift2 (fun x y => x + y) shapes
 
-instance {shapes : List S} : Mul (Dvec T shapes) :=
-⟨tvec.lift2 (λ x y => x * y) shapes⟩
+instance mulDvec {shapes : List S} [∀ sh, Mul (T sh)] : Mul (Dvec T shapes) where
+  mul := lift2 (fun x y => x * y) shapes
 
-instance {shapes : List S} : Sub (Dvec T shapes) :=
-⟨tvec.lift2 (λ x y => x - y) shapes⟩
+instance subDvec {shapes : List S} [∀ sh, Sub (T sh)] : Sub (Dvec T shapes) where
+  sub := lift2 (fun x y => x - y) shapes
 
-instance {shapes : List S} : Div (Dvec T shapes) :=
-⟨tvec.lift2 (λ x y => x / y) shapes⟩
+instance divDvec {shapes : List S} [∀ sh, Div (T sh)] : Div (Dvec T shapes) where
+  div := lift2 (fun x y => x / y) shapes
 
-def scalarMul : ∀ (shapes : List S), ℝ → Dvec T shapes → Dvec T shapes
+noncomputable def scalarMul : ∀ (shapes : List S), TReal → Dvec T shapes → Dvec T shapes
 | [], _,  _                        => Dvec.dnil
 | (shape::shapes), α, (Dvec.dcons x xs)   => Dvec.dcons (α • x) (scalarMul shapes α xs)
 
-instance {shapes : List S} : SMul ℝ (Dvec T shapes) :=
-⟨tvec.scalarMul shapes⟩
+-- instance {shapes : List S} : SMul TReal (Dvec T shapes) :=
+--   ⟨tvec.scalarMul shapes⟩
 
------ Build env from dvec
-def toEnvCore : ∀ (names : List ID) (shapes : List S) (xs : Dvec T shapes), env
-| (name::names), (shape::shapes), (Dvec.dcons x xs) => env.insert (name, shape) x (toEnvCore names shapes xs)
+instance smulDvec {shapes : List S} [∀ sh, SMul TReal (T sh)] : SMul TReal (Dvec T shapes) where
+     smul := fun r v => lift1 (fun x => r • x) v
+
+
+def toEnvCore : ∀ (names : List ID) (shapes : List S) (xs : Dvec T shapes), Env
+| (name::names), (shape::shapes), (Dvec.dcons x xs) =>
+      env.insert (name, shape) x (toEnvCore names shapes xs)
 | _, _, _ => env.mk
 
-def toEnv (refs : List (ID × S)) (xs : Dvec T (Prod.snd <$> refs)) : env :=
+def toEnv (refs : List Reference) (xs : Dvec T (Prod.snd <$> refs)) : Env :=
   toEnvCore (Prod.fst <$> refs) (Prod.snd <$> refs) xs
 
 -- Build dvec from env
-def fromEnv : ∀ (tgts : List (ID × S)) (m : env), Dvec T (Prod.snd <$> tgts)
-| (tgt::tgts) m => Dvec.dcons (env.get tgt m) (fromEnv tgts m)
-| [] _ => Dvec.dnil
+noncomputable def fromEnv : ∀ (tgts : List Reference) (m : Env), Dvec T (Prod.snd <$> tgts)
+| (tgt::tgts), m => Dvec.dcons (env.get tgt m) (fromEnv tgts m)
+| [], _ => Dvec.dnil
 
 open List
 
@@ -85,17 +97,32 @@ open List
 -- open certigrad.env (get)
 -- and that at_idx, elem_at_idx, elem_at_idx_of_at_idx are defined or imported
 
-lemma get_fromEnv {refs : List reference} {idx : Nat} {ref : reference}
-  (H_at_idx : refs[idx]? = some ref) (m : env) :
-  dvec.get (fromEnv refs m) idx = env_get ref m := by
-  -- Assuming elem_at_idx and elem_at_idx_of_at_idx are defined elsewhere
-  have H_elem_at_idx := List.elem_at_idx_of_at_idx H_at_idx
-  induction H_elem_at_idx with
-  | hd xs x xs' =>
-    simp [fromEnv, dvec.get]
-  | tl x y xs idx' H_elem_at_idx' IH =>
-    simp [fromEnv, dvec.get]
-    exact IH (at_idx_of_cons H_at_idx)
+lemma get_fromEnv {refs : List Reference} {idx : Nat} {ref : Reference}
+  (H_at_idx : refs[idx]? = ref) (m : Env) :
+  dvec.get _ _ (fromEnv refs m) idx =  env.get ref m := Quotient.inductionOn m fun m' => by
+  sorry
+
+  -- unfold fromEnv
+-- --  [List.map]
+--   simp [dvec.get, List.map, env.get]
+
+
+  -- clear m
+  -- unfold  fromEnv
+  -- simp [dvec.get, env.get]
+  -- cases H_at_idx with
+  -- | refl =>
+  --   simp
+  -- | cons xs x xs idx' x y H_elem_at_idx IH =>
+  --   unfold dvec.get
+  --   simp [H_elem_at_idx]
+  --   -- use IH to prove the recursive case
+  --   simp [IH (at_idx_of_cons H_at_idx)]
+  -- -- apply Quotient.sound
+  -- cases H_get: Std.DHashMap.get? m' ref with
+  -- | none =>
+  --       simp
+  -- | some x => simp [H_get]
 
 end tvec
 end certigrad

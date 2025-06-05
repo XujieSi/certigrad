@@ -12,8 +12,8 @@ import CertiGrad.Util
 
 namespace certigrad
 
-@[reducible] def Reference := ID × S
-
+-- @[reducible] def Reference := ID × S
+abbrev Reference := ID × S
 -- instance : BEq Reference where
 --   beq
 

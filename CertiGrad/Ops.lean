@@ -868,6 +868,8 @@ end
 
 namespace div
 
+
+
 noncomputable
 def f {shape : S} (xs : Dvec T [shape, shape]) : T shape := xs.head / xs.head2
 noncomputable
@@ -923,6 +925,13 @@ lemma f_ocont {shape : S} : is_ocontinuous (@f shape) (@f_pre shape)
 | xs, (n+2), ishape, H_at_idx, H_pre => by idx_over
 
 end div
+
+
+section open div
+noncomputable
+def div (shape : S) : det.op [shape, shape] shape :=
+det.op.mk "div" f f_pre f_pb f_odiff f_pb_correct f_ocont
+end
 
 namespace sum
 

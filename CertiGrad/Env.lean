@@ -95,7 +95,7 @@ namespace env
 
 -- def mk : env := quotient.mk (mk_hash_map Reference.hash)
 
--- def mk : Env := Quotient.mk (Lean.mkHashMap (α := Reference))
+-- def mk : Env := .mk (Lean.mkHashMap (α := Reference))
 
 def mk : Env := Quotient.mk certigrad.pre_env.pdmap.eqv_setoid Std.DHashMap.empty --Batteries.mkHashMap --Std.DHashMap.empty
 
