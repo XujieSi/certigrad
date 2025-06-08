@@ -82,11 +82,11 @@ def toEnvCore : ∀ (names : List ID) (shapes : List S) (xs : Dvec T shapes), En
       env.insert (name, shape) x (toEnvCore names shapes xs)
 | _, _, _ => env.mk
 
-def toEnv (refs : List Reference) (xs : Dvec T (Prod.snd <$> refs)) : Env :=
-  toEnvCore (Prod.fst <$> refs) (Prod.snd <$> refs) xs
+def toEnv (refs : List Reference) (xs : Dvec T refs.p2) : Env :=
+  toEnvCore refs.p1 refs.p2 xs
 
 -- Build dvec from env
-noncomputable def fromEnv : ∀ (tgts : List Reference) (m : Env), Dvec T (Prod.snd <$> tgts)
+noncomputable def fromEnv : ∀ (tgts : List Reference) (m : Env), Dvec T tgts.p2
 | (tgt::tgts), m => Dvec.dcons (env.get tgt m) (fromEnv tgts m)
 | [], _ => Dvec.dnil
 

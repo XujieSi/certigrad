@@ -25,19 +25,19 @@ namespace certigrad
 
 
 
-def pre_env : Type := Std.DHashMap Reference (λ (ref : Reference) => T ref.2)
+def preEnv : Type := Std.DHashMap Reference (λ (ref : Reference) => T ref.2)
 
 -- def pre_env  : Type := Lean.HashMap (ref : Reference) (T ref.2)
 -- def pre_env {ref : Reference} : Type := Lean.HashMap Reference (T ref.2)
 
-attribute [reducible] pre_env
+attribute [reducible] preEnv
 
 namespace pre_env
 
 -- definition eqv (m₁ m₂ : pre_env) : Prop :=
 -- ∀ (ref : Reference), m₁^.find ref = m₂^.find ref
 
-def eqv (m₁ m₂ : pre_env) : Prop :=
+def eqv (m₁ m₂ : preEnv) : Prop :=
 -- ∀ (ref : Reference), m₁.get! ref = m₂.get! ref
 ∀ (ref : Reference), m₁.get? ref = m₂.get? ref
 
@@ -48,14 +48,14 @@ local infix : 50 "~" => eqv
 -- definition eqv.refl (m : pre_env) : m ~ m :=
 -- assume ref, rfl
 
-theorem eqv.refl (m : pre_env) : m ~ m := by
+theorem eqv.refl (m : preEnv) : m ~ m := by
   intro ref
   rfl
 
 -- definition eqv.symm (m₁ m₂ : pre_env) : m₁ ~ m₂ → m₂ ~ m₁ :=
 -- assume H ref, eq.symm (H ref)
 
-theorem eqv.symm (m₁ m₂ : pre_env) : m₁ ~ m₂ → m₂ ~ m₁ := by
+theorem eqv.symm (m₁ m₂ : preEnv) : m₁ ~ m₂ → m₂ ~ m₁ := by
   intro h ref
   apply Eq.symm (h ref)
 
@@ -63,14 +63,14 @@ theorem eqv.symm (m₁ m₂ : pre_env) : m₁ ~ m₂ → m₂ ~ m₁ := by
 -- definition eqv.trans (m₁ m₂ m₃ : pre_env) : m₁ ~ m₂ → m₂ ~ m₃ → m₁ ~ m₃ :=
 -- assume H₁ H₂ ref, eq.trans (H₁ ref) (H₂ ref)
 
-theorem eqv.trans (m₁ m₂ m₃ : pre_env) : m₁ ~ m₂ → m₂ ~ m₃ → m₁ ~ m₃ := by
+theorem eqv.trans (m₁ m₂ m₃ : preEnv) : m₁ ~ m₂ → m₂ ~ m₃ → m₁ ~ m₃ := by
   intros h1 h2 ref
   apply Eq.trans (h1 ref) (h2 ref)
 
 -- instance pdmap.eqv_setoid : setoid pre_env :=
 -- setoid.mk eqv (mk_equivalence eqv eqv.refl eqv.symm eqv.trans)
 
-instance pdmap.eqv_setoid : Setoid pre_env where
+instance pdmap.eqv_setoid : Setoid preEnv where
   r := eqv
   iseqv := ⟨eqv.refl, @eqv.symm, @eqv.trans⟩
 
@@ -102,7 +102,7 @@ def mk : Env := Quotient.mk certigrad.pre_env.pdmap.eqv_setoid Std.DHashMap.empt
 noncomputable
 def get (ref : Reference) (q : Env) : T ref.2 :=
   Quotient.liftOn q
-  (λ (m : pre_env) =>
+  (λ (m : preEnv) =>
     match m.get? ref with
     | none => default
     | some x => x
@@ -115,7 +115,7 @@ def get (ref : Reference) (q : Env) : T ref.2 :=
 
 
 -- def get (ref : Reference) (q : env) : T ref.2 := quotient.lift_on q
--- (λ (m : pre_env),
+-- (λ (m : preEnv),
 --   match m^.find ref with
 --   | none := default _
 --   | some x := x
@@ -126,7 +126,7 @@ def get (ref : Reference) (q : Env) : T ref.2 :=
 
 def insert (ref : Reference) (x : T ref.2) (q : Env) : Env :=
   Quotient.liftOn q
-  (λ (m : pre_env) => Quotient.mk certigrad.pre_env.pdmap.eqv_setoid $ m.insert ref x)
+  (λ (m : preEnv) => Quotient.mk certigrad.pre_env.pdmap.eqv_setoid $ m.insert ref x)
   (by
     intro m₁ m₂ H_eqv
     simp
@@ -159,8 +159,8 @@ def insert (ref : Reference) (x : T ref.2) (q : Env) : Env :=
 -- simp [hash_map.find_insert, dif_ctx_simp_congr, H_neq, dif_neg, H_eqv ref'],
 -- end
 
-def has_key (ref : Reference) (q : Env) : Prop :=
-  Quotient.liftOn q (fun (m : pre_env) => (m.get? ref).isSome)
+def hasKey (ref : Reference) (q : Env) : Prop :=
+  Quotient.liftOn q (fun (m : preEnv) => (m.get? ref).isSome)
     (by
       intros m₁ m₂ H_eqv
       dsimp
@@ -168,51 +168,51 @@ def has_key (ref : Reference) (q : Env) : Prop :=
     )
 
 noncomputable
-def get_ks : ∀ (refs : List Reference) (m : Env), Dvec T refs.p2
+def getKs : ∀ (refs : List Reference) (m : Env), Dvec T refs.p2
 | [],          m => ⟦⟧
-| (ref::refs), m => Dvec.dcons (get ref m) (get_ks refs m)
+| (ref::refs), m => Dvec.dcons (get ref m) (getKs refs m)
 
-def insert_all : ∀ (refs : List Reference) (vs : Dvec T refs.p2), Env
+def insertAll : ∀ (refs : List Reference) (vs : Dvec T refs.p2), Env
 | [],      ⟦⟧        => certigrad.env.mk
-| (k::ks), (v:::vs) => certigrad.env.insert k v (insert_all ks vs)
+| (k::ks), (v:::vs) => certigrad.env.insert k v (insertAll ks vs)
 
 
 
-@[simp] lemma get_def (ref : Reference) (m : pre_env) :
+@[simp] lemma get_def (ref : Reference) (m : preEnv) :
   get ref (Quotient.mk pre_env.pdmap.eqv_setoid m) = match m.get? ref with | none => default | some x => x := rfl
 
-@[simp] lemma insert_def {ref : Reference} {x : T ref.2} (m : pre_env) :
+@[simp] lemma insert_def {ref : Reference} {x : T ref.2} (m : preEnv) :
   insert ref x (Quotient.mk pre_env.pdmap.eqv_setoid m) = Quotient.mk pre_env.pdmap.eqv_setoid (m.insert ref x) :=
   by apply Quotient.sound; apply pre_env.eqv.refl
 
-@[simp] lemma has_key_def (ref : Reference) (m : pre_env) :
-  has_key ref (Quotient.mk pre_env.pdmap.eqv_setoid m) = (m.get? ref).isSome := rfl
+@[simp] lemma hasKey_def (ref : Reference) (m : preEnv) :
+  hasKey ref (Quotient.mk pre_env.pdmap.eqv_setoid m) = (m.get? ref).isSome := rfl
 
-lemma not_has_key_empty (ref : Reference) : ¬ has_key ref mk := by
-  simp [mk, has_key]
+lemma not_hasKey_empty (ref : Reference) : ¬ hasKey ref mk := by
+  simp [mk, hasKey]
 
-lemma has_key_insert {ref₁ ref₂ : Reference} {x₂ : T ref₂.2} {m : Env} :
-  has_key ref₁ m → has_key ref₁ (insert ref₂ x₂ m) :=
-  Quotient.inductionOn m fun m' H_hk =>
+lemma hasKey_insert {ref₁ ref₂ : Reference} {x₂ : T ref₂.2} {m : Env} :
+  hasKey ref₁ m → hasKey ref₁ (insert ref₂ x₂ m) :=
+  Quotient.inductionOn m fun m' H_hasKey =>
     if h : ref₂ = ref₁ then
       by
         subst h
-        simp [insert, has_key, Std.DHashMap.get?_insert]
+        simp [insert, hasKey, Std.DHashMap.get?_insert]
     else
       by
-        simp [insert, has_key, Std.DHashMap.get?_insert, h]
-        exact H_hk
+        simp [insert, hasKey, Std.DHashMap.get?_insert, h]
+        exact H_hasKey
 
-lemma has_key_insert_same (ref : Reference) {x : T ref.2} (m : Env) : has_key ref (insert ref x m) :=
+lemma hasKey_insert_same (ref : Reference) {x : T ref.2} (m : Env) : hasKey ref (insert ref x m) :=
   Quotient.inductionOn m fun m' =>
     by
-      simp [insert, has_key]
+      simp [insert, hasKey]
 
-lemma has_key_insert_diff {ref₁ ref₂ : Reference} {x₂ : T ref₂.2} {m : Env} :
-  ref₁ ≠ ref₂ → has_key ref₁ (insert ref₂ x₂ m) → has_key ref₁ m :=
+lemma hasKey_insert_diff {ref₁ ref₂ : Reference} {x₂ : T ref₂.2} {m : Env} :
+  ref₁ ≠ ref₂ → hasKey ref₁ (insert ref₂ x₂ m) → hasKey ref₁ m :=
   Quotient.inductionOn m fun m' H_neq H_hk =>
     by
-      simp [insert, has_key] at H_hk
+      simp [insert, hasKey] at H_hk
       rw [Std.DHashMap.get?_insert] at H_hk
       cases h : (ref₂ == ref₁) with
       | true =>
@@ -240,8 +240,8 @@ lemma get_insert_diff {ref₁ ref₂ : Reference} (x₂ : T ref₂.2) (m : Env) 
       simp [Std.DHashMap.get?_insert, H]
 
 
-lemma insert_get_same {ref : Reference} {m : Env} : has_key ref m → insert ref (get ref m) m = m :=
-  Quotient.inductionOn m fun m' H_has_key =>
+lemma insert_get_same {ref : Reference} {m : Env} : hasKey ref m → insert ref (get ref m) m = m :=
+  Quotient.inductionOn m fun m' H_hasKey =>
     by
       simp [insert, get]
       apply Quotient.sound
@@ -254,9 +254,9 @@ lemma insert_get_same {ref : Reference} {m : Env} : has_key ref m → insert ref
         cases H_get: Std.DHashMap.get? m' ref with
         | none =>
           simp
-          simp at H_has_key
-          -- have H: ∃ v:T ref.2, Std.DHashMap.get? m' ref = some v := by exact Option.isSome_iff_exists.mp H_has_key
-          rw [H_get] at H_has_key
+          simp at H_hasKey
+          -- have H: ∃ v:T ref.2, Std.DHashMap.get? m' ref = some v := by exact Option.isSome_iff_exists.mp H_hasKey
+          rw [H_get] at H_hasKey
           contradiction
           -- intro H: Std.DHashMap.get? m' ref = none
           -- exfalso
@@ -312,12 +312,12 @@ lemma insert_insert_same (ref : Reference) (x₁ x₂ : T ref.2) (m : Env) :
 
 
 lemma get_ks_env_eq (m₁ m₂ : Env) :
-  ∀ (refs : List Reference), (∀ (ref : Reference), ref ∈ refs → get ref m₁ = get ref m₂) → get_ks refs m₁ = get_ks refs m₂ := by
+  ∀ (refs : List Reference), (∀ (ref : Reference), ref ∈ refs → get ref m₁ = get ref m₂) → getKs refs m₁ = getKs refs m₂ := by
   intro refs h
   induction refs with
   | nil => rfl
   | cons ref refs ih =>
-    simp [get_ks]
+    simp [getKs]
     have h_head : get ref m₁ = get ref m₂ := by simp [h]
     have h_tail : ∀ (r : Reference), r ∈ refs → get r m₁ = get r m₂ := by
       intros r hr
@@ -336,12 +336,12 @@ lemma get_ks_env_eq (m₁ m₂ : Env) :
   -- by rw [H_get, get_ks_env_eq _ H_pre]
 
 lemma get_ks_insert_diff :
-  ∀ {refs : List Reference} {ref : Reference} {x : T ref.2} {m : Env}, ref ∉ refs → get_ks refs (insert ref x m) = get_ks refs m := by
+  ∀ {refs : List Reference} {ref : Reference} {x : T ref.2} {m : Env}, ref ∉ refs → getKs refs (insert ref x m) = getKs refs m := by
   intros refs ref x m hnotin
   induction refs with
   | nil => rfl
   | cons ref' refs' ih =>
-    simp [get_ks]
+    simp [getKs]
     have hneq : ref' ≠ ref := by
         -- simp []
       intro heq
@@ -357,7 +357,7 @@ lemma get_ks_insert_diff :
 -- open Dvec
 
 lemma get_ks_insert_same {ref : Reference} {refs : List Reference} {x : T ref.2} {m : Env} :
-  get_ks (ref :: refs) (insert ref x m) = Dvec.dcons (get ref (insert ref x m)) (get_ks refs (insert ref x m)) :=
+  getKs (ref :: refs) (insert ref x m) = Dvec.dcons (get ref (insert ref x m)) (getKs refs (insert ref x m)) :=
   rfl
 
 -- lemma insert_all_nil : insert_all [] Dvec.dnil = mk := by
@@ -393,7 +393,7 @@ lemma get_ks_insert_same {ref : Reference} {refs : List Reference} {x : T ref.2}
 
 lemma dvec_get_get_ks {refs : List Reference} {idx : ℕ} {h: idx < refs.length}(m : Env):
       refs[idx]? = some ref  →
-      dvec.get ref.2 _ (get_ks refs m) idx = get ref m:= by sorry
+      dvec.get ref.2 _ (getKs refs m) idx = get ref m:= by sorry
 
 --       intro H_at_idx
 --       have H_elem_at_idx : List.elem_at_idx refs idx ref :=  exact list.elem_at_idx_of_at_idx H_at_idx
