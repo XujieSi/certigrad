@@ -1,16 +1,16 @@
-
-      95 compute_grad.lean
-     233 program.lean
-      47 optim.lean
-      86 tvec.lean    -- The lemma get_fromEnv is proved
-    199  graph.lean
+     117 RunUtils.lean    
+      95 ComputeGrad.lean
+     233 Program.lean
+      47 Optim.lean
+      86 Tvec.lean    -- The lemma get_fromEnv is not proved
+    199  Graph.lean
       52 Sprog.lean
     1205 Ops.lean   
      466 SimpGrad.lean
      375 Rand.lean
       92 Det.lean
       80 Dvec.lean 
-     314 Env.lean     -- dvec_get_get_ks, get_ks_insert_same--
+     314 Env.lean     -- dvec_get_get_ks, get_ks_insert_same are not proved --
      147 Id.lean
      149 Label.lean
      315 Mvn.lean
@@ -37,7 +37,7 @@
      253 estimators.lean   <--- g3
      545 expected_value.lean  <--- g2
      136 predicates.lean      <--- g1
-     117 run_utils.lean       <--- g1
+     
       
       
      
