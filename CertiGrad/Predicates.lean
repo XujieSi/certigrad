@@ -23,7 +23,7 @@ def isDownstream (cost : ID) : Reference → List Node → Bool
 | tgt, (⟨ref, parents, _⟩ :: nodes) =>
   if ref.1 = cost then true else (tgt ∈ parents ∧  isDownstream cost ref nodes) ∨ (isDownstream cost tgt nodes)
 
--- We don't need the following instance in Lean 4 anymore.--
+-- We don't need the following instance in Lean 4 anymore. We can directly use the function above here--
 -- instance decidableIsDownstream (cost : ID) : Π (tgt : Reference) (nodes : List Node), Decidable (isDownstream cost tgt nodes)
 -- | _, [] => Decidable.isFalse (fun h => nomatch h)
 -- | tgt, (⟨ref, parents, _⟩ :: nodes) =>

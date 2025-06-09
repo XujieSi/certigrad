@@ -470,17 +470,14 @@ theorem dintegral_div {shape : S} : {shapes : List S} →  (f : Dvec T shapes �
     simp [λ x => @dintegral_div shape shapes (λ v => f (x ::: v)) y]
     rw [integral_div]
 
--- theorem dintegral_add_middle {shape : S} : Π {shapes : list S} (pdf : dvec T shapes → TReal) (f g : dvec T shapes → T shape),
---   is_dintegrable (λ xs, pdf xs • f xs) → is_dintegrable (λ xs, pdf xs • g xs) →
---   dintegral (λ (xs : dvec T shapes), pdf xs • (f xs + g xs)) = dintegral (λ (xs : dvec T shapes), pdf xs • f xs) + dintegral (λ (xs : dvec T shapes), pdf xs • g xs)
--- | [] pdf f g Hf Hg := begin dunfold dintegral, apply smul_addr end
-
--- | (ds::shapes) pdf f g Hf Hg :=
--- begin
--- dunfold dintegral,
--- simp [λ x, @dintegral_add_middle shapes (λ v, pdf (x ::: v)) (λ v, f (x ::: v)) (λ v, g (x :::v)) (Hf^.right x) (Hg^.right x)],
--- rw integral_add _ _ Hf^.left Hg^.left
--- end
+theorem dintegral_add_middle {shape : S} : {shapes : List S} →  (pdf : Dvec T shapes → TReal) →  (f g : Dvec T shapes → T shape) →
+  is_dintegrable (λ xs => pdf xs • f xs) → is_dintegrable (λ xs => pdf xs • g xs) →
+  dintegral (λ (xs : Dvec T shapes) => pdf xs • (f xs + g xs)) = dintegral (λ (xs : Dvec T shapes) => pdf xs • f xs) + dintegral (λ (xs : Dvec T shapes) => pdf xs • g xs)
+  | [], pdf, f, g, Hf, Hg => by unfold dintegral; apply smul_addr
+  | (ds::shapes), pdf, f, g, Hf, Hg => by
+    unfold dintegral
+    simp [λ x => @dintegral_add_middle shape shapes (λ v => pdf (x ::: v)) (λ v => f (x ::: v)) (λ v => g (x :::v)) (Hf.right x) (Hg.right x)]
+    rw [integral_add _ _ Hf.left Hg.left]
 
 -- theorem dintegral_neg_middle {shape : S} : Π {shapes : list S} (pdf : dvec T shapes → TReal) (f : dvec T shapes → T shape),
 --   dintegral (λ (xs : dvec T shapes), pdf xs • - (f xs)) = - dintegral (λ (xs : dvec T shapes), pdf xs • f xs)
@@ -511,31 +508,29 @@ theorem dintegral_mul (α : TReal) : {shapes : List S} → (f : Dvec T shapes �
   simp [λ α f => Eq.symm (smul_scalar α f)]
   exact (dintegral_scale α f)
 
--- theorem dintegral_scale_middle  {shape : S} (α : TReal) : Π {shapes : list S} (f : dvec T shapes → TReal) (g : dvec T shapes → T shape),
---   dintegral (λ (xs : dvec T shapes), f xs • (α • g xs)) = α • dintegral (λ xs, f xs • g xs)
--- | [] f g :=
--- begin
--- dunfold dintegral,
--- simp [T.smul.def, mul_comm],
--- end
+theorem dintegral_scale_middle  {shape : S} (α : TReal) : {shapes : List S} → (f : Dvec T shapes → TReal) → (g : Dvec T shapes → T shape) →
+  dintegral (λ (xs : Dvec T shapes) => f xs • (α • g xs)) = α • dintegral (λ xs => f xs • g xs)
+  | [], f, g => by
+    unfold dintegral
+    simp
+    simp [smul.def]
+    simp [←mul_assoc, mul_comm]
 
--- | (ds::shapes) f g :=
--- begin
--- dunfold dintegral,
--- simp [λ x, @dintegral_scale_middle shapes (λ v, f (x ::: v)) (λ v, g (x ::: v))],
--- rw integral_scale,
--- end
+  | (ds::shapes), f, g => by
+    unfold dintegral
+    simp [λ x => @dintegral_scale_middle shape α shapes (λ v => f (x ::: v)) (λ v => g (x ::: v))]
+    rw [integral_scale]
 
--- theorem dintegral_mul_middle (α : TReal) : Π {shapes : list S} (f : dvec T shapes → TReal) (g : dvec T shapes → TReal),
---   dintegral (λ (xs : dvec T shapes), f xs • (α * g xs)) = α * dintegral (λ xs, f xs • g xs) :=
--- begin
--- intros shapes f g,
--- rw -(const_scalar α),
--- simp [λ s x, eq.symm (smul.def α s x)],
--- simp [λ xs, eq.symm (smul_scalar α (g xs))],
--- rw dintegral_scale_middle α f g,
--- simp [smul_scalar]
--- end
+
+
+theorem dintegral_mul_middle (α : TReal) : {shapes : List S} → (f : Dvec T shapes → TReal) → (g : Dvec T shapes → TReal) →
+  dintegral (λ (xs : Dvec T shapes) => f xs • (α * g xs)) = α * dintegral (λ xs => f xs • g xs) := by
+  intros shapes f g
+  rw [← const_scalar α]
+  simp [λ s x => Eq.symm (smul.def α s x)]
+  simp [λ xs => Eq.symm (smul_scalar α (g xs))]
+  rw [dintegral_scale_middle α f g]
+  simp [smul_scalar]
 
 -- theorem dintegral_tmulT  {shape₁ shape₂ : S} (M : T (shape₁ ++ shape₂)) : Π {shapes : list S} (f : dvec T shapes → T shape₂),
 --   dintegral (λ (xs : dvec T shapes), tmulT M (f xs)) = tmulT M (dintegral (λ xs, f xs))

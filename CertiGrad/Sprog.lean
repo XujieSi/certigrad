@@ -30,7 +30,7 @@ notation:max "δ"  => delta
 def ev {ishapes : List S} {oshape : S} (d : Dist ishapes) (f : Dvec T ishapes → T oshape) : T oshape := d.ev oshape f
 
 inductive sprog : ∀(shapes : List S), Type
-| ret  : ∀ {shapes : List S}, Dvec T shapes → sprog shapes
+|   ret  : ∀ {shapes : List S}, Dvec T shapes → sprog shapes
 | bind : ∀ {shapes₁ shapes₂ : List S}, sprog shapes₁ → (Dvec T shapes₁ → sprog shapes₂) → sprog shapes₂
 | prim : ∀ {ishapes : List S} {oshape : S}, rand.op ishapes oshape → Dvec T ishapes → sprog [oshape]
 
