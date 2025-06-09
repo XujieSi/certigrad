@@ -18,17 +18,29 @@ namespace certigrad
 
 
 -- Note that False is Prop in Lean 4 while false is Bool. --
-def isDownstream (cost : ID) : Reference → List Node → Prop
-| _, [] => False
+def isDownstream (cost : ID) : Reference → List Node → Bool
+| _, [] => false
 | tgt, (⟨ref, parents, _⟩ :: nodes) =>
-  if ref.1 = cost then True else (tgt ∈ parents ∧  isDownstream cost ref nodes) ∨ (isDownstream cost tgt nodes)
+  if ref.1 = cost then true else (tgt ∈ parents ∧  isDownstream cost ref nodes) ∨ (isDownstream cost tgt nodes)
 
-instance decidableIsDownstream (cost : ID) : Π (tgt : Reference) (nodes : List Node), Decidable (isDownstream cost tgt nodes)
-| _, [] => Decidable.isFalse (fun h => nomatch h)
-| tgt, (⟨ref, parents, _⟩ :: nodes) =>
-  show Decidable (if ref.1 = cost then True else (tgt ∈ parents ∧ isDownstream cost ref nodes) ∨ isDownstream cost tgt nodes) from
-    have H₁ : Decidable (isDownstream cost ref nodes) := by apply decidableIsDownstream;
-    have H₂ : Decidable (isDownstream cost tgt nodes) := by apply decidableIsDownstream;
+-- We don't need the following instance in Lean 4 anymore.--
+-- instance decidableIsDownstream (cost : ID) : Π (tgt : Reference) (nodes : List Node), Decidable (isDownstream cost tgt nodes)
+-- | _, [] => Decidable.isFalse (fun h => nomatch h)
+-- | tgt, (⟨ref, parents, _⟩ :: nodes) =>
+--   show Decidable (if ref.1 = cost then True else (tgt ∈ parents ∧ isDownstream cost ref nodes) ∨ isDownstream cost tgt nodes) from
+--     have H₁ : Decidable (isDownstream cost ref nodes) := by apply decidableIsDownstream;
+--     have H₂ : Decidable (isDownstream cost tgt nodes) := by apply decidableIsDownstream;
+
+
+-- instance decidable_is_downstream (cost : ID) : Π (tgt : reference) (nodes : list node), decidable (is_downstream cost tgt nodes)
+-- | _   [] := decidable.false
+
+-- | tgt (⟨ref, parents, _⟩ :: nodes) :=
+--   show decidable (if ref.1 = cost then true else (tgt ∈ parents ∧ is_downstream cost ref nodes) ∨ is_downstream cost tgt nodes), from
+--   have H₁ : decidable (is_downstream cost ref nodes), from begin apply decidable_is_downstream end,
+--   have H₂ : decidable (is_downstream cost tgt nodes), from begin apply decidable_is_downstream end,
+--   by tactic.apply_instance
+
 
 
 
@@ -95,7 +107,6 @@ noncomputable def canDifferentiateUnderIntegrals (costs : List ID) : List Node �
 
     ∧ (T.is_uniformly_integrable_around (λ (θ₀ : T (tgt.snd)) (x : T (ref.snd)) => ∇ (λ (θ₁ : T (tgt.snd)) => op.pdf (env.getKs parents (env.insert tgt θ₁ inputs)) x • g x θ₁) θ₀) θ
        ∧ T.is_uniformly_integrable_around (λ (θ₀ : T (tgt.snd)) (x : T (ref.snd)) => ∇ (λ (θ₁ : T (tgt.snd)) => op.pdf (env.getKs parents (env.insert tgt θ inputs)) x • g x θ₁) θ₀) θ)
-
     ∧ (∀ (idx : ℕ), at_idx parents idx tgt →
     T.is_uniformly_integrable_around (λ (θ₀ : T (tgt.snd)) (x : T (ref.snd)) => op.pdf (dvec.update_at θ₀ (env.getKs parents (env.insert tgt θ inputs)) idx) x • g x θ) θ)
    ∧ (∀ (idx : ℕ),  at_idx parents idx tgt →
