@@ -144,7 +144,10 @@ lemma E_congr {shapes : List S} {oshape : S} (d₁ d₂ : sprog shapes) (f : Dve
 lemma E_scale {oshape : S} (α : TReal) : Π {shapes : List S} (d : sprog shapes) (f : Dvec T shapes → T oshape), E d (λ x => α • f x) = α • E d f
 | shapes, (@sprog.ret .(shapes) xs), f => by simp only [E_ret]
 | shapes, (@sprog.bind shapes₁ .(shapes) start rest), f => by
-  simp only [E_bind, (λ x => E_scale α (rest x)), E_scale α start]
+  simp [E_bind]
+  simp [E_scale]
+
+-- Note: The proof above is somewhat unusual here --
 | [oshape], (@sprog.prim ishapes .(oshape) pd args), f => by
   unfold E
   exact T.dintegral_scale_middle α _ f
@@ -156,7 +159,7 @@ lemma E_scale_mul (α : TReal) : Π {shapes : List S} (d : sprog shapes) (f : Dv
   simp only [E_bind, (λ x => E_scale_mul α (rest x)), E_scale_mul α start]
 | [oshape], (@sprog.prim ishapes .(oshape) pd args), f => by
   unfold E
-  exact T.dintegral_mul_middle α _ f
+  exact T.dintegral_mul_middle _ _ _
 
 lemma E_fscale {fshape : S} (y : T fshape) : Π {shapes : List S} (d : sprog shapes) (f : Dvec T shapes → TReal), E d (λ x => f x • y) = E d f • y
 | shapes, (@sprog.ret .(shapes) xs), f => by simp only [E_ret]
@@ -164,11 +167,20 @@ lemma E_fscale {fshape : S} (y : T fshape) : Π {shapes : List S} (d : sprog sha
   simp only [E_bind, (λ x => E_fscale y (rest x)), E_fscale y start]
 | [oshape], (@sprog.prim ishapes .(oshape) pd args), f => by
   unfold E T.dintegral
-  have H_lam : ∀ x, rand.op.pdf pd args (Dvec.head ⟦x⟧) • (f ⟦x⟧ •  y) = (rand.op.pdf pd args (Dvec.head ⟦x⟧) • f ⟦x⟧) •  y := by
-    intro x
-    rw [← T.smul_group]
-    simp only [T.smul.def, T.const_scalar, Dvec.head]
-  rw [H_lam, T.integral_fscale]
+  simp [← T.integral_fscale, T.dintegral_scale]
+
+
+  -- `congr` applies the congruence lemma, reducing the goal to proving equality of the arguments of both sides.
+  -- `funext x` applies function extensionality, introducing a variable `x` and reducing the goal to proving equality for all `x`.
+
+  congr
+  funext x
+  have H: (T.dintegral fun xs => f (x ::: xs) )• y = T.dintegral fun xs => f (x ::: xs) • y := by
+    rfl
+  rw [← H]
+  set a:= T.dintegral fun xs => f (x ::: xs)
+  simp [T.smul.def]
+  ring
 
 lemma E_neg {oshape : S} : Π {shapes : List S} (d : sprog shapes) (f : Dvec T shapes → T oshape),
   is_eintegrable d f → E d (λ x => - (f x)) = - (E d f)
@@ -184,9 +196,9 @@ lemma E_neg {oshape : S} : Π {shapes : List S} (d : sprog shapes) (f : Dvec T s
   exact T.dintegral_neg_middle _ f
 
 lemma E_const {shapes : List S} {oshape fshape : S} (op : rand.op shapes oshape) (parents : Dvec T shapes) (H_op_pre : op.pre parents) (y : T fshape) :
-  E (sprog.prim op parents) (λ x, y) = y :=
-  T.dintegral_const_middle (λ (x : Dvec T [oshape]), op.pdf parents x.head)
-                         (λ (x : Dvec T [oshape]), op.pdf_pos parents H_op_pre x.head)
+  E (sprog.prim op parents) (λ x => y) = y :=
+  T.dintegral_const_middle (λ (x : Dvec T [oshape]) => op.pdf parents x.head)
+                         (λ (x : Dvec T [oshape]) => op.pdf_pos parents H_op_pre x.head)
                          (op.pdf_int1 parents H_op_pre)
                          y
 
@@ -214,182 +226,178 @@ lemma E_pull_out_of_sum {X : Type} {ishapes : List S} {oshape fshape : S}
     exact (is_eintegrable_add _ _ _).mp H_xs
     exact (is_eintegrable_add _ _ _).mp H_xs
 
-lemma E_k_add {shape : S} (k₁ k₂ : Env → T shape) : Π (m : Env) (nodes : List Node),
-  is_gintegrable (λ m, ⟦k₁ m⟧) m nodes Dvec.head →
-  is_gintegrable (λ m, ⟦k₂ m⟧) m nodes Dvec.head →
-  E (graph.to_dist (λ (m : Env), ⟦k₁ m + k₂ m⟧) m nodes) Dvec.head
+lemma E_k_add {shape : S} (k₁ k₂ : Env → T shape) : ∀ (m : Env) (nodes : List Node),
+  isGintegrable  (λ m => ⟦k₁ m⟧) m nodes Dvec.head →
+  isGintegrable  (λ m =>  ⟦k₂ m⟧) m nodes Dvec.head →
+  E (graph.toDist (λ (m : Env) => ⟦k₁ m + k₂ m⟧) m nodes) Dvec.head
   =
-  E (graph.to_dist (λ (m : Env), ⟦k₁ m⟧) m nodes) Dvec.head + E (graph.to_dist (λ (m : Env), ⟦k₂ m⟧) m nodes) Dvec.head
+  E (graph.toDist (λ (m : Env) => ⟦k₁ m⟧) m nodes) Dvec.head + E (graph.toDist (λ (m : Env) => ⟦k₂ m⟧) m nodes) Dvec.head
 | m, [], Hk₁, Hk₂ => by
-  unfold graph.to_dist E_ret
+  unfold graph.toDist E_ret
   simp
 
-| m, (⟨ref, parents, operator.det op⟩::nodes), Hk₁, Hk₂ => by
-  unfold graph.to_dist operator.to_dist E_ret E_bind
+| m, (⟨ref, parents, Operator.det op⟩::nodes), Hk₁, Hk₂ => by
+  unfold graph.toDist Operator.det E_ret E_bind
   rw [E_k_add]
   exact Hk₁
   exact Hk₂
 
-| m, (⟨ref, parents, operator.rand op⟩::nodes), Hk₁, Hk₂ => by
-  unfold graph.to_dist operator.to_dist E_bind E_bind E_bind
-  unfold_occs E [1, 2, 3, 5]
+| m, (⟨ref, parents, Operator.rand op⟩::nodes), Hk₁, Hk₂ => by
+  unfold graph.toDist Operator.toDist
+  unfold E at *
   unfold T.dintegral
   simp
   simp [is_gintegrable, dvec.head] at Hk₁ Hk₂
 
-  erw -T.integral_add _ _ Hk₁^.left Hk₂^.left
+  erw [← T.integral_add _ _ Hk₁.left Hk₂.left]
 
   apply (congr_arg T.integral)
   apply funext
   intro x
-  erw -T.smul_addr
-  rw -E_k_add _ _ (Hk₁^.right x) (Hk₂^.right x)
+  erw [← T.smul_addr]
+  rw [← E_k_add _ _ (Hk₁.right x) (Hk₂.right x)]
 
-lemma E_g_pull_out_of_sum {X : Type} {fshape : S} (f : env → X → T fshape) :
-  ∀ (m : env) (nodes : list node) (xs : list X),
-  pdfs_exist_at nodes m →
-  is_gintegrable (λ m', ⟦sumr (map (λ x, f m' x) xs)⟧) m nodes dvec.head →
-  sumr (map (λ x, E (graph.to_dist (λ m', ⟦f m' x⟧) m nodes) dvec.head) xs) = E (graph.to_dist (λ m', ⟦sumr (map (λ x, f m' x) xs)⟧) m nodes) dvec.head
-| m [] xs H_pdfs_exist H_gint := by simp only [graph.to_dist, E.E_ret, dvec.head]
+lemma E_g_pull_out_of_sum {X : Type} {fshape : S} (f : Env → X → T fshape) :
+  ∀ (m : Env) (nodes : List Node) (xs : List X),
+  pdfsExistAt nodes m →
+  isGintegrable (λ m'=> ⟦sumr (map (λ x => f m' x) xs)⟧) m nodes Dvec.head →
+  sumr (map (λ x => E (graph.toDist (λ m'=> ⟦f m' x⟧) m nodes) Dvec.head) xs) = E (graph.toDist (λ m'=> ⟦sumr (map (λ x => f m' x) xs)⟧) m nodes) Dvec.head
+| m, [], xs, H_pdfs_exist, H_gint => by simp only [graph.toDist, E_ret, Dvec.head]
 
-| m (⟨ref, parents, operator.det op⟩::nodes) xs H_pdfs_exist H_gint :=
-begin
-dunfold graph.to_dist operator.to_dist,
-simp only [E_ret, E_bind],
-apply E_g_pull_out_of_sum,
-exact H_pdfs_exist,
-exact H_gint
-end
+| m, (⟨ref, parents, Operator.det op⟩::nodes), xs, H_pdfs_exist, H_gint =>
+    unfold graph.to_dist Operator.to_dist
+    simp only [E_ret, E_bind]
+    apply E_g_pull_out_of_sum
+    exact H_pdfs_exist
+    exact H_gint
 
-| m (⟨ref, parents, operator.rand op⟩::nodes) xs H_pdfs_exist H_gint :=
-begin
-dunfold graph.to_dist operator.to_dist,
-simp only [E.E_ret, E.E_bind],
-rw E_pull_out_of_sum _ _ H_pdfs_exist^.left,
-apply congr_arg, apply funext, intro y,
-rw E_g_pull_out_of_sum _ _ _ (H_pdfs_exist^.right y^.head) (H_gint^.right y^.head),
-dsimp [is_eintegrable] without dvec.head,
-dsimp [is_gintegrable] without dvec.head at H_gint,
-simp only [λ (y : dvec T [ref.2]), E_g_pull_out_of_sum _ _ _ (H_pdfs_exist^.right y^.head) (H_gint^.right y^.head)],
-exact H_gint^.left
-end
+| m, (⟨ref, parents, Operator.rand op⟩::nodes), xs, H_pdfs_exist, H_gint =>
+    unfold graph.to_dist Operator
+    simp only [E_ret, E_bind]
+    rw E_pull_out_of_sum _ _ H_pdfs_exist.left
+    apply congr_arg
+    apply funext
+    intro y
+    rw E_g_pull_out_of_sum _ _ _ (H_pdfs_exist.right y.head) (H_gint.right y.head)
+    dsimp [is_eintegrable] without Dvec.head
+    dsimp [is_gintegrable] without Dvec.head at H_gint,
+    simp only [λ (y : Dvec T [ref.2]), E_g_pull_out_of_sum _ _ _ (H_pdfs_exist.right y.head) (H_gint.right y.head)]
+    exact H_gint.left
 
 end E
-open list
-
+open List
+open E
 -- TODO(dhs): restructure the library
-lemma is_gintegrable_k_add {shape : S} (k₁ k₂ : env → T shape) : Π (m : env) (nodes : list node),
-  (is_gintegrable (λ m, ⟦k₁ m⟧) m nodes dvec.head ∧ is_gintegrable (λ m, ⟦k₂ m⟧) m nodes dvec.head) ↔ is_gintegrable (λ m, ⟦k₁ m + k₂ m⟧) m nodes dvec.head
-| _ [] := begin dsimp [is_gintegrable], split, intro H, exact trivial, intro H, exact (and.intro trivial trivial) end
+lemma is_gintegrable_k_add {shape : S} (k₁ k₂ : Env → T shape) : Π (m : Env) (nodes : List Node),
+  (isGintegrable (λ m => ⟦k₁ m⟧) m nodes Dvec.head ∧ isGintegrable (λ m => ⟦k₂ m⟧) m nodes Dvec.head) ↔ isGintegrable (λ m => ⟦k₁ m + k₂ m⟧) m nodes Dvec.head
+| _, [] => by
+    dsimp [isGintegrable]
+    constructor
+    . intro H; exact trivial
+    . intro H; exact (And.intro trivial trivial)
 
-| m (⟨ref, parents, operator.det op⟩ :: nodes) := begin dsimp [is_gintegrable], apply is_gintegrable_k_add end
+| m, (⟨ref, parents, Operator.det op⟩ :: nodes) => by
+    dsimp [isGintegrable]
+    apply is_gintegrable_k_add
 
-| m (⟨ref, parents, operator.rand op⟩ :: nodes) :=
-begin
-dsimp [is_gintegrable],
-split,
-{
-intro H,
-split,
-{ simp only [λ x, E.E_k_add k₁ k₂ _ _ (H^.left^.right x) (H^.right^.right x)], apply iff.mp (T.is_integrable_add_middle _ _ _) (and.intro H^.left^.left H^.right^.left) },
-intro x,
-exact iff.mp (is_gintegrable_k_add _ _) (and.intro (H^.left^.right x) (H^.right^.right x))
-},
-{
-intro H,
-assert H_kint₁ : ∀ (x : T (ref.snd)), is_gintegrable (λ (m : env), ⟦k₁ m⟧) (env.insert ref x m) nodes dvec.head,
-{ intro x, apply (iff.mpr (is_gintegrable_k_add _ _) (H^.right x))^.left },
+| m, (⟨ref, parents, Operator.rand op⟩ :: nodes) => by
+    dsimp [isGintegrable]
+    constructor
+    . intro H
+      constructor
+      . simp only [λ x => E_k_add k₁ k₂ _ _ (H.left.right x) (H.right.right x)]
+        apply (T.is_integrable_add_middle _ _ _).mpr
+        exact And.intro H.left.left H.right.left
+      . intro x
+        exact (is_gintegrable_k_add _ _).mp (And.intro (H.left.right x) (H.right.right x))
+    . intro H
+      have H_kint₁ : ∀ (x : T ref.2), isGintegrable (λ (m : Env) => ⟦k₁ m⟧) (env.insert ref x m) nodes Dvec.head := by
+        intro x
+        apply (is_gintegrable_k_add _ _).mp (H.right x)
+        exact H.left.right x
 
-assert H_kint₂ : ∀ (x : T (ref.snd)), is_gintegrable (λ (m : env), ⟦k₂ m⟧) (env.insert ref x m) nodes dvec.head,
-{ intro x, apply (iff.mpr (is_gintegrable_k_add _ _) (H^.right x))^.right },
+      have H_kint₂ : ∀ (x : T ref.2), isGintegrable (λ (m : Env) => ⟦k₂ m⟧) (env.insert ref x m) nodes Dvec.head := by
+        intro x
+        apply (is_gintegrable_k_add _ _).mp (H.right x)
+        exact H.left.right x
 
-split,
-{
-simp only [λ x, E.E_k_add k₁ k₂ _ _ (H_kint₁ x) (H_kint₂ x)] at H,
-split,
-{ exact (iff.mpr (T.is_integrable_add_middle _ _ _) H^.left)^.left },
-{ intro x, apply (iff.mpr (is_gintegrable_k_add _ _) (H^.right x))^.left }
-},
-{
-simp only [λ x, E.E_k_add k₁ k₂ _ _ (H_kint₁ x) (H_kint₂ x)] at H,
-split,
-{ exact (iff.mpr (T.is_integrable_add_middle _ _ _) H^.left)^.right },
-{ intro x, apply (iff.mpr (is_gintegrable_k_add _ _) (H^.right x))^.right }
-},
-}
-end
+      constructor
+      . simp only [λ x => E_k_add k₁ k₂ _ _ (H.left.right x) (H.right.right x)]
+        apply (T.is_integrable_add_middle _ _ _).mpr
+        exact And.intro H.left.left H.right.left
+      . intro x
+        exact (is_gintegrable_k_add _ _).mp (And.intro (H.left.right x) (H.right.right x))
+
+
 
 namespace E
 
-lemma E_k_tmulT {shape₁ shape₂ : S} (k : env → T shape₂) : Π (m : env) (nodes : list node) (M : T (shape₁ ++ shape₂)),
-  E (graph.to_dist (λ (m : env), ⟦T.tmulT M (k m)⟧) m nodes) dvec.head
+lemma E_k_tmulT {shape₁ shape₂ : S} (k : Env → T shape₂) : Π (m : Env) (nodes : List Node) (M : T (shape₁ ++ shape₂)),
+  E (graph.toDist (λ (m : Env) => ⟦T.tmulT M (k m)⟧) m nodes) Dvec.head
   =
-  T.tmulT M (E (graph.to_dist (λ (m : env), ⟦k m⟧) m nodes) dvec.head)
-| m []                                        M :=
-begin
-dunfold graph.to_dist,
-simp [E_ret]
-end
+  T.tmulT M (E (graph.toDist (λ (m : Env) => ⟦k m⟧) m nodes) Dvec.head)
+  | m, [], M => by
+      unfold graph.toDist E_ret E
+      simp only [Dvec.head]
 
-| m (⟨ref, parents, operator.det op⟩::nodes)  M :=
-begin
-dunfold graph.to_dist operator.to_dist,
-simp [E_ret, E_bind],
-rw E_k_tmulT,
-end
+  | m, (⟨ref, parents, Operator.det op⟩::nodes), M => by
+      unfold graph.toDist Operator.toDist E
+      simp only [E_ret, E_bind]
+      rw [E_k_tmulT]
 
-| m (⟨ref, parents, operator.rand op⟩::nodes) M :=
-begin
-dunfold graph.to_dist operator.to_dist,
-simp [E_bind],
-simp [E_k_tmulT],
-dunfold E,
-rw T.dintegral_tmulT_middle,
-end
+  | m, (⟨ref, parents, Operator.rand op⟩::nodes), M => by
+      unfold graph.toDist Operator E
+      simp only [E_bind]
+      rw [E_k_tmulT]
+      rw [T.dintegral_tmulT_middle]
 
 end E
 
-open List
+lemma is_gintegrable_tmulT {ishape oshape : S} (M : T (ishape ++ oshape)) (k : Env → T oshape) :
+  Π (inputs : Env) (nodes : List Node),
+  isGintegrable (λ (m : Env) => ⟦k m⟧) inputs nodes Dvec.head ↔ isGintegrable (λ (m : Env) => ⟦T.tmulT M (k m)⟧) inputs nodes Dvec.head
+| inputs, [] => by
+    dsimp [isGintegrable]
+    constructor
+    . intro H; exact trivial
+    . intro H; exact trivial
 
-lemma is_gintegrable_tmulT {ishape oshape : S} (M : T (ishape ++ oshape)) (k : env → T oshape) :
-  Π (inputs : env) (nodes : list node),
-  is_gintegrable (λ (m : env), ⟦k m⟧) inputs nodes dvec.head ↔ is_gintegrable (λ (m : env), ⟦T.tmulT M (k m)⟧) inputs nodes dvec.head
-| inputs [] := iff.intro (λ x, trivial) (λ x, trivial)
+| inputs, (⟨ref, parents, Operator.det op⟩ :: nodes) => by
+    dsimp [isGintegrable]
+    apply is_gintegrable_tmulT
 
-| inputs (⟨ref, parents, operator.det op⟩ :: nodes) := by { dsimp [is_gintegrable], apply is_gintegrable_tmulT }
+| inputs, (⟨ref, parents, Operator.rand op⟩ :: nodes) => by
+    dsimp [isGintegrable]
+    constructor
+    . intro H
+      constructor
+      . simp only [E.E_k_tmulT]
+        apply (T.is_integrable_tmulT_middle _ _ _).mpr
+        exact H.left
+      . intro x
+        exact (is_gintegrable_tmulT _ _).mp (H.right x)
+    . intro H
+      constructor
+      . simp only [E.E_k_tmulT]
+        apply (T.is_integrable_tmulT_middle _ _ _).mpr
+        exact H.left
+      . intro x
+        exact (is_gintegrable_tmulT _ _).mp (H.right x)
 
-| inputs (⟨ref, parents, operator.rand op⟩ :: nodes) :=
-begin
-dsimp [is_gintegrable],
-split,
-{
-intro H ,
-simp only [E.E_k_tmulT],
-split,
-  { exact iff.mp (T.is_integrable_tmulT_middle _ _ _) H^.left },
-  { intro x, exact iff.mp (is_gintegrable_tmulT _ _) (H^.right x)  }
-},
-{
-intro H,
-simp only [E.E_k_tmulT] at H,
-split,
-  { exact iff.mpr (T.is_integrable_tmulT_middle _ _ _) H^.left },
-  { intro x, exact iff.mpr (is_gintegrable_tmulT _ _) (H^.right x) }
-}
-end
 
-lemma is_gintegrable_of_sumr_map {X : Type} [inhabited X] {shape : S} (k : env → X → T shape) (m : env) (nodes : list node)
-  : ∀ (xs : list X) (H_gint : is_gintegrable (λ (m : env), ⟦sumr (map (k m) xs)⟧) m nodes dvec.head) (x : X), x ∈ xs →
-      is_gintegrable (λ (m : env), ⟦k m x⟧) m nodes dvec.head
-| [] _ x H_in := false.rec _ (not_mem_nil x H_in)
+lemma is_gintegrable_of_sumr_map {X : Type} [Inhabited X] {shape : S} (k : Env → X → T shape) (m : Env) (nodes : List Node)
+  : ∀ (xs : List X) (H_gint : isGintegrable (λ (m : Env) => ⟦sumr (map (k m) xs)⟧) m nodes Dvec.head) (x : X), x ∈ xs →
+      isGintegrable (λ (m : Env) => ⟦k m x⟧) m nodes Dvec.head
+| [], _, _, H_in => by
+    simp only [not_mem_nil] at H_in
+    exact H_in
 
-| (x::xs) H_gint y H_in :=
-begin
-dunfold sumr map at H_gint,
-cases (eq_or_mem_of_mem_cons H_in) with H_eq H_in_rec,
-{ subst H_eq, exact (iff.mpr (is_gintegrable_k_add _ _ _ _) H_gint)^.left },
-{ apply is_gintegrable_of_sumr_map xs (iff.mpr (is_gintegrable_k_add _ _ _ _) H_gint)^.right y H_in_rec }
-end
+| (x::xs), H_gint, y, H_in =>
+    unfold sumr map at H_gint
+    cases (eq_or_mem_of_mem_cons H_in) with H_eq H_in_rec
+    . subst H_eq
+      exact (is_gintegrable_k_add _ _ _ _).mp H_gint
+    . apply is_gintegrable_of_sumr_map xs (is_gintegrable_k_add _ _ _ _).mp H_gint y H_in_rec
 
 namespace E
 open sprog list
