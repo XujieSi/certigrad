@@ -144,13 +144,12 @@ lemma E_congr {shapes : List S} {oshape : S} (d₁ d₂ : sprog shapes) (f : Dve
 lemma E_scale {oshape : S} (α : TReal) : Π {shapes : List S} (d : sprog shapes) (f : Dvec T shapes → T oshape), E d (λ x => α • f x) = α • E d f
 | shapes, (@sprog.ret .(shapes) xs), f => by simp only [E_ret]
 | shapes, (@sprog.bind shapes₁ .(shapes) start rest), f => by
-  simp [E_bind, (λ x => E_scale _ (rest x)), E_scale _ start]
-
+  simp only [E_bind, (λ x => E_scale α (rest x)), E_scale α start]
 | [oshape], (@sprog.prim ishapes .(oshape) pd args), f => by
   unfold E
   exact T.dintegral_scale_middle α _ f
 
-lemma E_scale_mul (α : TReal) : Π {shapes : List S} (d : sprog shapes) (f : Dvec T shapes → T oshape), E d (λ x => α • f x) = α • E d f
+lemma E_scale_mul (α : TReal) : Π {shapes : List S} (d : sprog shapes) (f : Dvec T shapes → TReal), E d (λ x => α • f x) = α • E d f
 | shapes, (@sprog.ret .(shapes) xs), f => by simp only [E_ret]
 | shapes, (@sprog.bind shapes₁ .(shapes) start rest), f =>
   by
@@ -159,95 +158,92 @@ lemma E_scale_mul (α : TReal) : Π {shapes : List S} (d : sprog shapes) (f : Dv
   unfold E
   exact T.dintegral_mul_middle α _ f
 
-lemma E_fscale {fshape : S} (y : T fshape) : Π {shapes : List S} (d : sprog shapes) (f : Dvec T shapes → T oshape), E d (λ x => f x • y) = E d f • y
+lemma E_fscale {fshape : S} (y : T fshape) : Π {shapes : List S} (d : sprog shapes) (f : Dvec T shapes → TReal), E d (λ x => f x • y) = E d f • y
 | shapes, (@sprog.ret .(shapes) xs), f => by simp only [E_ret]
-| shapes, (@sprog.bind shapes₁ .(shapes) start rest), f => by simp only [E_bind, (λ x => E_fscale (rest x)), E_fscale start]
-| [oshape], (@sprog.prim ishapes .(oshape) pd args), f => by unfold E; exact T.dintegral_fscale_middle y _ f
-begin
-dunfold E T.dintegral,
-assert H_lam : ∀ x, rand.op.pdf pd args (dvec.head ⟦x⟧) ⬝ (f ⟦x⟧ ⬝ y) = (rand.op.pdf pd args (dvec.head ⟦x⟧) ⬝ f ⟦x⟧) ⬝ y,
-{ intro x, erw -T.smul_group, simp only [T.smul.def, T.const_scalar] },
-rw [funext H_lam, T.integral_fscale]
-end
+| shapes, (@sprog.bind shapes₁ .(shapes) start rest), f => by
+  simp only [E_bind, (λ x => E_fscale y (rest x)), E_fscale y start]
+| [oshape], (@sprog.prim ishapes .(oshape) pd args), f => by
+  unfold E T.dintegral
+  have H_lam : ∀ x, rand.op.pdf pd args (Dvec.head ⟦x⟧) • (f ⟦x⟧ •  y) = (rand.op.pdf pd args (Dvec.head ⟦x⟧) • f ⟦x⟧) •  y := by
+    intro x
+    rw [← T.smul_group]
+    simp only [T.smul.def, T.const_scalar, Dvec.head]
+  rw [H_lam, T.integral_fscale]
 
-lemma E_neg {oshape : S} : Π {shapes : list S} (d : sprog shapes) (f : dvec T shapes → T oshape),
-  is_eintegrable d f → E d (λ x, - (f x)) = - (E d f)
-| shapes (@sprog.ret .(shapes) xs) f Hf := by simp only [E_ret]
-| shapes (@sprog.bind shapes₁ .(shapes) start rest) f Hf :=
-begin
-simp only [is_eintegrable_bind] at Hf,
-simp only [E_bind, (λ x, E_neg (rest x) _ (Hf^.right x)), E_neg start _ Hf^.left],
-end
+lemma E_neg {oshape : S} : Π {shapes : List S} (d : sprog shapes) (f : Dvec T shapes → T oshape),
+  is_eintegrable d f → E d (λ x => - (f x)) = - (E d f)
+  --Note that If the first has error, maybe the third has error is the reason --
+| shapes, (@sprog.ret .(shapes) xs), f, Hf => by simp only [E_ret]
+| shapes, (@sprog.bind shapes₁ .(shapes) start rest), f, Hf =>
+  by
+  simp only [is_eintegrable_bind] at Hf
+  simp only [E_bind, (λ x => E_neg (rest x) _ (Hf.right x)), E_neg start _ Hf.left]
 
-| ([oshape]) (@sprog.prim ishapes .(oshape) pd args) f Hf := begin dunfold E, exact T.dintegral_neg_middle _ f end
+| [oshape], (@sprog.prim ishapes .(oshape) pd args), f, Hf => by
+  unfold E
+  exact T.dintegral_neg_middle _ f
 
-lemma E_const {shapes : list S} {oshape fshape : S} (op : rand.op shapes oshape) (parents : dvec T shapes) (H_op_pre : op^.pre parents) (y : T fshape) :
+lemma E_const {shapes : List S} {oshape fshape : S} (op : rand.op shapes oshape) (parents : Dvec T shapes) (H_op_pre : op.pre parents) (y : T fshape) :
   E (sprog.prim op parents) (λ x, y) = y :=
-T.dintegral_const_middle (λ (x : dvec T [oshape]), op^.pdf parents x^.head)
-                         (λ (x : dvec T [oshape]), op^.pdf_pos parents H_op_pre x^.head)
-                         (op^.pdf_int1 parents H_op_pre)
+  T.dintegral_const_middle (λ (x : Dvec T [oshape]), op.pdf parents x.head)
+                         (λ (x : Dvec T [oshape]), op.pdf_pos parents H_op_pre x.head)
+                         (op.pdf_int1 parents H_op_pre)
                          y
 
-lemma E_bind_assoc : ∀ {shapes₁ shapes₂ shapes₃ : list S} {fshape : S}
-                      (d₁ : sprog shapes₁)
-                      (d₂ : dvec T shapes₁ → sprog shapes₂)
-                      (d₃ : dvec T shapes₂ → sprog shapes₃)
-                      (f : dvec T shapes₃ → T fshape),
-      E (bind d₁ (λ xs₁, bind (d₂ xs₁) (λ xs₂, d₃ xs₂))) f
-      =
-      E (bind (bind d₁ (λ xs₁, d₂ xs₁)) (λ xs₂, d₃ xs₂)) f
-:=
-assume shapes₁ shapes₂ shapes₃ fshape d₁ d₂ d₃ f,
-begin
-simp only [E_bind],
-end
+lemma E_bind_assoc {shapes₁ shapes₂ shapes₃ : List S} {fshape : S}
+    (d₁ : sprog shapes₁)
+    (d₂ : Dvec T shapes₁ → sprog shapes₂)
+    (d₃ : Dvec T shapes₂ → sprog shapes₃)
+    (f : Dvec T shapes₃ → T fshape) :
+    E (d₁ >>= fun xs₁ => d₂ xs₁ >>= fun xs₂ => d₃ xs₂) f =
+    E ((d₁ >>= fun xs₁ => d₂ xs₁) >>= fun xs₂ => d₃ xs₂) f := by
+  simp only [E_bind]
 
-lemma E_pull_out_of_sum {X : Type} {ishapes : list S} {oshape fshape : S}
-    (op : rand.op ishapes oshape) (parents : dvec T ishapes) (H_op_pre : op^.pre parents)
-    (f : X → dvec T [oshape] → T fshape) :
-  ∀ (xs : list X),
-  is_eintegrable (sprog.prim op parents) (λ y, sumr (map (λ x, f x y) xs)) →
-  sumr (map (λ x, E (sprog.prim op parents) (f x)) xs) = E (sprog.prim op parents) (λ y, sumr (map (λ x, f x y) xs))
-| []      H_xs := begin dunfold sumr map, rw E_const, exact H_op_pre end
-| (x::xs) H_xs :=
-begin
-dunfold sumr map,
-rw [E_add, E_pull_out_of_sum],
-dunfold map sumr at H_xs,
-exact (iff.mpr (is_eintegrable_add _ _ _) H_xs)^.right,
-exact (iff.mpr (is_eintegrable_add _ _ _) H_xs)^.left,
-exact (iff.mpr (is_eintegrable_add _ _ _) H_xs)^.right
-end
+lemma E_pull_out_of_sum {X : Type} {ishapes : List S} {oshape fshape : S}
+    (op : rand.op ishapes oshape) (parents : Dvec T ishapes) (H_op_pre : op.pre parents)
+    (f : X → Dvec T [oshape] → T fshape) :
+  ∀ (xs : List X),
+  is_eintegrable (sprog.prim op parents) (λ y => sumr (map (λ x => f x y) xs)) →
+  sumr (map (λ x => E (sprog.prim op parents) (f x)) xs) = E (sprog.prim op parents) (λ y => sumr (map (λ x => f x y) xs))
+  | []      ,H_xs => by unfold sumr map; rw [E_const]; exact H_op_pre
+  | (x::xs), H_xs =>
+    by
+    unfold sumr map
+    rw [E_add, E_pull_out_of_sum]
+    unfold map sumr at H_xs
+    exact (is_eintegrable_add _ _ _).mp H_xs
+    exact (is_eintegrable_add _ _ _).mp H_xs
 
-lemma E_k_add {shape : S} (k₁ k₂ : env → T shape) : Π (m : env) (nodes : list node),
-  is_gintegrable (λ m, ⟦k₁ m⟧) m nodes dvec.head →
-  is_gintegrable (λ m, ⟦k₂ m⟧) m nodes dvec.head →
-  E (graph.to_dist (λ (m : env), ⟦k₁ m + k₂ m⟧) m nodes) dvec.head
+lemma E_k_add {shape : S} (k₁ k₂ : Env → T shape) : Π (m : Env) (nodes : List Node),
+  is_gintegrable (λ m, ⟦k₁ m⟧) m nodes Dvec.head →
+  is_gintegrable (λ m, ⟦k₂ m⟧) m nodes Dvec.head →
+  E (graph.to_dist (λ (m : Env), ⟦k₁ m + k₂ m⟧) m nodes) Dvec.head
   =
-  E (graph.to_dist (λ (m : env), ⟦k₁ m⟧) m nodes) dvec.head + E (graph.to_dist (λ (m : env), ⟦k₂ m⟧) m nodes) dvec.head
-| m [] Hk₁ Hk₂                                                       :=
-begin dunfold graph.to_dist, rw [E_ret, E_ret, E_ret], reflexivity end
+  E (graph.to_dist (λ (m : Env), ⟦k₁ m⟧) m nodes) Dvec.head + E (graph.to_dist (λ (m : Env), ⟦k₂ m⟧) m nodes) Dvec.head
+| m, [], Hk₁, Hk₂ => by
+  unfold graph.to_dist E_ret
+  simp
 
-| m (⟨ref, parents, operator.det op⟩::nodes) Hk₁ Hk₂ :=
-begin
-dunfold graph.to_dist operator.to_dist,
-simp only [E_ret, E_bind],
-rw E_k_add,
-exact Hk₁, exact Hk₂
-end
+| m, (⟨ref, parents, operator.det op⟩::nodes), Hk₁, Hk₂ => by
+  unfold graph.to_dist operator.to_dist E_ret E_bind
+  rw [E_k_add]
+  exact Hk₁
+  exact Hk₂
 
-| m (⟨ref, parents, operator.rand op⟩::nodes) Hk₁ Hk₂ :=
-begin dunfold graph.to_dist operator.to_dist, rw [E_bind, E_bind, E_bind],
-dunfold_occs E [1, 2, 3, 5],
-dunfold T.dintegral, dsimp,
-dsimp [is_gintegrable, dvec.head] at Hk₁ Hk₂,
+| m, (⟨ref, parents, operator.rand op⟩::nodes), Hk₁, Hk₂ => by
+  unfold graph.to_dist operator.to_dist E_bind E_bind E_bind
+  unfold_occs E [1, 2, 3, 5]
+  unfold T.dintegral
+  simp
+  simp [is_gintegrable, dvec.head] at Hk₁ Hk₂
 
-erw -T.integral_add _ _ Hk₁^.left Hk₂^.left,
+  erw -T.integral_add _ _ Hk₁^.left Hk₂^.left
 
-apply (congr_arg T.integral), apply funext, intro x,
-erw -T.smul_addr,
-rw -E_k_add _ _ (Hk₁^.right x) (Hk₂^.right x)
-end
+  apply (congr_arg T.integral)
+  apply funext
+  intro x
+  erw -T.smul_addr
+  rw -E_k_add _ _ (Hk₁^.right x) (Hk₂^.right x)
 
 lemma E_g_pull_out_of_sum {X : Type} {fshape : S} (f : env → X → T fshape) :
   ∀ (m : env) (nodes : list node) (xs : list X),
@@ -497,18 +493,15 @@ begin dunfold graph.to_dist, simp [E_ret] end
 | m (⟨ref, parents, op⟩::nodes) :=
 begin dunfold graph.to_dist, simp [E_bind], apply congr_arg, apply funext, intro x, rw E_move_fn_to_continuation end
 
-lemma E_of_lookup : ∀ {nodes : List node} {inputs : env} {loss : reference} {val : T loss.2},
+lemma E_of_lookup : ∀ {nodes : List Node} {inputs : Env} {loss : Reference} {val : T loss.2},
   loss ∉ map node.ref nodes →
   pdfs_exist_at nodes (env.insert loss val inputs) →
-  E (graph.to_dist (λ (m : env), ⟦env.get loss m⟧) (env.insert loss val inputs) nodes) dvec.head = val
-
-| [] inputs loss val H_loss_unused H_pdfs_exist_at :=
-begin
-dunfold graph.to_dist,
-simp [E_ret],
-dunfold dvec.head,
-rw env.get_insert_same
-end
+  E (graph.to_dist (λ (m : Env) => ⟦env.get loss m⟧) (env.insert loss val inputs) nodes) Dvec.head = val
+| [], inputs, loss, val, H_loss_unused, H_pdfs_exist_at => by
+    unfold graph.toDist
+    simp [E_ret]
+    unfold dvec.head
+    rw [env.get_insert_same]
 
 | (⟨ref, parents, operator.det op⟩::nodes) inputs loss val H_loss_unused H_pdfs_exist_at =>
 begin

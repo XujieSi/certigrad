@@ -479,16 +479,14 @@ theorem dintegral_add_middle {shape : S} : {shapes : List S} →  (pdf : Dvec T 
     simp [λ x => @dintegral_add_middle shape shapes (λ v => pdf (x ::: v)) (λ v => f (x ::: v)) (λ v => g (x :::v)) (Hf.right x) (Hg.right x)]
     rw [integral_add _ _ Hf.left Hg.left]
 
--- theorem dintegral_neg_middle {shape : S} : Π {shapes : list S} (pdf : dvec T shapes → TReal) (f : dvec T shapes → T shape),
---   dintegral (λ (xs : dvec T shapes), pdf xs • - (f xs)) = - dintegral (λ (xs : dvec T shapes), pdf xs • f xs)
--- | [] pdf f := begin dunfold dintegral, apply smul_neg end
+theorem dintegral_neg_middle {shape : S} : {shapes : List S} →  (pdf : Dvec T shapes → TReal) →  (f : Dvec T shapes → T shape) →
+  dintegral (λ (xs : Dvec T shapes) => pdf xs • - (f xs)) = - dintegral (λ (xs : Dvec T shapes) => pdf xs • f xs)
+  | [], pdf, f => by unfold dintegral; apply smul_neg
 
--- | (ds::shapes) pdf f :=
--- begin
--- dunfold dintegral,
--- simp [λ x, @dintegral_neg_middle shapes (λ v, pdf (x ::: v)) (λ v, f (x ::: v))],
--- rw integral_neg
--- end
+  | (ds::shapes), pdf, f => by
+    unfold dintegral
+    simp [λ x => @dintegral_neg_middle shape shapes (λ v => pdf (x ::: v)) (λ v => f (x ::: v))]
+    rw [integral_neg]
 
 -- theorem dintegral_mul (α : TReal) : Π {shapes : list S} (f : dvec T shapes → TReal),
 --   dintegral (λ (xs : dvec T shapes), α * f xs) = α * dintegral (λ xs, f xs) :=
@@ -550,44 +548,51 @@ theorem dintegral_mul_middle (α : TReal) : {shapes : List S} → (f : Dvec T sh
 -- simp [smul_tmulT, dintegral_tmulT]
 -- end
 
--- theorem dintegral_const_middle {yshape : S} :
---   ∀ {shapes : list S} (pdf : dvec T shapes → TReal) (H_pdf_pos : ∀ x, pdf x > 0) (H_pdf_int1 : dintegral pdf = 1) (y : T yshape),
---     dintegral (λ (xs : dvec T shapes), pdf xs • y) = y
--- | [] pdf H_pdf_pos H_pdf_int1 y :=
--- begin
--- dunfold dintegral,
--- dunfold dintegral at H_pdf_int1,
--- rw H_pdf_int1,
--- rw one_smul
--- end
+theorem dintegral_const_middle {yshape : S} :
+  {shapes : List S} →
+    (pdf : Dvec T shapes → TReal) →
+    (H_pdf_pos : ∀ x, pdf x > 0) →
+    (H_pdf_int1 : dintegral pdf = 1) →
+    (y : T yshape) →
+    dintegral (λ xs => pdf xs • y) = y
+| [], pdf, H_pdf_pos, H_pdf_int1, y =>
+  by
+    unfold dintegral
+    unfold dintegral at H_pdf_int1
+    simp [H_pdf_int1, one_smul]
+| (shape :: shapes), pdf, H_pdf_pos, H_pdf_int1, y =>
+  let pdf' : T shape → Dvec T shapes → TReal :=
+    fun x xs => pdf (x ::: xs) / dintegral (fun xs => pdf (x ::: xs))
+  have H_dpos : ∀ x, dintegral (fun xs => pdf (x ::: xs)) > 0 :=
+    fun x => dintegral_pos (fun xs => H_pdf_pos (x ::: xs))
+  have H_pdf'_pos : ∀ x xs, pdf' x xs > 0 :=
+    fun x xs =>
+      let H₁ := H_pdf_pos (x ::: xs)
+      T.div_pos_pos H₁ (H_dpos x)
+  have H_pdf'_int1 : ∀ x, dintegral (pdf' x) = 1 :=
+    fun x =>
+      by
+        rw [T.dintegral_div]
+        exact div_self (H_dpos x)
+  have H_inner₁ : ∀ x, dintegral (fun v => pdf (x ::: v) • y)
+                    = dintegral (fun v => (pdf' x v * dintegral (fun vs => pdf (x ::: vs))) • y) :=
+      by
+        intro x
+        apply congr_arg
+        apply funext
+        intro xs
+        rw [T.div_mul_cancel (H_dpos x)]
+  have H_inner₂ : ∀ x, dintegral (fun v => (pdf' x v * dintegral (fun vs => pdf (x ::: vs))) • y)
+                    = dintegral (fun vs => pdf (x ::: vs)) • dintegral (fun v => pdf' x v • y) :=
+      by
+        intro x
+        simp  [smul_group, mul_comm, dintegral_scale]
 
--- | (shape::shapes) pdf H_pdf_pos H_pdf_int1 y :=
--- let pdf' : T shape → dvec T shapes → TReal := λ x (xs : dvec T shapes), pdf (x ::: xs) / dintegral (λ (xs : dvec T shapes), pdf (x ::: xs)) in
--- have H_dpos : ∀ (x : T shape), dintegral (λ (xs : dvec T shapes), pdf (x ::: xs)) > 0, from λ x, dintegral_pos (λ x, H_pdf_pos _),
--- have H_pdf'_pos : ∀ (x : T shape) (xs : dvec T shapes), pdf' x xs > 0, from
---   assume (x : T shape) (xs : dvec T shapes),
---   have H₁ : pdf (x ::: xs) > 0, by apply H_pdf_pos,
---   T.div_pos_pos H₁ (H_dpos x),
-
--- have H_pdf'_int1 : ∀ (x : T shape), dintegral (pdf' x) = 1, from
---   assume (x : T shape),
---   begin dsimp, rw T.dintegral_div, exact div_self (H_dpos x) end,
-
--- have H_inner₁ : ∀ (x : T shape), dintegral (λ (v : dvec T shapes), pdf (x ::: v) • y)
---                      = dintegral (λ (v : dvec T shapes), (pdf' x v * dintegral (λ (vs : dvec T shapes), pdf (x ::: vs))) • y), from
---   assume (x : T shape),
---   begin dsimp, apply congr_arg, apply funext, intro xs, rw (T.div_mul_cancel (H_dpos _)) end,
-
--- have H_inner₂ : ∀ x, dintegral (λ (v : dvec T shapes), (pdf' x v * dintegral (λ (vs : dvec T shapes), pdf (x ::: vs))) • y)
---                      = dintegral (λ (vs : dvec T shapes), pdf (x ::: vs)) • dintegral (λ (v : dvec T shapes), pdf' x v • y), from
---   assume (x : T shape),
---   begin dsimp, simp [smul_group, dintegral_scale] end,
--- begin
--- dunfold dintegral,
--- simp [H_inner₁, H_inner₂, (λ x, @dintegral_const_middle shapes (pdf' x) (H_pdf'_pos x) (H_pdf'_int1 x)), integral_fscale],
--- change dintegral (λ (vs : dvec T (shape::shapes)), pdf vs) • y = y,
--- rw [H_pdf_int1, one_smul]
--- end
+  by
+    unfold dintegral
+    simp [H_inner₁, H_inner₂, fun x => @dintegral_const_middle yshape shapes (pdf' x) (H_pdf'_pos x) (H_pdf'_int1 x), integral_fscale]
+    change dintegral (fun vs : Dvec T (shape :: shapes) => pdf vs) • y = y
+    rw [H_pdf_int1, one_smul]
 
 -- btw axioms
 
