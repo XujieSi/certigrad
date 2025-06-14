@@ -368,8 +368,9 @@ lemma get_ks_insert_same {ref : Reference} {refs : List Reference} {x : T ref.2}
 --   simp [insert_all]
 
 
--- lemma dvec_update_at_env {refs : List Reference} {idx : ℕ} (m : Env)(h: idx < refs.length) :
---   refs[idx]? = some ref → dvec.update_at (get ref m) (get_ks refs m) idx = get_ks refs m := by
+lemma dvec_update_at_env {refs : List Reference} {idx : ℕ} (m : Env)(h: idx < refs.length) :
+  refs[idx]? = some ref → dvec.update_at (get ref m) (getKs refs m) idx = getKs refs m := by
+    sorry
 --     sorry
   -- intro H_at_idx
   -- induction refs with

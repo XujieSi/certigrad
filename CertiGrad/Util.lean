@@ -414,17 +414,12 @@ def riota : Nat → List Nat
 | 0 => []
 | (n+1) => n :: riota n
 
--- theorem in_riota_lt : ∀ {idx n : Nat}, idx ∈ riota n → idx < n
--- | idx 0     H_mem := false.rec _ (not_mem_nil (riota 0) H_mem)
--- | idx (n+1) H_mem :=
--- begin
--- dsimp [riota, List.mem] at H_mem,
--- cases H_mem with H_idx_eq H_mem,
--- { rw H_idx_eq, apply nat.lt_succ_self },
--- apply nat.lt.step,
--- apply in_riota_lt,
--- exact H_mem
--- end
+theorem in_riota_lt : ∀ {idx n : Nat}, idx ∈ riota n → idx < n
+| idx, 0, H_mem => False.elim (List.not_mem_nil H_mem)
+| idx, n+1, H_mem =>
+  match H_mem with
+  | .head _ => by simp
+  | .tail _ H_mem' => Nat.lt.step (in_riota_lt H_mem')
 
 -- theorem map_compose {X Y Z : Type} (f : X → Y) (g : Y → Z) (xs : List X) : map g (map f xs) = map (λ x, g (f x)) xs := by apply map_map
 
