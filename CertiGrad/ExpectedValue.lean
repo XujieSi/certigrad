@@ -224,18 +224,14 @@ lemma E_pull_out_of_sum {X : Type} {ishapes : List S} {oshape fshape : S}
   | []      ,H_xs => by unfold sumr map; rw [E_const]; exact H_op_pre
   | (x::xs), H_xs =>
     by
-    unfold sumr map
-    simp [E_add]
+    simp [sumr, map]
+    rw [E_add, E_pull_out_of_sum]
     -- unfold sumr map
-    unfold map sumr at H_xs
-    exact (is_eintegrable_add _ _ _ ).mp H_xs
-    exact (is_eintegrable_add _ _ _).mpr H_xs
-    exact (is_eintegrable_add _ _ _).mp H_xs
-    -- exact (iff.mpr (is_eintegrable_add _ _ _) H_xs).right
-    -- exact (iff.mpr (is_eintegrable_add _ _ _) H_xs).left
-    -- exact (iff.mpr (is_eintegrable_add _ _ _) H_xs).right
-    -- exact (is_eintegrable_add _ _ _).mp H_xs
-    -- exact (is_eintegrable_add _ _ _).mp H_xs
+    simp [map, sumr] at H_xs
+    exact H_op_pre
+    exact ((is_eintegrable_add _ _ _ ).mpr H_xs).right
+    exact ((is_eintegrable_add _ _ _).mpr H_xs).left
+    exact ((is_eintegrable_add _ _ _).mpr H_xs).right
 
 lemma E_k_add {shape : S} (k₁ k₂ : Env → T shape) : ∀ (m : Env) (nodes : List Node),
   isGintegrable  (λ m => ⟦k₁ m⟧) m nodes Dvec.head →
@@ -256,9 +252,7 @@ lemma E_k_add {shape : S} (k₁ k₂ : Env → T shape) : ∀ (m : Env) (nodes :
 
 | m, (⟨ref, parents, Operator.rand op⟩::nodes), Hk₁, Hk₂ => by
   simp [graph.toDist, Operator.toDist, E_bind]
-  unfold E
-  unfold T.dintegral
-  dsimp
+  simp [E, T.dintegral]
   dsimp [isGintegrable, Dvec.head] at Hk₁ Hk₂
   erw [← T.integral_add _ _ Hk₁.left Hk₂.left]
   apply (congr_arg T.integral)
@@ -266,6 +260,7 @@ lemma E_k_add {shape : S} (k₁ k₂ : Env → T shape) : ∀ (m : Env) (nodes :
   intro x
   simp [← T.smul_addr]
   simp only [← E_k_add _ _ _ _ (Hk₁.right x) (Hk₂.right x)]
+
 
 
 
@@ -406,16 +401,19 @@ open util_list
 lemma is_gintegrable_of_sumr_map {X : Type} [Inhabited X] {shape : S} (k : Env → X → T shape) (m : Env) (nodes : List Node)
   : ∀ (xs : List X) (H_gint : isGintegrable (λ (m : Env) => ⟦sumr (map (k m) xs)⟧) m nodes Dvec.head) (x : X), x ∈ xs →
       isGintegrable (λ (m : Env) => ⟦k m x⟧) m nodes Dvec.head
-| [], _, _, H_in => by
-    simp only [not_mem_nil] at H_in
-    exact H_in
+| [], _, x, H_in => by
+   exfalso
+   have : False := List.not_mem_nil  H_in
+   exact this
 
 | (x::xs), H_gint, y, H_in => by
     unfold sumr map at H_gint
-    cases ( List.mem_cons.mp H_in) with H_eq H_in_rec
-    . subst H_eq
-      exact (is_gintegrable_k_add _ _ _ _).mp H_gint
-    . apply is_gintegrable_of_sumr_map xs (is_gintegrable_k_add _ _ _ _).mp H_gint y H_in_rec
+    match List.mem_cons.mp H_in with
+    | .inl H_eq =>
+        subst H_eq
+        exact ((is_gintegrable_k_add _ _ _ _).mpr H_gint).left
+    | .inr H_in_rec =>
+        apply is_gintegrable_of_sumr_map _ _  _ xs ((is_gintegrable_k_add _ _ _ _).mpr H_gint).right y H_in_rec
 
 namespace E
 open sprog List
@@ -534,13 +532,13 @@ lemma E_of_lookup : ∀ {nodes : List Node} {inputs : Env} {loss : Reference} {v
   have H_loss_neq_ref : loss ≠ ref := ne_of_not_mem_cons H_loss_unused
   have H_loss_unused_next : loss ∉ map Node.ref nodes := not_mem_of_not_mem_cons H_loss_unused
   have H_inside : E (sprog.prim op (env.getKs parents (env.insert loss val inputs)))
-    (λ (x_1 : Dvec T [ref.snd]) =>
+    (fun (x : Dvec T [ref.2]) =>
        E
-         (graph.toDist (λ (m : Env) => ⟦env.get loss m⟧)
-            (env.insert ref (Dvec.head x_1) (env.insert loss val inputs))
+         (graph.toDist (fun (m : Env) => ⟦env.get loss m⟧)
+            (env.insert ref (Dvec.head x) (env.insert loss val inputs))
             nodes)
          Dvec.head) = E (sprog.prim op (env.getKs parents (env.insert loss val inputs)))
-    (λ (x_1 : Dvec T [ref.snd]) => val) := by
+    (fun (x : Dvec T [ref.2]) => val) := by
         apply congr_arg
         apply funext
         intro x
@@ -550,19 +548,17 @@ lemma E_of_lookup : ∀ {nodes : List Node} {inputs : Env} {loss : Reference} {v
         dsimp [pdfsExistAt] at H_pdfs_exist_at_next
         rw [env.insert_insert_flip _ _ _ (Ne.symm H_loss_neq_ref)] at H_pdfs_exist_at_next
         exact (E_of_lookup H_loss_unused_next H_pdfs_exist_at_next)
-
-  rw [H_inside]
+  -- Note: We use `erw` instead of `rw` here because `erw` is more flexible: `erw h` allows the types on both sides of the equality to differ, and Lean will automatically insert `eq.rec` (dependent equality transport) to resolve type mismatches.
+  -- Note: There may be an implicit argument matching failure here when using `rw`
+  erw [H_inside]
   clear H_inside
   unfold E T.dintegral Dvec.head
-  dsimp
-  rw [T.integral_fscale]
-
+  erw [T.integral_fscale]
   have H_pdf_1 : ∫ (λ (x : T (ref.snd)) => rand.op.pdf op (env.getKs parents (env.insert loss val inputs)) (Dvec.head ⟦x⟧)) = 1 := by
     exact op.pdf_int1 _ H_pdfs_exist_at.left
 
   unfold Dvec.head at H_pdf_1
-  rw [H_pdf_1]
-  rw [T.one_smul]
+  rw [H_pdf_1,T.one_smul]
 
 
 end E

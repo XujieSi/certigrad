@@ -1,3 +1,4 @@
+     567 ExpectedValue.lean
      136 Predicates.lean
      117 RunUtils.lean    
       95 ComputeGrad.lean
@@ -26,17 +27,17 @@
 
      132 examples.nolean
 
-      49 backprop_correct.lean  <--- g11: final goal, just one theorem
+      49 backprop_correct.lean  <--- g4: final goal, just one theorem
 
-     556 prove_model_ok.lean  <--- g5
-     223 lemmas_extra.lean    <--- g5
-     435 compute_grad_slow_correct.lean  <--- g4 (can be done right after estimators.lean)
-     143 memoize_correct.lean            <--- g4
-     200 reparam.lean                    <--- g4 one general high-level theorem (with few lemmas)
-     482 kl.lean                         <--- g4
-    1016 lemmas.lean       <--- g3
-     253 estimators.lean   <--- g3
-     545 expected_value.lean  <--- g2
+     556 prove_model_ok.lean  <--- g3
+     223 lemmas_extra.lean    <--- g3
+     435 compute_grad_slow_correct.lean  <--- g2 (can be done right after estimators.lean)
+     143 memoize_correct.lean            <--- g2
+     200 reparam.lean                    <--- g2 one general high-level theorem (with few lemmas)
+     482 kl.lean                         <--- g2
+    1016 lemmas.lean       <--- g1
+     253 estimators.lean   <--- g1
+     
      
      
       
