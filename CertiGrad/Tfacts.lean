@@ -530,23 +530,20 @@ theorem dintegral_mul_middle (α : TReal) : {shapes : List S} → (f : Dvec T sh
   rw [dintegral_scale_middle α f g]
   simp [smul_scalar]
 
--- theorem dintegral_tmulT  {shape₁ shape₂ : S} (M : T (shape₁ ++ shape₂)) : Π {shapes : list S} (f : dvec T shapes → T shape₂),
---   dintegral (λ (xs : dvec T shapes), tmulT M (f xs)) = tmulT M (dintegral (λ xs, f xs))
--- | []           f := rfl
+theorem dintegral_tmulT  {shape₁ shape₂ : S} (M : T (shape₁ ++ shape₂)) : {shapes : List S} → (f : Dvec T shapes → T shape₂) →
+  dintegral (λ (xs : Dvec T shapes) => tmulT M (f xs)) = tmulT M (dintegral (λ xs => f xs))
+  | [], f => by rfl
 
--- | (ds::shapes) f :=
--- begin
--- dunfold dintegral,
--- simp [λ x, @dintegral_tmulT shapes (λ v, f (x ::: v))],
--- rw integral_tmulT
--- end
+  | (ds::shapes), f => by
+    unfold dintegral
+    simp [λ x => @dintegral_tmulT shape₁ shape₂ M shapes (λ v => f (x ::: v))]
+    rw [integral_tmulT]
 
--- theorem dintegral_tmulT_middle {shape₁ shape₂ : S} (M : T (shape₁ ++ shape₂)) : Π {shapes : list S} (f : dvec T shapes → TReal) (g : dvec T shapes → T shape₂),
---   dintegral (λ (xs : dvec T shapes), f xs • (tmulT M (g xs))) = tmulT M (dintegral (λ xs, f xs • g xs)) :=
--- begin
--- intros shapes f g,
--- simp [smul_tmulT, dintegral_tmulT]
--- end
+theorem dintegral_tmulT_middle {shape₁ shape₂ : S} (M : T (shape₁ ++ shape₂)) : {shapes : List S} → (f : Dvec T shapes → TReal) → (g : Dvec T shapes → T shape₂) →
+  dintegral (λ (xs : Dvec T shapes) => f xs • (tmulT M (g xs))) = tmulT M (dintegral (λ xs => f xs • g xs)) := by
+  intros shapes f g
+  simp [smul_tmulT]
+  rw [dintegral_tmulT]
 
 theorem dintegral_const_middle {yshape : S} :
   {shapes : List S} →
