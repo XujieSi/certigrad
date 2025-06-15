@@ -392,12 +392,29 @@ lemma dvec_update_at_env {refs : List Reference} {idx : ℕ} (m : Env)(h: idx < 
       -- simp [dif_ctx_simp_congr, dif_pos]
 
 
-lemma dvec_get_get_ks {refs : List Reference} {idx : ℕ} {h: idx < refs.length}(m : Env):
-      refs[idx]? = some ref  →
-      dvec.get ref.2 _ (getKs refs m) idx = get ref m:= by sorry
+open util_list
+lemma dvec_get_get_ks {refs : List Reference} {idx : ℕ} {ref : Reference} (m : Env) :
+      at_idx refs idx ref →
+      dvec.get ref.2 _ (env.getKs refs m) idx = get ref m := by sorry
 
 --       intro H_at_idx
 --       have H_elem_at_idx : List.elem_at_idx refs idx ref :=  exact list.elem_at_idx_of_at_idx H_at_idx
 --       induction H_elem_at_idx with xs x xs idx' x y H_elem_at_idx IH
 --       { dunfold get_ks, erw dvec.get.equations._eqn_2, simp [dif_ctx_simp_congr, dif_pos] }
 --       { dunfold get_ks, erw dvec.get.equations._eqn_3, exact IH (list.at_idx_of_cons H_at_idx) }
+
+end env
+
+
+namespace T
+open util_list
+axiom continuous_multiple_args :
+  ∀ (parents : List Reference) (oshape : S) (tgt : Reference) (m : Env)
+    (f : Dvec T parents.p2 → T oshape) (θ : T tgt.2),
+    (∀ (idx : ℕ), at_idx parents idx tgt →
+    is_continuous (λ θ₀ => f (dvec.update_at θ₀ (env.getKs parents (env.insert tgt θ m)) idx)) θ)
+    →
+    is_continuous (λ θ₀ => f (env.getKs parents (env.insert tgt θ₀ m))) θ
+
+end T
+end certigrad

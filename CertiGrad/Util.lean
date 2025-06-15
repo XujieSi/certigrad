@@ -459,19 +459,20 @@ inductive elem_at_idx {X : Type} : (xs : List X) →  (idx : Nat) → (x : X) �
   | base : ∀ (xs : List X) (x : X), elem_at_idx (x::xs) 0 x
   | step : ∀ (xs : List X) (x y : X) (idx : Nat), elem_at_idx xs idx y → elem_at_idx (x::xs) (idx+1) y
 
--- theorem elem_at_idx_of_at_idx {X : Type} [Inhabited X] : ∀ {xs : List X} {idx : Nat} {x : X},
---   at_idx xs idx x → elem_at_idx xs idx x
--- | [] _ _ H_at_idx := false.rec _ (nat.not_lt_zero _ H_at_idx^.left)
--- | (x::xs) 0       x₀ H_at_idx := by { dsimp [at_idx, dnth] at H_at_idx, rw H_at_idx^.right, constructor }
--- | (x::xs) (idx+1) x₀ H_at_idx :=
--- begin
--- dsimp [at_idx, dnth] at H_at_idx,
--- apply elem_at_idx.step,
--- apply elem_at_idx_of_at_idx,
--- apply and.intro,
--- exact nat.lt_of_succ_lt_succ H_at_idx^.left,
--- exact H_at_idx^.right
--- end
+theorem elem_at_idx_of_at_idx {X : Type} [Inhabited X] : ∀ {xs : List X} {idx : Nat} {x : X},
+  at_idx xs idx x → elem_at_idx xs idx x
+| [], _, _, H_at_idx => False.elim (Nat.not_lt_zero _ H_at_idx.left)
+| (x::xs), 0, x₀, H_at_idx =>
+    by
+      dsimp [at_idx, dnth] at H_at_idx
+      rw [H_at_idx.right]
+      exact elem_at_idx.base _ _
+| (x::xs), idx+1, x₀, H_at_idx =>
+    by
+      dsimp [at_idx, dnth] at H_at_idx
+      apply elem_at_idx.step
+      apply elem_at_idx_of_at_idx
+      exact ⟨Nat.lt_of_succ_lt_succ H_at_idx.left, H_at_idx.right⟩
 
 -- theorem at_idx_0 {α : Type*} [Inhabited α] {x : α} {xs : List α} : at_idx (x::xs) 0 x :=
 -- begin dunfold at_idx, split, exact nat.zero_lt_succ (length xs), reflexivity end
@@ -512,18 +513,18 @@ inductive elem_at_idx {X : Type} : (xs : List X) →  (idx : Nat) → (x : X) �
 -- apply p1_dnth
 -- end
 
--- theorem at_idx_p2 {α β : Type} [Inhabited α] [Inhabited β] {xs : List (α × β)} {x : α × β} {idx : Nat} :
---   at_idx xs idx x → at_idx xs^.p2 idx x.2 :=
--- begin
--- intro H_at_idx,
--- cases H_at_idx with H_lt H_eq,
--- apply and.intro,
--- rw length_p2_same, exact H_lt,
--- rw H_eq,
--- apply p2_dnth
--- end
+theorem at_idx_p2 {α β : Type} [Inhabited α] [Inhabited β] {xs : List (α × β)} {x : α × β} {idx : Nat} :
+  at_idx xs idx x → at_idx xs.p2 idx x.2 :=
+   by
+    intro H_at_idx
+    let ⟨H_lt, H_eq⟩ := H_at_idx
+    apply And.intro
+    rw [length_p2_same]
+    exact H_lt
+    rw [H_eq]
+    apply p2_dnth
 
--- theorem mem_of_at_idx {α : Type*} [Inhabited α] {x : α} {xs : List α} {idx : Nat} : at_idx xs idx x → x ∈ xs :=
+-- lemma mem_of_at_idx {α : Type*} [inhabited α] {x : α} {xs : list α} {idx : ℕ} : at_idx xs idx x → x ∈ xs :=
 -- begin
 -- intro H_at_idx,
 -- assert H_elem_at_idx : elem_at_idx xs idx x, { exact elem_at_idx_of_at_idx H_at_idx },
@@ -533,6 +534,19 @@ inductive elem_at_idx {X : Type} : (xs : List X) →  (idx : Nat) → (x : X) �
 -- apply mem_cons_of_mem,
 -- exact IH
 -- end
+
+
+lemma mem_of_at_idx {α : Type} [Inhabited α] {x : α} {xs : List α} {idx : Nat} :
+  at_idx xs idx x → x ∈ xs := by
+  intro H_at_idx
+  have H_elem_at_idx : elem_at_idx xs idx x := elem_at_idx_of_at_idx H_at_idx
+  clear H_at_idx
+  induction H_elem_at_idx with
+  | base xs x =>
+    exact @List.mem_cons_self _ x xs
+  | step xs y x idx' H_elem_at_idx IH =>
+    exact List.mem_cons_of_mem y (IH)
+
 
 theorem at_idx_over {X : Type} [Inhabited X] {xs : List X} {idx : Nat} {x : X} : at_idx xs idx x → ¬ (idx < xs.length) → False := by
   intro H_at_idx H_idx_big
@@ -639,21 +653,34 @@ theorem mem_of_cons_same {α : Type} {x : α} {xs : List α} : x ∈ x::xs := by
 -- have H_nd'''' : nodup (xs ++ ys), from nodup_of_nodup_cons H_nd''',
 -- nodup_middle (nodup_cons (not_mem_append H₁_nin₁ H₁_nin₂) H_nd'''')
 
--- theorem map_filter_congr {α β : Type*} {f g : α → β} {p : α → Prop} [decidable_pred p] :
---   ∀ {xs : List α}, (∀ x, x ∈ xs → p x → f x = g x) → map f (filter p xs) = map g (filter p xs)
--- | []      H := rfl
--- | (x::xs) H :=
--- begin
--- dsimp [map, filter],
--- assert H_px_em : p x ∨ ¬ (p x), { exact decidable.em _ },
--- cases H_px_em,
--- { simph, apply congr_arg, apply map_filter_congr,
---   intros y H_y_in_xs H_py,
---   exact H y (mem_cons_of_mem _ H_y_in_xs) H_py },
--- { simph, apply map_filter_congr,
---   intros y H_y_in_xs H_py,
---   exact H y (mem_cons_of_mem _ H_y_in_xs) H_py }
--- end
+open List
+theorem map_filter_congr {α β : Type} {f g : α → β} {p : α → Prop} [DecidablePred p] :
+  ∀ {xs : List α}, (∀ x, x ∈ xs → p x → f x = g x) → map f (filter p xs) = map g (filter p xs)
+| [],H => by rfl
+| (x::xs), H => by
+  dsimp [List.map, List.filter]
+  have H_px_em : p x ∨ ¬ (p x) :=  Decidable.em _
+  cases H_px_em
+  case inl Hpx =>
+    simp [Hpx]
+    constructor
+    ·
+      apply H
+      · apply List.mem_cons_self
+      · exact Hpx
+    ·
+      intros a Ha Hpa
+      apply H
+      · apply List.mem_cons_of_mem
+        exact Ha
+      · exact Hpa
+  case inr Hnpx =>
+    simp [Hnpx]
+    intros a Ha Hpa
+    apply H
+    · apply List.mem_cons_of_mem
+      exact Ha
+    · exact Hpa
 
 -- theorem filter_congr {α : Type*} {p q : α → Prop} [decidable_pred p] [decidable_pred q] :
 --   ∀ {xs : List α}, (∀ x, x ∈ xs → (p x ↔ q x)) → filter p xs = filter q xs

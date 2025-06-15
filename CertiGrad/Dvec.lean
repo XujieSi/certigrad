@@ -74,7 +74,7 @@ def get {X : Type} [DecidableEq X] {Y : X → Type} (x₀ : X) [Inhabited (Y x�
 --     (default :(Y x₀))
 -- | (x::xs), (dcons y ys), (n+1) => get x₀ xs ys n
 
--- theorem singleton_congr {X : Type} {Y : X → Type} {x : X} (y₁ y₂ : Y x) : y₁ = y₂ → ⟦y₁⟧ = ⟦y₂⟧ := assume H, by rw H
+theorem singleton_congr {X : Type} {Y : X → Type} {x : X} (y₁ y₂ : Y x) : y₁ = y₂ → ⟦y₁⟧ = ⟦y₂⟧ := by intro H; rw [H]
 
 -- theorem get₀_head {X : Type} [DecidableEq X] {Y : X → Type} (x₀ : X) [Inhabited (Y x₀)] :
 --   ∀ {xs : List X} (ys : Dvec Y (x₀::xs)), get x₀ ys 0 = head ys

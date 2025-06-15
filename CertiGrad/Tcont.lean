@@ -127,14 +127,6 @@ lemma continuous_scale_f {ishape oshape : S} (α : TReal) (f : T ishape → T os
 -- Note: this could be proved from the `select`/`replicate` formulation,
 -- but it is arguably a more natural way of axiomatizing the property.
 
--- axiom continuous_multiple_args :
---   ∀ (parents : List Reference) (oshape : S) (tgt : Reference) (m : env)
---     (f : dvec T parents^.p2 → T oshape) (θ : T tgt.2),
---     (∀ (idx : ℕ), at_idx parents idx tgt →
---     is_continuous (λ θ₀ => f (dvec.update_at θ₀ (env.get_ks parents (env.insert tgt θ m)) idx)) θ)
---     →
---     is_continuous (λ θ₀ => f (env.get_ks parents (env.insert tgt θ₀ m))) θ
-
 end T
 
 -- section tactic
