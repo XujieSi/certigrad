@@ -416,5 +416,10 @@ axiom continuous_multiple_args :
     →
     is_continuous (λ θ₀ => f (env.getKs parents (env.insert tgt θ₀ m))) θ
 
+axiom is_cdifferentiable_multiple_args {fshape : S} (tgt : Reference) (parents : List Reference) (m : Env) (f : Dvec T parents.p2 → T fshape)
+                                      (θ : T tgt.2) (k : T fshape → TReal) :
+   (∀ (idx : ℕ) (H_idx_in_riota: idx ∈ riota parents.length) (H_tgt_eq_dnth_idx : tgt = dnth parents idx),
+    is_cdifferentiable (λ θ₀ => k (f (dvec.update_at θ₀ (env.getKs parents (env.insert tgt θ m)) idx))) θ) →
+    is_cdifferentiable (λ θ₀ => k (f (env.getKs parents (env.insert tgt θ₀ m)))) θ
 end T
 end certigrad
