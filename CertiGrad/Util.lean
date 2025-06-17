@@ -568,13 +568,11 @@ theorem mem_of_cons_same {α : Type} {x : α} {xs : List α} : x ∈ x::xs := by
 
 -- def dnth_all {A : Type} [Inhabited A] (idxs : List Nat) (xs : List A) : List A := map (λ idx, dnth xs idx) idxs
 
--- theorem mem_not_mem_neq {X : Type*} {x₁ x₂ : X} {xs : List X} : x₁ ∈ xs → x₂ ∉ xs → x₁ ≠ x₂ :=
--- begin
--- intros H_in H_nin,
--- intro H_eq,
--- subst H_eq,
--- exact H_nin H_in
--- end
+theorem mem_not_mem_neq {X : Type*} {x₁ x₂ : X} {xs : List X} : x₁ ∈ xs → x₂ ∉ xs → x₁ ≠ x₂ := by
+  intro H_in H_nin
+  intro H_eq
+  subst H_eq
+  exact H_nin H_in
 
 -- theorem nodup_cons_neq {X : Type} {x₁ x₂ : X} {xs : List X} : x₂ ∈ xs → nodup (x₁ :: xs) → x₁ ≠ x₂ :=
 -- assume H_in H_nd,
