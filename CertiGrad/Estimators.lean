@@ -11,6 +11,7 @@ import CertiGrad.Id
 import CertiGrad.Graph
 import CertiGrad.ExpectedValue
 import CertiGrad.Tfacts
+import CertiGrad.Dvec
 
 namespace certigrad
 namespace Estimators
@@ -69,158 +70,187 @@ by
   apply T.grad_scale_f
 
 open util_list
+
+
+
+
 lemma hybrid_general {parents : List Reference} {tgt : Reference} {oshape : S} (m : Env)
-  (H_tgt_in_inputs : env.hasKey tgt m)
-  (op : rand.op parents.p2 oshape)
-  (H_op_pre : op.pre (env.getKs parents m))
-  (f : T oshape → T tgt.2 → TReal)
-  (θ : T tgt.2) (H_θ : θ = env.get tgt m)
-  (H_f_diff : ∀ (x : T oshape), T.is_cdifferentiable (f x) θ)
-  (H_f_uint : T.is_uniformly_integrable_around (λ (θ₀ : T (tgt.snd)) (x : T oshape) => rand.op.pdf op (env.getKs parents (env.insert tgt θ m)) x • f x θ₀) θ)
-  (H_f_grad_uint : T.is_uniformly_integrable_around (λ (θ₀ : T (tgt.snd)) (x : T oshape) => ∇ (λ (θ₁ : T (tgt.snd)) => rand.op.pdf op (env.getKs parents (env.insert tgt θ m)) x • f x θ₁) θ₀) θ)
-
-  (H_d'_pdf_diff : ∀ {idx : ℕ}, at_idx parents idx tgt →
-       ∀ (v : T oshape), T.is_cdifferentiable (λ (x₀ : T (tgt.snd))=> rand.op.pdf op (dvec.update_at x₀ (env.getKs parents (env.insert tgt θ m)) idx) v) θ)
-
-  (H_d'_uint : ∀ {idx : ℕ}, at_idx parents idx tgt →
-          T.is_uniformly_integrable_around (λ (θ₀ : T (tgt.snd)) (x : T oshape)=>
-            rand.op.pdf op (dvec.update_at θ₀ (env.getKs parents (env.insert tgt θ m)) idx) x • f x θ) θ)
-  (H_d'_grad_uint : ∀ {idx : ℕ}, at_idx parents idx tgt →
-            T.is_uniformly_integrable_around (λ (θ₀ : T (tgt.snd)) (x : T oshape) =>
-               ∇ (λ (θ₀ : T (tgt.snd)) => rand.op.pdf op (dvec.update_at θ₀ (env.getKs parents (env.insert tgt θ m)) idx) x • f x θ) θ₀) θ)
-  :
-  let g : Dvec T parents.p2 → T tgt.2 → TReal := (λ (xs : Dvec T parents.p2) (θ : T tgt.2) => E (sprog.prim op xs) (λ (y : Dvec T [oshape]) => f y.head θ))
-
-  ∀ (H_diff₁ : T.is_cdifferentiable (λ (θ₀ : T (tgt.snd))=> g (env.getKs parents (env.insert tgt θ m)) θ₀) θ)
-  (H_diff₂ : T.is_cdifferentiable (λ (θ₀ : T (tgt.snd))=>sumr (map (λ (idx : ℕ) => g (dvec.update_at θ₀ (env.getKs parents (env.insert tgt θ m)) idx) θ)
-                                  (filter (λ (idx : ℕ) => tgt = dnth parents idx) (riota (length parents))))) θ)
-
-  (H_int₁ : E.is_eintegrable (sprog.prim op (env.getKs parents (env.insert tgt θ m))) (λ (x : Dvec T [oshape]) => ∇ (f x.head) θ))
-  (H_int₂ : E.is_eintegrable (sprog.prim op (env.getKs parents (env.insert tgt θ m)))
-                (λ (x : Dvec T [oshape])=> sumr (map (λ (idx : ℕ) => f x.head θ • ∇ (λ (θ₀ : T (tgt.snd)) => T.log (rand.op.pdf op (dvec.update_at θ₀ (env.getKs parents (env.insert tgt θ m)) idx) (Dvec.head x))) θ) (filter (λ (idx : ℕ) => tgt = dnth parents idx) (riota (length parents)))))),
-
-∇ (λ θ₀ => E (sprog.prim op (env.getKs parents (env.insert tgt θ₀ m))) (λ x₀ => f x₀.head θ₀)) θ
+    (h_tgt_in_inputs : env.hasKey tgt m)
+    (op : rand.op parents.p2 oshape)
+    (h_op_pre : op.pre (env.getKs parents m))
+    (f : T oshape → T tgt.2 → TReal)
+    (θ : T tgt.2) (h_θ : θ = env.get tgt m)
+    (h_f_diff : ∀ (x : T oshape), T.is_cdifferentiable (f x) θ)
+    (h_f_uint : T.is_uniformly_integrable_around (fun (θ₀ : T (tgt.snd)) (x : T oshape) => rand.op.pdf op (env.getKs parents (env.insert tgt θ m)) x • f x θ₀) θ)
+    (h_f_grad_uint : T.is_uniformly_integrable_around (fun (θ₀ : T (tgt.snd)) (x : T oshape) => ∇ (fun (θ₁ : T (tgt.snd)) => rand.op.pdf op (env.getKs parents (env.insert tgt θ m)) x • f x θ₁) θ₀) θ)
+    (h_d'_pdf_diff : ∀ {idx : ℕ}, at_idx parents idx tgt →
+           ∀ (v : T oshape), T.is_cdifferentiable (fun (x₀ : T (tgt.snd)) => rand.op.pdf op (dvec.update_at x₀ (env.getKs parents (env.insert tgt θ m)) idx) v) θ)
+    (h_d'_uint : ∀ {idx : ℕ}, at_idx parents idx tgt →
+                    T.is_uniformly_integrable_around (fun (θ₀ : T (tgt.snd)) (x : T oshape)=>
+                        rand.op.pdf op (dvec.update_at θ₀ (env.getKs parents (env.insert tgt θ m)) idx) x • f x θ) θ)
+    (h_d'_grad_uint : ∀ {idx : ℕ}, at_idx parents idx tgt →
+                        T.is_uniformly_integrable_around (fun (θ₀ : T (tgt.snd)) (x : T oshape) =>
+                             ∇ (fun (θ₀ : T (tgt.snd)) => rand.op.pdf op (dvec.update_at θ₀ (env.getKs parents (env.insert tgt θ m)) idx) x • f x θ) θ₀) θ)
+    :
+    let g : Dvec T parents.p2 → T tgt.2 → TReal := (fun (xs : Dvec T parents.p2) (θ : T tgt.2) => E (sprog.prim op xs) (fun (y : Dvec T [oshape]) => f y.head θ))
+    ∀ (h_diff₁ : T.is_cdifferentiable (fun (θ₀ : T (tgt.snd)) => g (env.getKs parents (env.insert tgt θ m)) θ₀) θ)
+    (h_diff₂ : T.is_cdifferentiable (fun (θ₀ : T (tgt.snd)) => sumr (map (fun (idx : ℕ) => g (dvec.update_at θ₀ (env.getKs parents (env.insert tgt θ m)) idx) θ)
+                                                                    (filter (fun (idx : ℕ) => tgt = dnth parents idx) (riota (length parents))))) θ)
+    (h_int₁ : E.is_eintegrable (sprog.prim op (env.getKs parents (env.insert tgt θ m))) (fun (x : Dvec T [oshape]) => ∇ (f x.head) θ))
+    (h_int₂ : E.is_eintegrable (sprog.prim op (env.getKs parents (env.insert tgt θ m)))
+                              (fun (x : Dvec T [oshape]) => sumr (map (fun (idx : ℕ) => f x.head θ • ∇ (fun (θ₀ : T (tgt.snd)) => T.log (rand.op.pdf op (dvec.update_at θ₀ (env.getKs parents (env.insert tgt θ m)) idx) (Dvec.head x))) θ) (filter (fun (idx : ℕ) => tgt = dnth parents idx) (riota (length parents)))))),
+∇ (fun θ₀ => E (sprog.prim op (env.getKs parents (env.insert tgt θ₀ m))) (fun x₀ => f x₀.head θ₀)) θ
 =
 E (sprog.prim op (env.getKs parents (env.insert tgt θ m)))
-  (λ x₀ => ∇ (λ θ₀ => f x₀.head θ₀) θ
-  + sumr (map (λ idx =>
-        f x₀.head θ • ∇ (λ θ₀ => T.log (op.pdf (dvec.update_at θ₀ (env.getKs parents (env.insert tgt θ m)) idx) x₀.head)) θ)
-       (filter (λ idx => tgt = dnth parents idx) (riota $ length parents)))) :=
-let g : Dvec T parents.p2 → T tgt.2 → TReal := (λ xs θ => E (sprog.prim op xs) (λ y => f y.head θ))
-fun H_diff₁ H_diff₂ H_int₁ H_int₂ =>
+  (fun x₀ => ∇ (fun θ₀ => f x₀.head θ₀) θ
+  + sumr (map (fun (idx : ℕ) =>
+                f x₀.head θ • ∇ (fun θ₀ => T.log (op.pdf (dvec.update_at θ₀ (env.getKs parents (env.insert tgt θ m)) idx) x₀.head)) θ)
+             (filter (fun idx => tgt = dnth parents idx) (riota $ length parents)))) := by
 
-have H_term₁ :
-∇ (λ (θ₀ : T tgt.2) =>
-  E (sprog.prim op (env.getKs parents (env.insert tgt θ m)))
-    (λ (y : Dvec T [oshape]) => f y.head θ₀))
-   θ
-=
-E (sprog.prim op (env.getKs parents (env.insert tgt θ m)))
-  (λ (x₀ : Dvec T [oshape]) => ∇ (λ (θ₀ : T tgt.2) => f x₀.head θ₀) θ) :=
-  pathwise _ _ _ H_f_diff H_f_uint H_f_grad_uint
+  -- let g : Dvec T parents.p2 → T tgt.2 → TReal := (λ (xs : Dvec T parents.p2) (θ : T tgt.2) => E (sprog.prim op xs) (λ (y : Dvec T [oshape]) => f y.head θ))
+  let g : Dvec T parents.p2 → T tgt.2 → TReal := (fun (xs : Dvec T parents.p2) (θ : T tgt.2) => E (sprog.prim op xs) (fun (y : Dvec T [oshape]) => f y.head θ))
+  intro _ h_diff₁ h_diff₂ h_int₁ h_int₂
+  set ks' : Dvec T parents.p2 := env.getKs parents (env.insert tgt θ m)
+  set ksDist := sprog.prim op ks'
 
-suffices H_suffices :
-sumr (map (λ (idx : ℕ) =>
-            ∇ (λ (θ₀ : T tgt.2) =>
-                E (sprog.prim op (dvec.update_at θ₀ (env.getKs parents (env.insert tgt θ m)) idx))
-                  (λ (y : Dvec T [oshape]) => f y.head θ))
-              θ)
-         (filter (λ (idx : ℕ) => tgt = dnth parents idx) (riota (length parents))))
-=
-E (sprog.prim op (env.getKs parents (env.insert tgt θ m)))
-  (λ (x₀ : Dvec T [oshape])=>
-    sumr (map (λ (idx : ℕ) =>
-               f x₀.head θ •  ∇ (λ (θ₀ : T tgt.2) => T.log (op.pdf (dvec.update_at θ₀ (env.getKs parents (env.insert tgt θ m)) idx) x₀.head)) θ)
-             (filter (λ (idx : ℕ) => tgt = dnth parents idx) (riota (length parents)))))
-             by
-              rw [H_term₁]
-              apply congr_arg
-              exact H_suffices
+  show
+    ∇ (λ (θ₀ : T tgt.2) => g (env.getKs parents (env.insert tgt θ₀ m)) θ₀) θ = E ksDist
+    (λ (x₀ : Dvec T [oshape]) => ∇ (λ (θ₀ : T tgt.2) => f x₀.head θ₀) θ
+    + sumr (map (λ (idx : ℕ) =>
+                  f x₀.head θ • ∇ (λ (θ₀ : T tgt.2) => T.log (op.pdf (dvec.update_at θ₀ ks' idx) x₀.head)) θ)
+               (filter (fun idx => tgt = dnth parents idx) (riota $ length parents))))
+  suffices h_suffices :
+        ∇ (λ (θ₀ : T tgt.2) => E ksDist (λ (x₀ : Dvec T [oshape]) => f x₀.head θ₀)) θ
+      +
+      sumr (map (λ (idx : ℕ) =>
+                  ∇ (λ (θ₀ : T tgt.2) =>
+                      E (sprog.prim op (dvec.update_at θ₀ ks' idx))
+                        (λ (y : Dvec T [oshape]) => f y.head θ))
+                    θ)
+              (filter (λ (idx : ℕ) => tgt = dnth parents idx) (riota (length parents))))
+      = E ksDist (λ (x₀ : Dvec T [oshape]) => ∇ (f x₀.head) θ) +
+      E ksDist
+        (λ (x₀ : Dvec T [oshape]) =>
+          sumr (map (fun (idx : ℕ) =>
+                    f x₀.head θ •  ∇ (fun (θ₀ : T tgt.2) =>
+                    T.log (op.pdf (dvec.update_at θ₀ ks' idx) x₀.head)) θ)
+                  (filter (fun (idx : ℕ) => tgt = dnth parents idx) (riota (length parents)))))
+                  by
+                    rw [T.multiple_args_general]
+                    simp only [g]
+                    rw [E.E_add _ _ _ h_int₁ h_int₂]
+                    exact h_suffices
+                    exact h_diff₁
+                    exact h_diff₂
 
-suffices H_suffices :
-sumr (map (λ (idx : ℕ) =>
-            ∇ (λ (θ₀ : T tgt.2) => E (sprog.prim op (dvec.update_at θ₀ (env.getKs parents (env.insert tgt θ m)) idx))
-                  (λ (y : Dvec T [oshape]) => f y.head θ))
-              θ)
-         (filter (λ (idx : ℕ) => tgt = dnth parents idx) (riota (length parents))))
-=
-sumr (map (λ (x : ℕ) =>
-           E (sprog.prim op (env.getKs parents (env.insert tgt θ m)))
-             (λ (y : Dvec T [oshape]) =>
-               f y.head θ •  ∇ (λ (θ₀ : T tgt.2) =>
-                            T.log (op.pdf (dvec.update_at θ₀ (env.getKs parents (env.insert tgt θ m)) x) y.head)) θ)
-         (filter (λ (idx : ℕ) => tgt = dnth parents idx) (riota (length parents)))))
-         by
-          rw [← E.E_pull_out_of_sum _ _ _ _ _ H_int₂]
-          exact H_suffices
-          rw [H_θ]
-          rw [env.insert_get_same H_tgt_in_inputs, exact H_op_pre]
+  have h_term₁ :
+    ∇ (fun (θ₀ : T tgt.2) =>
+        E (sprog.prim op ks')
+          (fun (y : Dvec T [oshape]) => f y.head θ₀))
+      θ
+    =
+    E (sprog.prim op ks')
+      (fun (x₀ : Dvec T [oshape]) => ∇ (fun (θ₀ : T tgt.2) => f x₀.head θ₀) θ) := by
+    apply pathwise _ _ _ h_f_diff h_f_uint h_f_grad_uint
 
-suffices H_suffices :
-∀ (idx : ℕ), idx ∈ riota (length parents) → tgt = dnth parents idx →
-∇ (λ (θ₀ : T tgt.2) =>
-    E (sprog.prim op (dvec.update_at θ₀ (env.getKs parents (env.insert tgt θ m)) idx))
-      (λ (y : Dvec T [oshape]) => f y.head θ))
-  θ
-=
-E (sprog.prim op (env.getKs parents (env.insert tgt θ m)))
-  (λ (y : Dvec T [oshape]) =>
-      f y.head θ • ∇ (λ (θ₀ : T tgt.2)=>
-                 T.log (op.pdf (dvec.update_at θ₀ (env.getKs parents (env.insert tgt θ m)) idx) y.head)) θ)
-  by
+  suffices h_suffices :
+    sumr (map (fun (idx : ℕ) =>
+                ∇ (fun (θ₀ : T tgt.2) =>
+                    E (sprog.prim op (dvec.update_at θ₀ ks' idx))
+                      (fun (y : Dvec T [oshape]) => f y.head θ))
+                  θ)
+             (filter (fun (idx : ℕ) => tgt = dnth parents idx) (riota (length parents))))
+    =
+    E (sprog.prim op ks')
+      (fun (x₀ : Dvec T [oshape]) =>
+        sumr (map (fun (idx : ℕ) =>
+                   f x₀.head θ • ∇ (fun (θ₀ : T tgt.2) => T.log (op.pdf (dvec.update_at θ₀ ks' idx) x₀.head)) θ)
+                 (filter (fun (idx : ℕ) => tgt = dnth parents idx) (riota (length parents))))) by
+      rw [h_term₁]
+      apply congr_arg
+      exact h_suffices
+
+  suffices h_suffices :
+    sumr (map (fun (idx : ℕ) =>
+                ∇ (fun (θ₀ : T tgt.2) =>
+                    E (sprog.prim op (dvec.update_at θ₀ ks' idx))
+                      (fun (y : Dvec T [oshape]) => f y.head θ))
+                  θ)
+             (filter (fun (idx : ℕ) => tgt = dnth parents idx) (riota (length parents))))
+    =
+    sumr (map (fun (x : ℕ) =>
+               E (sprog.prim op ks')
+                 (fun (y : Dvec T [oshape]) =>
+                   f y.head θ •  ∇ (fun (θ₀ : T tgt.2) =>
+                                T.log (op.pdf (dvec.update_at θ₀ ks' x) y.head)) θ))
+             (filter (fun (idx : ℕ) => tgt = dnth parents idx) (riota (length parents))))  by
+        rw [← E.E_pull_out_of_sum _ _ _ _ _ h_int₂]
+        exact h_suffices
+        unfold ks'
+        rw [h_θ, env.insert_get_same h_tgt_in_inputs]
+        exact h_op_pre
+
+  suffices h_suffices :
+    ∀ (idx : ℕ), idx ∈ riota (length parents) → tgt = dnth parents idx →
+    ∇ (fun (θ₀ : T tgt.2) =>
+        E (sprog.prim op (dvec.update_at θ₀ ks' idx))
+          (fun (y : Dvec T [oshape]) => f y.head θ))
+      θ
+    =
+    E (sprog.prim op ks')
+      (fun (y : Dvec T [oshape]) =>
+          f y.head θ • ∇ (fun (θ₀ : T tgt.2) =>
+                     T.log (op.pdf (dvec.update_at θ₀ ks' idx) y.head)) θ) by
     apply congr_arg
     apply map_filter_congr
-    exact H_suffices
+    exact h_suffices
 
-    intro (idx : ℕ) (H_idx_in_riota : idx ∈ riota (length parents)) (H_tgt_eq_dnth_idx : tgt = dnth parents idx)
+  intro (idx : ℕ)
+        (h_idx_in_riota : idx ∈ riota (length parents))
+        (h_tgt_eq_dnth_idx : tgt = dnth parents idx)
 
-    let mk_args : T tgt.2 → Dvec T parents.p2 :=
-      (λ (v : T tgt.2) =>
-         dvec.update_at v (env.getKs parents (env.insert tgt θ m)) idx)
+  let mk_args : T tgt.2 → Dvec T parents.p2 :=
+        (fun (v : T tgt.2) =>
+           dvec.update_at v ks' idx)
 
-    have
+  show
     ∇ (λ (θ₀ : T tgt.2) =>
         E (sprog.prim op (mk_args θ₀))
           (λ (y : Dvec T [oshape]) => f y.head θ))
       θ
     =
-    E (sprog.prim op (env.getKs parents (env.insert tgt θ m)))
-        (λ (y : Dvec T [oshape]) =>
+    E (sprog.prim op ks')
+      (λ (y : Dvec T [oshape]) =>
           f y.head θ • ∇ (λ (θ₀ : T tgt.2) =>
-                    T.log (op.pdf (dvec.update_at θ₀ (env.getKs parents (env.insert tgt θ m)) idx) y.head)) θ) := by
+                     T.log (op.pdf (dvec.update_at θ₀ ks' idx) y.head)) θ)
+  have h_idx_lt_len_parents : idx < length parents := in_riota_lt h_idx_in_riota
+  have h_tgt_at_idx : at_idx parents idx tgt := ⟨in_riota_lt h_idx_in_riota, h_tgt_eq_dnth_idx⟩
+  have h_tgt_in_parents : tgt ∈ parents := mem_of_at_idx h_tgt_at_idx
 
-      have H_idx_lt_len_parents : idx < length parents := by
-        apply in_riota_lt H_idx_in_riota
+  have h_op'_pre : op.pre (mk_args θ) := by
+    dsimp
+    simp only [mk_args, ks']
+    simp at h_tgt_at_idx
+    -- unfold ks'
+    rw [h_θ, env.insert_get_same h_tgt_in_inputs, env.dvec_update_at_env _ h_tgt_at_idx]
+    exact h_op_pre
 
-      have H_tgt_at_idx : at_idx parents idx tgt := by
-        apply ⟨in_riota_lt H_idx_in_riota, H_tgt_eq_dnth_idx⟩
-      have H_tgt_in_parents : tgt ∈ parents := by
-        apply mem_of_at_idx H_tgt_at_idx
+    -- -- Apply the `score` lemma.
+  suffices h_suffices :
+    E (sprog.prim op (dvec.update_at θ (env.getKs parents (env.insert tgt θ m)) idx))
+      (fun (x₀ : Dvec T [oshape]) =>
+          f x₀.head θ • ∇ (fun (θ₀ : T tgt.2) => T.log (op.pdf (mk_args θ₀) x₀.head)) θ)
+    =
+    E (sprog.prim op (env.getKs parents (env.insert tgt θ m)))
+      (fun (y : Dvec T [oshape]) =>
+          f y.head θ •  ∇ (fun (θ₀ : T tgt.2) => T.log (op.pdf (mk_args θ₀) y.head)) θ) by
+    rw [(score op mk_args θ h_op'_pre (fun y => f y θ) (h_d'_pdf_diff h_tgt_at_idx) (h_d'_uint h_tgt_at_idx) (h_d'_grad_uint h_tgt_at_idx))]
+    exact h_suffices
 
-      have H_op'_pre : op^.pre (mk_args θ) := by
-        dsimp
-        rw [H_θ]
-        rw [env.insert_get_same H_tgt_in_inputs]
-        rw [env.dvec_update_at_env _ H_tgt_at_idx]
-        exact H_op_pre
-
-suffices H_suffices :
-E (sprog.prim op (dvec.update_at θ (env.getKs parents (env.insert tgt θ m)) idx))
-  (λ (x₀ : Dvec T [oshape]) =>
-     f x₀.head θ • ∇ (λ (θ₀ : T tgt.2) => T.log (op.pdf (mk_args θ₀) x₀.head)) θ)
-=
-E (sprog.prim op (env.getKs parents (env.insert tgt θ m)))
-  (λ (y : Dvec T [oshape]) =>
-     f y.head θ • ∇ (λ (θ₀ : T tgt.2) => T.log (op.pdf (mk_args θ₀) y.head)) θ)
-  by
-    rw [score op mk_args θ H_op'_pre (λ y => f y θ) (H_d'_pdf_diff H_tgt_at_idx) (H_d'_uint H_tgt_at_idx) (H_d'_grad_uint H_tgt_at_idx)]
-    exact H_suffices
-
-have H_remove_dvec_update : dvec.update_at θ (env.getKs parents (env.insert tgt θ m)) idx = env.getKs parents (env.insert tgt θ m) := by
-  rw [H_θ, env.insert_get_same H_tgt_in_inputs]
-  rw [env.dvec_update_at_env m ⟨H_idx_lt_len_parents, H_tgt_eq_dnth_idx⟩]
-
-by rw [H_remove_dvec_update]
-
+    -- Simplify the `dvec.update_at` term when `θ₀` is `θ`.
+  have h_remove_dvec_update : dvec.update_at θ (env.getKs parents (env.insert tgt θ m)) idx = env.getKs parents (env.insert tgt θ m) := by
+    rw [h_θ, env.insert_get_same h_tgt_in_inputs]
+    rw [env.dvec_update_at_env m ⟨h_idx_lt_len_parents, h_tgt_eq_dnth_idx⟩]
+  rw [h_remove_dvec_update]
 end Estimators
 end certigrad

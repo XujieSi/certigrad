@@ -5,6 +5,8 @@ Author: Daniel Selsam
 
 Certified graph transformation that integrates out a specific KL divergence term.
 -/
+
+
 import CertiGrad.Util
 import CertiGrad.Tensor
 import CertiGrad.ComputeGrad
@@ -13,11 +15,13 @@ import CertiGrad.Tactics
 import CertiGrad.Predicates
 import CertiGrad.Lemmas
 import CertiGrad.Env
+import CertiGrad.ExpectedValue
+import CertiGrad.Ops
 
 namespace certigrad
 open List
 
-def integrate_mvn_kl (eloss : ID) : List Node → List Node
+noncomputable def integrate_mvn_kl (eloss : ID) : List Node → List Node
 | [] => []
 
 | (⟨(z, .(shape)), [(μ, .(shape)), (σ, .(shape))], Operator.rand (rand.op.mvn shape)⟩
@@ -28,44 +32,44 @@ def integrate_mvn_kl (eloss : ID) : List Node → List Node
 ::nodes)
 
 | (⟨(z, .(shape)), [(μ, .(shape)), (σ, .(shape))], Operator.rand (rand.op.mvn shape)⟩ :: nodes) =>
-⟨(z, shape), [(μ, shape), (σ, shape)], Operator.rand (rand.op.mvn shape)⟩ :: integrate_mvn_kl nodes
+⟨(z, shape), [(μ, shape), (σ, shape)], Operator.rand (rand.op.mvn shape)⟩ :: integrate_mvn_kl eloss nodes
 
-| (n::nodes) => n :: integrate_mvn_kl nodes
+| (n::nodes) => n :: integrate_mvn_kl eloss nodes
 
-def integrate_mvn_kl_pre (eloss : ID) : List Node → Env → Prop
+noncomputable def integrate_mvn_kl_pre (eloss : ID) : List Node → Env → Prop
 -- EQ1
 | [],_ => True
 -- EQ2 (a)
 | (⟨(rname, rshape), [], Operator.det op⟩::nodes), inputs =>
-integrate_mvn_kl_pre nodes (env.insert (rname, rshape) (op.f (env.getKs [] inputs)) inputs)
+integrate_mvn_kl_pre eloss nodes (env.insert (rname, rshape) (op.f (env.getKs [] inputs)) inputs)
 -- EQ2 (b)
 | (⟨(rname, rshape), [], Operator.rand op⟩::nodes), inputs => False
 -- EQ3 (a)
 | (⟨(rname, rshape), [(pname, pshape)], Operator.det op⟩::nodes), inputs =>
-integrate_mvn_kl_pre nodes (env.insert (rname, rshape) (op^.f (env.get_ks [(pname, pshape)] inputs)) inputs)
+integrate_mvn_kl_pre eloss nodes (env.insert (rname, rshape) (op.f (env.getKs [(pname, pshape)] inputs)) inputs)
 -- EQ3 (b)
 | (⟨(rname, rshape), [(pname, pshape)], Operator.rand op⟩::nodes), inputs => False
 -- EQ4
-| (⟨(rname, rshape), [(pname₁, pshape₁), (pname₂, pshape₂)], Operator.det op⟩::nodes) inputs =>
-integrate_mvn_kl_pre nodes (env.insert (rname, rshape) (op.f (env.getKs [(pname₁, pshape₁), (pname₂, pshape₂)] inputs)) inputs)
+| (⟨(rname, rshape), [(pname₁, pshape₁), (pname₂, pshape₂)], Operator.det op⟩::nodes), inputs =>
+integrate_mvn_kl_pre eloss nodes (env.insert (rname, rshape) (op.f (env.getKs [(pname₁, pshape₁), (pname₂, pshape₂)] inputs)) inputs)
 -- EQ6
 | (⟨(rname, .(shape)), [(pname₁, .(shape)), (pname₂, .(shape))], Operator.rand (rand.op.mvn shape)⟩
-  ::⟨(rname₂, []), [], op⟩::nodes) inputs => False
+  ::⟨(rname₂, []), [], op⟩::nodes), inputs => False
 -- EQ7
 | (⟨(rname, .(shape)), [(pname₁, .(shape)), (pname₂, .(shape))], Operator.rand (rand.op.mvn shape)⟩
-  ::⟨(rname₂, []), [(pname₃, shape₃)], op⟩::nodes) inputs => False
+  ::⟨(rname₂, []), [(pname₃, shape₃)], op⟩::nodes), inputs => False
 -- EQ8
 | (⟨(rname, .(shape)), [(pname₁, .(shape)), (pname₂, .(shape))], Operator.rand (rand.op.mvn shape)⟩
-  ::⟨(rname₂, []), [(pname₃, shape₃), (pname₄, shape₄)], op⟩::nodes) inputs => False
+  ::⟨(rname₂, []), [(pname₃, shape₃), (pname₄, shape₄)], op⟩::nodes), inputs => False
 -- EQ9
 | (⟨(rname, .(shape)), [(pname₁, .(shape)), (pname₂, .(shape))], Operator.rand (rand.op.mvn shape)⟩
-  ::⟨(rname₂, []), [(pname₃, shape₃), (pname₄, shape₄), (pname₅, shape₅)], Operator.det (det.op.mk _ _ _ _ _ _ _)⟩::nodes) inputs => False
+  ::⟨(rname₂, []), [(pname₃, shape₃), (pname₄, shape₄), (pname₅, shape₅)], Operator.det (det.op.mk _ _ _ _ _ _ _)⟩::nodes), inputs => False
 -- EQ10
 | (⟨(z, .(shape)), [(μ, .(shape)), (σ, .(shape))], Operator.rand (rand.op.mvn shape)⟩
  ::⟨(el, []), [(μ', .(shape')), (σ', .(shape')), (z', .(shape'))], Operator.det (det.op.mvn_empirical_kl shape')⟩
- ::nodes) inputs =>
+::nodes), inputs =>
 (μ = μ' ∧ σ = σ' ∧ z = z' ∧ shape = shape' ∧ eloss = el ∧ σ ≠ μ)
-∧ ((¬ env.has_key (eloss, []) inputs) ∧ (eloss, []) ∉ (z, shape) :: map node.ref nodes ∧ 0 < env.get (σ, shape) inputs ∧ ∀ (y : T shape), all_parents_in_env (env.insert (z, shape) y inputs) nodes)
+∧ ((¬ env.hasKey (eloss, []) inputs) ∧ (eloss, []) ∉ (z, shape) :: map Node.ref nodes ∧ 0 < env.get (σ, shape) inputs ∧ ∀ (y : T shape), allParentsInEnv (env.insert (z, shape) y inputs) nodes)
 -- EQ11
 | (⟨(rname, .(shape)), [(pname₁, .(shape)), (pname₂, .(shape))], Operator.rand (rand.op.mvn shape)⟩
   ::⟨(rname₂, []), [(pname₃, shape₃), (pname₄, shape₄), (pname₅, shape₅)], Operator.rand op⟩::nodes) inputs => False

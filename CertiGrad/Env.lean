@@ -368,9 +368,13 @@ lemma get_ks_insert_same {ref : Reference} {refs : List Reference} {x : T ref.2}
 --   simp [insert_all]
 
 
-lemma dvec_update_at_env {refs : List Reference} {idx : ℕ} (m : Env)(h: idx < refs.length) :
-  refs[idx]? = some ref → dvec.update_at (get ref m) (getKs refs m) idx = getKs refs m := by
-    sorry
+-- lemma dvec_update_at_env {refs : List Reference} {idx : ℕ} (m : Env)(h: idx < refs.length) :
+--   at_idx refs idx ref → dvec.update_at (get ref m) (getKs refs m) idx = getKs refs m := by
+--     sorry
+open util_list
+lemma dvec_update_at_env {refs : List Reference} {idx : ℕ} {ref : Reference} (m : Env) :
+      at_idx refs idx ref →
+      dvec.update_at (get ref m) (getKs refs m) idx = getKs refs m := by sorry
 --     sorry
   -- intro H_at_idx
   -- induction refs with
@@ -392,7 +396,7 @@ lemma dvec_update_at_env {refs : List Reference} {idx : ℕ} (m : Env)(h: idx < 
       -- simp [dif_ctx_simp_congr, dif_pos]
 
 
-open util_list
+
 lemma dvec_get_get_ks {refs : List Reference} {idx : ℕ} {ref : Reference} (m : Env) :
       at_idx refs idx ref →
       dvec.get ref.2 _ (env.getKs refs m) idx = get ref m := by sorry
@@ -407,7 +411,7 @@ end env
 
 
 namespace T
-open util_list
+open util_list List
 axiom continuous_multiple_args :
   ∀ (parents : List Reference) (oshape : S) (tgt : Reference) (m : Env)
     (f : Dvec T parents.p2 → T oshape) (θ : T tgt.2),
@@ -421,5 +425,32 @@ axiom is_cdifferentiable_multiple_args {fshape : S} (tgt : Reference) (parents :
    (∀ (idx : ℕ) (H_idx_in_riota: idx ∈ riota parents.length) (H_tgt_eq_dnth_idx : tgt = dnth parents idx),
     is_cdifferentiable (λ θ₀ => k (f (dvec.update_at θ₀ (env.getKs parents (env.insert tgt θ m)) idx))) θ) →
     is_cdifferentiable (λ θ₀ => k (f (env.getKs parents (env.insert tgt θ₀ m)))) θ
+
+
+
+axiom multiple_args_general :
+  ∀ (parents : List Reference) (tgt : Reference) (m : Env)
+    (f : Dvec T parents.p2 → T tgt.2 → TReal) (θ : T tgt.2),
+    is_cdifferentiable (λ θ₀ => f (env.getKs parents (env.insert tgt θ m)) θ₀) θ →
+    is_cdifferentiable (λ θ₀ => sumr (map (λ (idx : ℕ) => f (dvec.update_at θ₀ (env.getKs parents (env.insert tgt θ m)) idx) θ)
+                                       (filter (λ idx => tgt = dnth parents idx) (riota $ length parents)))) θ →
+∇ (λ (θ₀ : T tgt.2) => f (env.getKs parents (env.insert tgt θ₀ m)) θ₀) θ
+=
+∇ (λ θ₀ => f (env.getKs parents (env.insert tgt θ m)) θ₀) θ +
+sumr (map (λ (idx : ℕ) =>
+            ∇ (λ θ₀ => f (dvec.update_at θ₀ (env.getKs parents (env.insert tgt θ m)) idx) θ) θ)
+         (filter (λ idx => tgt = dnth parents idx) (riota $ length parents)))
+-- axiom multiple_args_general :
+--   ∀ (parents : List Reference) (tgt : Reference) (m : env)
+--     (f : Dvec T parents^.p2 → T tgt.2 → TReal) (θ : T tgt.2),
+--     is_cdifferentiable (λ θ₀ => f (env.get_ks parents (env.insert tgt θ m)) θ₀) θ →
+--     is_cdifferentiable (λ θ₀ => sumr (map (λ (idx : ℕ) => f (dvec.update_at θ₀ (env.get_ks parents (env.insert tgt θ m)) idx) θ)
+--                                        (filter (λ idx => tgt = dnth parents idx) (riota $ length parents)))) θ →
+-- ∇ (λ (θ₀ : T tgt.2) => f (env.get_ks parents (env.insert tgt θ₀ m)) θ₀) θ
+-- =
+-- ∇ (λ θ₀ => f (env.get_ks parents (env.insert tgt θ m)) θ₀) θ +
+-- sumr (map (λ (idx : ℕ) =>
+--             ∇ (λ θ₀ => f (dvec.update_at θ₀ (env.get_ks parents (env.insert tgt θ m)) idx) θ) θ)
+--          (filter (λ idx => tgt = dnth parents idx) (riota $ length parents)))
 end T
 end certigrad
