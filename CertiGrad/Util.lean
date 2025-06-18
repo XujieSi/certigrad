@@ -423,16 +423,28 @@ theorem in_riota_lt : ∀ {idx n : Nat}, idx ∈ riota n → idx < n
   | .tail _ H_mem' => Nat.lt.step (in_riota_lt H_mem')
 
 -- theorem map_compose {X Y Z : Type} (f : X → Y) (g : Y → Z) (xs : List X) : map g (map f xs) = map (λ x, g (f x)) xs := by apply map_map
-
+open List
 -- theorem map_congr_fn {X Y : Type} (f g : X → Y) (xs : List X) : f = g → map f xs = map g xs := begin intro H, rw H end
--- theorem map_congr_fn_pred {X Y : Type} (f g : X → Y) : Π (xs : List X) (H : ∀ x, x ∈ xs → f x = g x), map f xs = map g xs
--- | []      H := rfl
--- | (x::xs) H :=
---   show f x :: map f xs = g x :: map g xs, from
---   have H_x : x ∈ x :: xs, by apply mem_cons_self,
---   have H_rest : ∀ x, x ∈ xs → f x = g x,
---     begin intros y H_y_in_xs, apply H, apply mem_cons_of_mem, exact H_y_in_xs end,
---   begin rw H x H_x, rw (map_congr_fn_pred xs H_rest) end
+-- theorem map_congr_fn_pred {X Y : Type} (f g : X → Y) : ∀ (xs : List X) (H : ∀ x, x ∈ xs → f x = g x), map f xs = map g xs := by
+--   induction xs with
+--     | nil => rfl
+--     | cons x xs ih =>
+--       simp only [List.mem_cons, List.map]
+--       rw [h x (Or.inl rfl), ih (fun y hy => h y (Or.inr hy))]
+
+theorem map_congr_fn_pred {α β : Type} (f g : α → β) (l : List α)
+    (h : ∀ x ∈ l, f x = g x) :
+    l.map f = l.map g := by
+  induction l with
+  | nil => rfl
+  | cons x xs ih =>
+    unfold List.map
+    have H_x : x ∈ x :: xs := by apply List.mem_cons_self
+    rw [h x H_x, ih]
+    intro y hy
+    rw [h y (List.mem_cons_of_mem x hy)]
+
+
 
 def dnth {α : Type} [Inhabited α] : List α → Nat → α
 | [],       n     => default

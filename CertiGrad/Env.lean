@@ -402,6 +402,13 @@ lemma dvec_get_get_ks {refs : List Reference} {idx : ℕ} {ref : Reference} (m :
         unfold getKs
         erw [dvec.get]
         exact IH (at_idx_of_cons H_at_idx)
+--
+-- TODO:
+--       intro H_at_idx
+--       have H_elem_at_idx : List.elem_at_idx refs idx ref :=  exact list.elem_at_idx_of_at_idx H_at_idx
+--       induction H_elem_at_idx with xs x xs idx' x y H_elem_at_idx IH
+--       { dunfold get_ks, erw dvec.get.equations._eqn_2, simp [dif_ctx_simp_congr, dif_pos] }
+--       { dunfold get_ks, erw dvec.get.equations._eqn_3, exact IH (list.at_idx_of_cons H_at_idx) }
 
 end env
 

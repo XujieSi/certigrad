@@ -18,7 +18,7 @@ lemma compute_grad_slow_correct {costs : list ID} :
   grads_exist_at nodes inputs tgt →
   pdfs_exist_at nodes inputs →
   is_gdifferentiable (λ m, ⟦sum_costs m costs⟧) tgt inputs nodes dvec.head →
-  is_nabla_gintegrable (λ m, ⟦sum_costs m costs⟧) tgt inputs nodes dvec.head →
+   (λ m, ⟦sum_costs m costs⟧) tgt inputs nodes dvec.head →
   is_gintegrable (λ m, ⟦compute_grad_slow costs nodes m tgt⟧) inputs nodes dvec.head →
   can_differentiate_under_integrals costs nodes inputs tgt →
   ∇ (λ θ₀, E (graph.to_dist (λ m, ⟦sum_costs m costs⟧) (env.insert tgt θ₀ inputs) nodes) dvec.head) (env.get tgt inputs)
