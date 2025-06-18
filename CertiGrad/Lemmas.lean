@@ -479,9 +479,11 @@ map
             have H_ref_matches : env.get ref m = y := by
               have H_env.has_key_ref : env.hasKey ref (next_inputs y) := env.hasKey_insert_same _ _
               rw [H_envs_match ref H_env.has_key_ref, env.get_insert_same]
+            simp only [H_parents_match, H_ref_matches, env.get_insert_same]
+            unfold next_inputs
+            simp only [env.get_insert_same]
 
-            simp [H_parents_match, H_ref_matches, env.get_insert_same]
-            sorry
+
 
     erw [H_swap_m_for_inputs]
     -- 8. push E over ⬝ and cancel the first terms
@@ -494,14 +496,10 @@ map
         rw [env.get_ks_insert_diff H_ref_notin_parents]
         exact (H_gs_exist.left H_tgt_in_parents)
 
-    simp [op.glogpdf_correct H_tshape_at_idx H_glogpdf_pre]
-    -- unfold next_inputs
-    -- 10. Clean-up
-    -- unfold p2
-    simp [H_get_ks_next_inputs]
-
-    -- simp [env.get_insert_same, env.get_ks_insert_same, env.get_ks_insert_same, env.get_insert_same]
-    simp [env.dvec_get_get_ks inputs H_tgt_at_idx]
+    simp only [op.glogpdf_correct H_tshape_at_idx H_glogpdf_pre]
+    simp only [H_get_ks_next_inputs]
+    unfold next_inputs
+    simp [env.dvec_get_get_ks inputs H_tgt_at_idx, env.get_insert_same]
 
 
 
@@ -769,37 +767,39 @@ lemma is_gdifferentiable_of_pre {costs : List ID} : Π (tgt : Reference) (inputs
   .
     simp only [env.insert_get_same H_wf.m_contains_tgt, env.get_insert_same]
     have H_pdiff := pd_is_cdifferentiable costs tgt next_inputs nodes H_wfs.left H_gs_exist_tgt H_pdfs_exist_next H_diff_under_int.left
+    -- unfold next_inputs at H_pdiff
     simp only [H_can_insert] at H_pdiff
-    sorry
-    -- simp only [λ (x : T ref.2) (θ : T tgt.2) => env.insert_insert_flip θ x inputs H_tgt_neq_ref] at H_pdiff
-    -- exact H_pdiff
+    unfold next_inputs at H_pdiff
+    simp only [λ (x : T ref.2) (θ : T tgt.2) => env.insert_insert_flip θ x inputs H_tgt_neq_ref] at H_pdiff
+    exact H_pdiff
   .
     apply And.intro
     .
-      sorry
-      -- apply T.is_cdifferentiable_sumr
-      -- intro idx H_idx_in_filter
-      -- let ⟨ H_idx_in_riota, H_tgt_eq_dnth_idx ⟩ := of_in_filter _ _ _ H_idx_in_filter
-      -- cases of_in_filter _ _ _ H_idx_in_filter with H_idx_in_riota H_tgt_eq_dnth_idx
-      -- have H_tgt_at_idx : at_idx parents idx tgt := ⟨in_riota_lt H_idx_in_riota, H_tgt_eq_dnth_idx⟩
-      -- have H_tshape_at_idx : at_idx parents.p2 idx tgt.2 := at_idx_p2 H_tgt_at_idx
-      -- have H_tgt_in_parents : tgt ∈ parents := mem_of_at_idx H_tgt_at_idx
-      -- have H_gs_exist_ref : gradsExistAt nodes next_inputs ref := (H_gs_exist.right H_tgt_in_parents).right
+      apply T.is_cdifferentiable_sumr
+      intro idx H_idx_in_filter
+      let ⟨H_idx_in_riota, H_tgt_eq_dnth_idx⟩ := List.mem_filter.1 H_idx_in_filter
+      simp at H_tgt_eq_dnth_idx
+      have H_tgt_at_idx : at_idx parents idx tgt := ⟨in_riota_lt H_idx_in_riota, H_tgt_eq_dnth_idx⟩
+      have H_tshape_at_idx : at_idx parents.p2 idx tgt.2 := at_idx_p2 H_tgt_at_idx
+      have H_tgt_in_parents : tgt ∈ parents := mem_of_at_idx H_tgt_at_idx
+      have H_gs_exist_ref : gradsExistAt nodes next_inputs ref := (H_gs_exist.right H_tgt_in_parents).right
 
-      -- have H_pdiff := pd_is_cdifferentiable costs ref next_inputs nodes H_wfs.right H_gs_exist_ref H_pdfs_exist_next (H_diff_under_int.right H_tgt_in_parents)
-      -- simp only [env.insert_get_same H_wf.m_contains_tgt]
-      -- simp only [env.get_insert_same, env.insert_insert_same] at H_pdiff
+      have H_pdiff := pd_is_cdifferentiable costs ref next_inputs nodes H_wfs.right H_gs_exist_ref H_pdfs_exist_next (H_diff_under_int.right H_tgt_in_parents)
+      -- dsimp at H_pdiff
+      unfold next_inputs at H_pdiff
+      simp only [env.insert_get_same H_wf.m_contains_tgt]
+      simp only [env.get_insert_same, env.insert_insert_same] at H_pdiff
 
-      -- have H_odiff := op.is_odiff (env.getKs parents inputs) (H_gs_exist.right H_tgt_in_parents).left idx tgt.2 H_tshape_at_idx
-      --              (λ x' => E (graph.toDist (λ (m : Env) => ⟦sumCosts m costs⟧)
-      --                                      (env.insert tgt (env.get tgt inputs) (env.insert ref x' inputs))
-      --                                       nodes)
-      --                        Dvec.head)
+      have H_odiff := op.is_odiff (env.getKs parents inputs) (H_gs_exist.right H_tgt_in_parents).left idx tgt.2 H_tshape_at_idx
+                   (λ x' => E (graph.toDist (λ (m : Env) => ⟦sumCosts m costs⟧)
+                                           (env.insert tgt (env.get tgt inputs) (env.insert ref x' inputs))
+                                            nodes)
+                             Dvec.head)
 
-      -- simp only [λ m => env.dvec_get_get_ks m H_tgt_at_idx] at H_odiff
-      -- simp only [λ (x : T ref.2) (θ : T tgt.2) => env.insert_insert_flip θ x inputs H_tgt_neq_ref, env.insert_get_same H_wf.m_contains_tgt] at H_odiff
-      -- exact H_odiff
-      -- exact H_pdiff
+      simp only [λ m => env.dvec_get_get_ks m H_tgt_at_idx] at H_odiff
+      simp only [λ (x : T ref.2) (θ : T tgt.2) => env.insert_insert_flip θ x inputs H_tgt_neq_ref, env.insert_get_same H_wf.m_contains_tgt] at H_odiff
+      apply H_odiff
+      exact H_pdiff
 
     . apply And.intro
       .exact H_gdiff_tgt
@@ -846,8 +846,8 @@ lemma is_gdifferentiable_of_pre {costs : List ID} : Π (tgt : Reference) (inputs
   have H_op_pre : op.pre (env.getKs parents inputs) := H_pdfs_exist.left
 
   -- begin
-  dsimp [isGdifferentiable]
-  -- TODO(dhs): use apply and.intro _ (and.intro _ _) once tactic is fixed
+  --  [isGdifferentiable]
+  simp only [isGdifferentiable]
   apply And.intro
   .
     unfold E T.dintegral
@@ -861,32 +861,40 @@ lemma is_gdifferentiable_of_pre {costs : List ID} : Π (tgt : Reference) (inputs
     have H_pdiff := pd_is_cdifferentiable costs tgt (next_inputs y) nodes (H_wfs y).left (H_gs_exist.right y) (H_pdfs_exist.right y) (H_diff_under_int.right y)
     simp only [Dvec.head] at H_pdiff
     simp only [H_can_insert_y] at H_pdiff
+    unfold next_inputs at H_pdiff
     simp only [λ (x : T ref.2) (θ : T tgt.2) => env.insert_insert_flip θ x inputs H_tgt_neq_ref, env.insert_get_same H_wf.m_contains_tgt] at H_pdiff
     exact H_pdiff
   .
-      apply T.is_cdifferentiable_sumr
+    apply And.intro
+    . apply T.is_cdifferentiable_sumr
       intro idx H_idx_in_filter
-      -- let ⟨ H_idx_in_riota, H_tgt_eq_dnth_idx ⟩ := of_in_filter _ _ _ H_idx_in_filter
-      -- have H_tgt_at_idx : at_idx parents idx tgt := ⟨in_riota_lt H_idx_in_riota, H_tgt_eq_dnth_idx⟩
-      -- assertv H_tshape_at_idx : at_idx parents^.p2 idx tgt.2 := at_idx_p2 H_tgt_at_idx,
-      -- assertv H_tgt_in_parents : tgt ∈ parents := mem_of_at_idx H_tgt_at_idx,
+      let ⟨H_idx_in_riota, H_tgt_eq_dnth_idx⟩ := List.mem_filter.1 H_idx_in_filter
+      simp at H_tgt_eq_dnth_idx
+      have H_tgt_at_idx : at_idx parents idx tgt := ⟨in_riota_lt H_idx_in_riota, H_tgt_eq_dnth_idx⟩
+      have H_tshape_at_idx : at_idx parents.p2 idx tgt.2 := at_idx_p2 H_tgt_at_idx
+      have H_tgt_in_parents : tgt ∈ parents := mem_of_at_idx H_tgt_at_idx
 
-      -- note H_g_uint_idx := H_diff_under_int^.left^.right^.right^.left _ H_tgt_at_idx,
-      -- note H_g_grad_uint_idx := H_diff_under_int^.left^.right^.right^.right _ H_tgt_at_idx,
+      have H_g_uint_idx := H_diff_under_int.left.right.right.left _ H_tgt_at_idx
+      have H_g_grad_uint_idx := H_diff_under_int.left.right.right.right _ H_tgt_at_idx
 
-      -- dunfold E T.dintegral,
-      -- apply T.is_cdifferentiable_integral _ _ _ H_g_uint_idx H_g_grad_uint_idx,
-      -- tactic.rotate 2,
-      -- dsimp [dvec.head],
+      dsimp [E, T.dintegral]
+      apply T.is_cdifferentiable_integral _ _ _ H_g_uint_idx H_g_grad_uint_idx
+      dsimp [Dvec.head]
 
-      -- intro y,
-      -- apply iff.mp (T.is_cdifferentiable_fscale _ _ _),
+      intro y
+      apply (T.is_cdifferentiable_fscale _ _ _).mp
 
-      -- note H_pdf_cdiff := @rand.op.pdf_cdiff _ _ op (env.get_ks parents inputs) y idx tgt.2 H_tshape_at_idx H_pdfs_exist^.left,
-      -- dsimp [rand.pdf_cdiff] at H_pdf_cdiff,
-      -- simp only [env.insert_get_same H_wf^.m_contains_tgt],
-      -- simp only [λ m, env.dvec_get_get_ks m H_tgt_at_idx] at H_pdf_cdiff,
-      -- exact H_pdf_cdiff,
+      have H_pdf_cdiff := @rand.op.pdf_cdiff _ _ op (env.getKs parents inputs) y idx tgt.2 H_tshape_at_idx H_pdfs_exist.left
+      simp [rand.pdf_cdiff] at H_pdf_cdiff
+      simp only [env.insert_get_same H_wf.m_contains_tgt]
+      simp only [λ m => env.dvec_get_get_ks m H_tgt_at_idx] at H_pdf_cdiff
+      exact H_pdf_cdiff
+
+
+    . exact λ y => is_gdifferentiable_of_pre _ _ _ (H_wfs y).left (H_gs_exist.right y) (H_pdfs_exist.right y) (H_diff_under_int.right y)
+
+
+
 
 lemma can_diff_under_ints_of_all_pdfs_std (costs : List ID) : Π (nodes : List Node) (m : Env) (tgt : Reference),
   allPdfsStd nodes
@@ -912,12 +920,14 @@ lemma can_diff_under_ints_of_all_pdfs_std (costs : List ID) : Π (nodes : List N
 | (⟨(ref, .(shape)), [], Operator.rand (rand.op.mvn_std shape)⟩ :: nodes), m, tgt, H_std, H_cdi => by
   dsimp only [allPdfsStd] at H_std
   dsimp only [canDifferentiateUnderIntegrals] at H_cdi
-  dsimp  [canDifferentiateUnderIntegrals]
+  dsimp only [canDifferentiateUnderIntegrals]
   constructor
   · constructor
     · exact H_cdi.1.1
     · constructor
-      · exact And.intro H_cdi.left.left  H_cdi.left.right
+      · apply And.intro
+        . exact H_cdi.1.2.1.1
+        . exact H_cdi.1.2.1.1
       · constructor
         · intros H H_contra
           exfalso
@@ -933,5 +943,4 @@ lemma can_diff_under_ints_of_all_pdfs_std (costs : List ID) : Π (nodes : List N
 | (⟨(ref, .(shape)), [(parent₁, .(shape)), (parent₂, .(shape))], Operator.rand (rand.op.mvn shape)⟩ :: nodes), m, tgt, H_std, H_cdi => by
   simp [allPdfsStd] at H_std
 
--- end
 end certigrad
