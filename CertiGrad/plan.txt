@@ -1,4 +1,4 @@
-     253 Estimators.lean   <--- g1
+     253 Estimators.lean   
     1016 Lemmas.lean      
      181 reparam.lean                    <--- one general high-level theorem (with few lemmas)
      567 ExpectedValue.lean
@@ -15,7 +15,7 @@
      375 Rand.lean
       92 Det.lean
       80 Dvec.lean 
-     314 Env.lean     -- dvec_get_get_ks, get_ks_insert_same are not proved --
+     314 Env.lean     
      147 Id.lean
      149 Label.lean
      315 Mvn.lean

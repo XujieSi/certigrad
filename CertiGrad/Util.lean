@@ -480,16 +480,26 @@ theorem elem_at_idx_of_at_idx {X : Type} [Inhabited X] : ∀ {xs : List X} {idx 
 -- theorem at_idx_inj {α : Type*} [Inhabited α] {x x₁ x₂ : α} {xs : List α} : at_idx (x::xs) 0 x₁ → at_idx (x::xs) 0 x₂ → x₁ = x₂ :=
 -- begin dunfold at_idx, intros H₁ H₂, rw [H₁^.right, H₂^.right] end
 
--- theorem at_idx_of_cons {α : Type*} [Inhabited α] {x : α} {xs : List α} {y : α} {idx : Nat} :
---   at_idx (x::xs) (idx+1) y → at_idx xs idx y :=
--- begin
--- dunfold at_idx,
+-- theorem at_idx_of_cons {α : Type} [Inhabited α] {x : α} {xs : List α} {y : α} {idx : Nat} :
+--   at_idx (x::xs) (idx+1) y → at_idx xs idx y := by
+-- dunfold at_idx
 -- intro H,
 -- cases H with H_lt H_dnth,
 -- split,
 -- exact nat.lt_of_succ_lt_succ H_lt,
 -- rw H_dnth, reflexivity
 -- end
+
+theorem at_idx_of_cons {α : Type} [Inhabited α] {x : α} {xs : List α} {y : α} {idx : Nat} :
+  at_idx (x::xs) (idx+1) y → at_idx xs idx y := by
+  unfold at_idx
+  intro H
+  let ⟨H_lt, H_dnth⟩ := H
+  constructor
+  .exact Nat.lt_of_succ_lt_succ H_lt
+  .
+    rw [H_dnth]
+    rfl
 
 -- theorem at_idx_cons {α : Type*} [Inhabited α] {x : α} {xs : List α} {y : α} {idx : Nat} :
 --   at_idx xs idx y → at_idx (x::xs) (idx+1) y :=

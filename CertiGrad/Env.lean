@@ -372,40 +372,36 @@ lemma get_ks_insert_same {ref : Reference} {refs : List Reference} {x : T ref.2}
 --   at_idx refs idx ref → dvec.update_at (get ref m) (getKs refs m) idx = getKs refs m := by
 --     sorry
 open util_list
+-- open List
 lemma dvec_update_at_env {refs : List Reference} {idx : ℕ} {ref : Reference} (m : Env) :
       at_idx refs idx ref →
-      dvec.update_at (get ref m) (getKs refs m) idx = getKs refs m := by sorry
---     sorry
-  -- intro H_at_idx
-  -- induction refs with
-  -- | nil => rfl
-  -- | cons ref' refs' ih =>
-  --   cases idx with
-  --   | zero =>
-  --     simp [get_ks, dvec.update_at, Dvec.dcons]
-  --     intro H₁
-  --     -- have H₂: get ref m = get ref m := by rfl
-  --     simp [H₁, H₂]
-  --   | succ idx' =>
-  --     have h' : idx' < refs'.length := by
-  --       simp at h
-  --       exact Nat.lt_of_succ_lt_succ h
-  --     simp [get_ks, dvec.update_at]
-      -- rw [ih h']
-      -- simp [dvec.update_at, get_ks]
-      -- simp [dif_ctx_simp_congr, dif_pos]
+      dvec.update_at (get ref m) (getKs refs m) idx = getKs refs m := by
+      intro H_at_idx
+      have  H_elem_at_idx : elem_at_idx refs idx ref := by
+        exact elem_at_idx_of_at_idx H_at_idx
+      induction H_elem_at_idx with
+      | base =>
+        simp [getKs]
+
+      | step refs ref  y idx a IH =>
+        simp [getKs, IH (at_idx_of_cons H_at_idx)]
+
 
 
 
 lemma dvec_get_get_ks {refs : List Reference} {idx : ℕ} {ref : Reference} (m : Env) :
       at_idx refs idx ref →
-      dvec.get ref.2 _ (env.getKs refs m) idx = get ref m := by sorry
-
---       intro H_at_idx
---       have H_elem_at_idx : List.elem_at_idx refs idx ref :=  exact list.elem_at_idx_of_at_idx H_at_idx
---       induction H_elem_at_idx with xs x xs idx' x y H_elem_at_idx IH
---       { dunfold get_ks, erw dvec.get.equations._eqn_2, simp [dif_ctx_simp_congr, dif_pos] }
---       { dunfold get_ks, erw dvec.get.equations._eqn_3, exact IH (list.at_idx_of_cons H_at_idx) }
+      dvec.get ref.2 _ (env.getKs refs m) idx = get ref m := by
+      intro H_at_idx
+      have H_elem_at_idx : elem_at_idx refs idx ref :=  by exact elem_at_idx_of_at_idx H_at_idx
+      induction H_elem_at_idx with
+      | base =>
+        erw [dvec.get]
+        simp [getKs]
+      | step refs ref  y idx a IH =>
+        unfold getKs
+        erw [dvec.get]
+        exact IH (at_idx_of_cons H_at_idx)
 
 end env
 
