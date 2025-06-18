@@ -1,3 +1,4 @@
+     143 memoize_correct.lean          
      253 Estimators.lean   
     1016 Lemmas.lean      
      181 reparam.lean                    <--- one general high-level theorem (with few lemmas)
@@ -31,11 +32,11 @@
      132 examples.nolean
 
       49 backprop_correct.lean  <--- g4: final goal, just one theorem
-     556 prove_model_ok.lean  <--- g3
-     223 lemmas_extra.lean    <--- g3
-     435 compute_grad_slow_correct.lean  <--- g2 (can be done right after estimators.lean)
-     143 memoize_correct.lean            <--- g2
-     482 kl.lean                         <--- g2
+     556 prove_model_ok.lean  <--- g2
+     223 lemmas_extra.lean    <--- g2
+     435 compute_grad_slow_correct.lean  <--- g1 (can be done right after estimators.lean)
+     
+     482 kl.lean                         <--- g1
      
      
      

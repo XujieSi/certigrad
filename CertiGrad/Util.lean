@@ -6,6 +6,7 @@ import Lean
 -- import Mathlib.Algebra.Group.ZeroOne
 import Mathlib.Data.Num.Basic
 import Mathlib.Algebra.NeZero
+import Mathlib.Data.List.Nodup
 
 -- meta constant io.mkdir (s : string) [io.interface] : io nat
 
@@ -474,11 +475,17 @@ theorem elem_at_idx_of_at_idx {X : Type} [Inhabited X] : ∀ {xs : List X} {idx 
       apply elem_at_idx_of_at_idx
       exact ⟨Nat.lt_of_succ_lt_succ H_at_idx.left, H_at_idx.right⟩
 
--- theorem at_idx_0 {α : Type*} [Inhabited α] {x : α} {xs : List α} : at_idx (x::xs) 0 x :=
--- begin dunfold at_idx, split, exact nat.zero_lt_succ (length xs), reflexivity end
+theorem at_idx_0 {α : Type} [Inhabited α] {x : α} {xs : List α} : at_idx (x::xs) 0 x :=
+  by
+    unfold at_idx
+    constructor
+    . exact Nat.zero_lt_succ xs.length
+    . rfl
 
--- theorem at_idx_inj {α : Type*} [Inhabited α] {x x₁ x₂ : α} {xs : List α} : at_idx (x::xs) 0 x₁ → at_idx (x::xs) 0 x₂ → x₁ = x₂ :=
--- begin dunfold at_idx, intros H₁ H₂, rw [H₁^.right, H₂^.right] end
+theorem at_idx_inj {α : Type} [Inhabited α] {x x₁ x₂ : α} {xs : List α} : at_idx (x::xs) 0 x₁ → at_idx (x::xs) 0 x₂ → x₁ = x₂ := by
+  intro H₁ H₂
+  simp only [at_idx] at H₁ H₂
+  rw [H₁.right, H₂.right]
 
 -- theorem at_idx_of_cons {α : Type} [Inhabited α] {x : α} {xs : List α} {y : α} {idx : Nat} :
 --   at_idx (x::xs) (idx+1) y → at_idx xs idx y := by
@@ -501,16 +508,16 @@ theorem at_idx_of_cons {α : Type} [Inhabited α] {x : α} {xs : List α} {y : �
     rw [H_dnth]
     rfl
 
--- theorem at_idx_cons {α : Type*} [Inhabited α] {x : α} {xs : List α} {y : α} {idx : Nat} :
---   at_idx xs idx y → at_idx (x::xs) (idx+1) y :=
--- begin
--- dunfold at_idx,
--- intro H,
--- cases H with H_lt H_dnth,
--- split,
--- exact nat.succ_lt_succ H_lt,
--- rw H_dnth, reflexivity
--- end
+theorem at_idx_cons {α : Type} [Inhabited α] {x : α} {xs : List α} {y : α} {idx : Nat} :
+  at_idx xs idx y → at_idx (x::xs) (idx+1) y :=
+  by
+    unfold at_idx
+    intro H
+    let ⟨H_lt, H_dnth⟩ := H
+    constructor
+    . exact Nat.succ_lt_succ H_lt
+    . rw [H_dnth]
+      rfl
 
 -- theorem at_idx_p1 {α β : Type} [Inhabited α] [Inhabited β] {xs : List (α × β)} {x : α × β} {idx : Nat} :
 --   at_idx xs idx x → at_idx xs^.p1 idx x.1 :=
@@ -589,16 +596,13 @@ theorem mem_not_mem_neq {X : Type*} {x₁ x₂ : X} {xs : List X} : x₁ ∈ xs 
 -- have H_nin : x₁ ∉ xs, from not_mem_of_nodup_cons H_nd,
 -- ne.symm $ mem_not_mem_neq H_in H_nin
 
--- theorem nodup_at_idx_neq {A : Type} [Inhabited A] {x : A} {xs : List A} {y : A} {idx : Nat} :
---   nodup (x::xs) → at_idx (x::xs) (idx+1) y → y ≠ x :=
--- begin
--- intros H_nd H_at_idx,
--- note H_at_idx' := at_idx_of_cons H_at_idx,
--- assert H_in_xs : y ∈ xs,
--- apply mem_of_at_idx H_at_idx',
--- apply ne.symm,
--- apply nodup_cons_neq H_in_xs H_nd,
--- end
+-- theorem nodup_at_idx_neq {α : Type} [Inhabited α] {x : α} {xs : List α} {y : α} {idx : Nat} :
+--   Nodup (x::xs) → at_idx (x::xs) (idx+1) y → y ≠ x := by
+--   intro H_nd H_at_idx
+--   let H_at_idx' := at_idx_of_cons H_at_idx
+--   have H_in_xs : y ∈ xs := mem_of_at_idx H_at_idx'
+--   apply Ne.symm
+--   apply nodup_cons_neq H_in_xs H_nd
 
 -- theorem sublist_cons_nil {X : Type*} {xs : List X} {x : X} : ¬ (x :: xs <+ []) :=
 -- begin
@@ -619,9 +623,14 @@ theorem mem_not_mem_neq {X : Type*} {x₁ x₂ : X} {xs : List X} : x₁ ∈ xs 
 -- have H_nd_zs : nodup zs, from nodup_of_nodup_append_right H_nd,
 -- have H_dj : disjoint xs zs, from disjoint_of_sublist_left H_sl (disjoint_of_nodup_append H_nd),
 -- nodup_append_of_nodup_of_nodup_of_disjoint H_nd_xs H_nd_zs H_dj
+open List
 
--- theorem nodup_append_swap {X : Type} {xs₁ xs₂ : List X} {x : X} : nodup (xs₁ ++ (x :: xs₂)) → nodup ((x::xs₁) ++ xs₂) :=
--- by apply List.nodup_head
+theorem nodup_append_swap {X : Type} {xs₁ xs₂ : List X} {x : X} : Nodup (xs₁ ++ (x :: xs₂)) → Nodup ((x::xs₁) ++ xs₂) :=
+  by
+    intro H
+    have H₁: xs₁ ++ x :: xs₂ ~ x :: xs₁ ++ xs₂ := by
+      apply perm_middle
+    exact H₁.nodup_iff.mp H
 
 -- theorem nodup_mem_append₂ {X : Type} {x : X} {xs₁ xs₂ : List X} : nodup (xs₁ ++ xs₂) → x ∈ xs₂ → x ∉ xs₁ :=
 -- assume (H_nd : nodup (xs₁ ++ xs₂)) (H₂ : x ∈ xs₂) (H₁ : x ∈ xs₁),
