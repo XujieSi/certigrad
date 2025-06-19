@@ -368,8 +368,9 @@ theorem append_single {α : Type} (x : α) (xs : List α) : [x] ++ xs = x :: xs 
 
 theorem append_nil_left {α : Type} (xs : List α) : [] ++ xs = xs := rfl
 
--- theorem in_filter {α : Type*} (P : α → Prop) [decidable_pred P] : Π (xs : List α) (x : α), x ∈ xs → P x → x ∈ filter P xs
--- | []      x H_x_in HPx := H_x_in
+-- open List
+-- theorem in_filter {α : Type} (P : α → Prop) [DecidablePred P] : ∀ (xs : List α) (x : α), x ∈ xs → P x → x ∈ filter P xs
+-- | [], x,H_x_in, HPx := H_x_in
 -- | (y::ys) x H_x_in HPx :=
 -- have Hx : x = y ∨ x ∈ ys, from iff.mp (mem_cons_iff _ _ _) H_x_in,
 -- have Hy : P y ∨ ¬ (P y), from decidable.em _,
@@ -380,7 +381,6 @@ theorem append_nil_left {α : Type} (xs : List α) : [] ++ xs = xs := rfl
 -- cases Hy with HPy HnPy,
 -- { simp [HPy], exact or.inr (in_filter _ _ H_in HPx) },
 -- { simp [HnPy], exact in_filter _ _ H_in HPx }
--- end
 
 -- theorem of_in_filter {α : Type*} (P : α → Prop) [decidable_pred P] : Π (xs : List α) (x : α), x ∈ filter P xs → x ∈ xs ∧ P x
 -- | []      x H_x_in := false.rec _ (not_mem_nil _ H_x_in)

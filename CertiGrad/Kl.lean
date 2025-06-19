@@ -154,6 +154,27 @@ E (graph.toDist (λ env₀ => ⟦sumCosts env₀ (eloss::costs)⟧) inputs nodes
 | (⟨(rname, .(shape)), [(pname₁, .(shape)), (pname₂, .(shape))], Operator.rand (rand.op.mvn shape)⟩
   ::⟨(rname₂, []), [(pname₃, shape₃), (pname₄, shape₄), (pname₅, shape₅)], Operator.det (det.op.mk _ _ _ _ _ _ _)⟩::nodes),inputs,H_eloss_not_cost,H_pre,H_uids,H_ps_in_env,H_pdfs_exist_at,H_kl_gint,H_gint => False.rec _ H_pre
 
+-- EQ11
+| (⟨(rname, .(shape)), [(pname₁, .(shape)), (pname₂, .(shape))], Operator.rand (rand.op.mvn shape)⟩
+  ::⟨(rname₂, []), [(pname₃, shape₃), (pname₄, shape₄), (pname₅, shape₅)], Operator.rand op⟩::nodes),inputs,H_eloss_not_cost,H_pre,H_uids,H_ps_in_env,H_pdfs_exist_at,H_kl_gint,H_gint => False.rec _ H_pre
+
+-- EQ12
+| (⟨(rname, .(shape)), [(pname₁, .(shape)), (pname₂, .(shape))], Operator.rand (rand.op.mvn shape)⟩
+  ::⟨(rname₂, []), ((pname₃, shape₃)::(pname₄, shape₄)::(pname₅, shape₅)::parent::parents), op⟩::nodes),inputs,H_eloss_not_cost,H_pre,H_uids,H_ps_in_env,H_pdfs_exist_at,H_kl_gint,H_gint => False.rec _ H_pre
+
+-- EQ13
+| (⟨(rname, .(shape)), [(pname₁, .(shape)), (pname₂, .(shape))], Operator.rand (rand.op.mvn shape)⟩
+  ::⟨(rname₂, (shape₂ :: shapes₂)), parents, op⟩::nodes),inputs,H_eloss_not_cost,H_pre,H_uids,H_ps_in_env,H_pdfs_exist_at,H_kl_gint,H_gint => False.rec _ H_pre
+
+| (⟨(rname₂, shape₂), ((pname₃, shape₃)::(pname₄, shape₄)::parent::parents), Operator.det op⟩::nodes),inputs,H_eloss_not_cost,H_pre,H_uids,H_ps_in_env,H_pdfs_exist_at,H_kl_gint,H_gint => by
+  simp only [graph.toDist, Operator.toDist, integrate_mvn_kl]
+  simp only [integrate_mvn_kl_pre] at H_pre
+  simp only [E.E_bind, E.E_ret]
+  have H_pre_next : integrate_mvn_kl_pre eloss nodes (env.insert (rname₂, shape₂) (op.f (env.getKs ((pname₃, shape₃)::(pname₄, shape₄)::parent::parents) inputs)) inputs) := H_pre
+  have H_ps_in_env_next : allParentsInEnv (env.insert (rname₂, shape₂) (op.f (env.getKs ((pname₃, shape₃)::(pname₄, shape₄)::parent::parents) inputs)) inputs) nodes := H_ps_in_env.right _
+  exact (integrate_mvn_kl_correct _ _ _ _ H_eloss_not_cost H_pre_next (H_uids.right _) H_ps_in_env_next H_pdfs_exist_at H_kl_gint H_gint)
+| (⟨(rname₂, shape₂), ((pname₃, shape₃)::(pname₄, shape₄)::parent::parents), Operator.rand op⟩::nodes),inputs,H_eloss_not_cost,H_pre,H_uids,H_ps_in_env,H_pdfs_exist_at,H_kl_gint,H_gint => False.rec _ H_pre
+
 -- EQ10
 | (⟨(z, .(shape)), [(μ, .(shape)), (σ, .(shape))], Operator.rand (rand.op.mvn shape)⟩
  ::⟨(el, []), [(μ', .(shape')), (σ', .(shape')), (z', .(shape'))], Operator.det (det.op.mvn_empirical_kl shape')⟩
@@ -161,9 +182,9 @@ E (graph.toDist (λ env₀ => ⟦sumCosts env₀ (eloss::costs)⟧) inputs nodes
   have H_ok : μ = μ' ∧ σ = σ' ∧ z = z' ∧ shape = shape' ∧ eloss = el ∧ σ ≠ μ := H_pre.left
   let ⟨ H_μ, H_σ, H_z, H_shape, H_eloss_eq_el, H_σ_neq_μ⟩ := H_ok
   subst H_μ H_σ H_z H_shape H_eloss_eq_el
-  simp only [graph.toDist, Operator.toDist, integrate_mvn_kl]
+  dsimp only [graph.toDist, Operator.toDist, integrate_mvn_kl]
   simp only [E.E_bind, E.E_ret]
-  simp only [Dvec.head]
+  dsimp [Dvec.head]
 
   have H_μ_in : env.hasKey (μ, shape) inputs := H_ps_in_env.left (μ, shape) (List.mem_cons_self)
   have H_σ_in : env.hasKey (σ, shape) inputs := H_ps_in_env.left (σ, shape) (List.mem_cons_of_mem _ (List.mem_cons_self))
@@ -178,14 +199,15 @@ E (graph.toDist (λ env₀ => ⟦sumCosts env₀ (eloss::costs)⟧) inputs nodes
   have H_eloss_neq_z : (eloss, []) ≠ (z, shape) := ne_of_not_mem_cons H_pre.right.right.left
   have H_eloss_nin_nodes : (eloss, []) ∉ map Node.ref nodes := not_mem_of_not_mem_cons H_pre.right.right.left
 
-  simp only [env.getKs, det.op.f, ops.mvn_kl, ops.mvn_kl.f]
-  simp only [Dvec.head, Dvec.head2, Dvec.head3]
+  dsimp only [det.op.f, ops.mvn_kl.f, Dvec.head, Dvec.head2, Dvec.head3, env.getKs]
+  -- dsimp only [sumCosts, map, sumr]
+  -- dsimp only [env.getKs]
+  -- simp only [det.op.f, ops.mvn_kl, ops.mvn_kl.f, Dvec.head, env.getKs, sumCosts,Dvec.head2, Dvec.head3]
 
-  -- simp [λ (x : Dvec T [shape])=> env.insert_insert_flip (z, shape) (eloss, []) x.head
-  --                                      (T.mvn_kl (env.get (μ, shape) inputs : T shape) (env.get (σ, shape) inputs : T shape))
-  --                                      inputs (Ne.symm H_eloss_neq_z)]
+  simp only [λ (x : Dvec T [shape]) => @env.insert_insert_flip (z, shape) (eloss, []) x.head
+                                       (T.mvn_kl (env.get (μ, shape) inputs : T shape) (env.get (σ, shape) inputs : T shape))
+                                       inputs (Ne.symm H_eloss_neq_z)]
 
-  -- simp only [sum_costs, map, sumr]
 
   let k₁ : Env → TReal := λ (m : Env) => env.get (eloss, @nil ℕ) m
   let k₂ : Env → TReal := λ (m : Env) => sumr (map (λ (cost : ID) => env.get (cost, @nil ℕ) m) costs)
@@ -195,29 +217,33 @@ E (graph.toDist (λ env₀ => ⟦sumCosts env₀ (eloss::costs)⟧) inputs nodes
 
   have H_lhs_kint₁ : ∀ (x : Dvec T [shape]), isGintegrable (λ (m : Env) => ⟦k₁ m⟧) (m_lhs_k_add x) nodes Dvec.head := by
     intro x
-    simp only [isGintegrable, integrate_mvn_kl, Dvec.head] at H_kl_gint
-    simp only [det.op.f, ops.mvn_kl, ops.mvn_kl.f, Dvec.head, env.getKs, sumCosts] at H_kl_gint
-    -- d sumr map at H_kl_gint
-    exact ((is_gintegrable_k_add _ _ _ _).mpr (H_kl_gint.right  x) ).left
+    unfold m_lhs_k_add
+    cases x with
+    | dcons x xnil =>
+      cases xnil with
+      | dnil =>
+        simp only [λ a1 a2 a3 => @env.insert_insert_flip (eloss, []) (z, shape) a1 a2 a3 H_eloss_neq_z]
+        simp only [isGintegrable, integrate_mvn_kl, Dvec.head] at H_kl_gint
+        simp only [det.op.f, ops.mvn_kl, ops.mvn_kl.f, Dvec.head, env.getKs, sumCosts] at H_kl_gint
+        exact ((is_gintegrable_k_add _ _ _ _).mpr (H_kl_gint.right x)).left
+      -- sorry
 
--- assert H_lhs_kint₁ : ∀ (x : dvec T [shape]), is_gintegrable (λ m, ⟦k₁ m⟧) (m_lhs_k_add x) nodes dvec.head,
---  { dsimp [is_gintegrable, integrate_mvn_kl, dvec.head] at H_kl_gint, dsimp, intro x,
---    cases x with xx x xxx xnil, cases xnil,
---    simp only [λ a1 a2 a3, @env.insert_insert_flip (eloss, []) (z, shape) a1 a2 a3 H_eloss_neq_z],
---    simp only [det.op.f, ops.mvn_kl, ops.mvn_kl.f, dvec.head, env.get_ks, sum_costs] at H_kl_gint,
---    dunfold sumr map at H_kl_gint,
---    exact (iff.mpr (is_gintegrable_k_add _ _ _ _) (H_kl_gint^.right x))^.left
---   },
+  have H_lhs_kint₂ : ∀ (x : Dvec T [shape]), isGintegrable (λ m => ⟦k₂ m⟧) (m_lhs_k_add x) nodes Dvec.head := by
+    intro x
+    unfold m_lhs_k_add
+    cases x with
+    | dcons x xnil =>
+      cases xnil with
+      | dnil =>
+        simp only [λ a1 a2 a3 => @env.insert_insert_flip (eloss, []) (z, shape) a1 a2 a3 H_eloss_neq_z]
+        simp only [isGintegrable, integrate_mvn_kl, Dvec.head] at H_kl_gint
+        simp only [det.op.f, ops.mvn_kl, ops.mvn_kl.f, Dvec.head, env.getKs, sumCosts] at H_kl_gint
+        exact ((is_gintegrable_k_add _ _ _ _).mpr (H_kl_gint.right x)).right
+  simp only [env.getKs, det.op.f, ops.mvn_kl, ops.mvn_kl.f]
 
--- assert H_lhs_kint₂ : ∀ (x : dvec T [shape]), is_gintegrable (λ m, ⟦k₂ m⟧) (m_lhs_k_add x) nodes dvec.head,
---  { dsimp [is_gintegrable, integrate_mvn_kl, dvec.head] at H_kl_gint, dsimp, intro x,
---    cases x with xx x xxx xnil, cases xnil,
---    simp only [λ a1 a2 a3, @env.insert_insert_flip (eloss, []) (z, shape) a1 a2 a3 H_eloss_neq_z],
---    simp only [det.op.f, ops.mvn_kl, ops.mvn_kl.f, dvec.head, env.get_ks, sum_costs] at H_kl_gint,
---    dunfold sumr map at H_kl_gint,
---    exact (iff.mpr (is_gintegrable_k_add _ _ _ _) (H_kl_gint^.right x))^.right },
 
--- simp only [(λ (x : dvec T [shape]), E.E_k_add k₁ k₂ (m_lhs_k_add x) nodes (H_lhs_kint₁ x) (H_lhs_kint₂ x))],
+
+  simp only [(λ (x : Dvec T [shape]) => E.E_k_add k₁ k₂ (m_lhs_k_add x) nodes (H_lhs_kint₁ x) (H_lhs_kint₂ x))]
 
 -- clear H_lhs_kint₁ H_lhs_kint₂,
 
@@ -428,26 +454,6 @@ E (graph.toDist (λ env₀ => ⟦sumCosts env₀ (eloss::costs)⟧) inputs nodes
 -- dsimp,
 -- erw (to_dist_congr_insert H_ps_in_env (env_not_has_key_insert H_eloss_neq_z H_eloss_nin) H_eloss_nin_nodes H_eloss_not_cost),
 -- erw (to_dist_congr_insert H_ps_in_env (env_not_has_key_insert H_eloss_neq_z H_eloss_nin) H_eloss_nin_nodes H_eloss_not_cost)
--- EQ11
-| (⟨(rname, .(shape)), [(pname₁, .(shape)), (pname₂, .(shape))], Operator.rand (rand.op.mvn shape)⟩
-  ::⟨(rname₂, []), [(pname₃, shape₃), (pname₄, shape₄), (pname₅, shape₅)], Operator.rand op⟩::nodes),inputs,H_eloss_not_cost,H_pre,H_uids,H_ps_in_env,H_pdfs_exist_at,H_kl_gint,H_gint => False.rec _ H_pre
-
--- EQ12
-| (⟨(rname, .(shape)), [(pname₁, .(shape)), (pname₂, .(shape))], Operator.rand (rand.op.mvn shape)⟩
-  ::⟨(rname₂, []), ((pname₃, shape₃)::(pname₄, shape₄)::(pname₅, shape₅)::parent::parents), op⟩::nodes),inputs,H_eloss_not_cost,H_pre,H_uids,H_ps_in_env,H_pdfs_exist_at,H_kl_gint,H_gint => False.rec _ H_pre
-
--- EQ13
-| (⟨(rname, .(shape)), [(pname₁, .(shape)), (pname₂, .(shape))], Operator.rand (rand.op.mvn shape)⟩
-  ::⟨(rname₂, (shape₂ :: shapes₂)), parents, op⟩::nodes),inputs,H_eloss_not_cost,H_pre,H_uids,H_ps_in_env,H_pdfs_exist_at,H_kl_gint,H_gint => False.rec _ H_pre
-
-| (⟨(rname₂, shape₂), ((pname₃, shape₃)::(pname₄, shape₄)::parent::parents), Operator.det op⟩::nodes),inputs,H_eloss_not_cost,H_pre,H_uids,H_ps_in_env,H_pdfs_exist_at,H_kl_gint,H_gint => by
-  simp only [graph.toDist, Operator.toDist, integrate_mvn_kl]
-  simp only [integrate_mvn_kl_pre] at H_pre
-  simp only [E.E_bind, E.E_ret]
-  have H_pre_next : integrate_mvn_kl_pre eloss nodes (env.insert (rname₂, shape₂) (op.f (env.getKs ((pname₃, shape₃)::(pname₄, shape₄)::parent::parents) inputs)) inputs) := H_pre
-  have H_ps_in_env_next : allParentsInEnv (env.insert (rname₂, shape₂) (op.f (env.getKs ((pname₃, shape₃)::(pname₄, shape₄)::parent::parents) inputs)) inputs) nodes := H_ps_in_env.right _
-  exact (integrate_mvn_kl_correct _ _ _ _ H_eloss_not_cost H_pre_next (H_uids.right _) H_ps_in_env_next H_pdfs_exist_at H_kl_gint H_gint)
-| (⟨(rname₂, shape₂), ((pname₃, shape₃)::(pname₄, shape₄)::parent::parents), Operator.rand op⟩::nodes),inputs,H_eloss_not_cost,H_pre,H_uids,H_ps_in_env,H_pdfs_exist_at,H_kl_gint,H_gint => False.rec _ H_pre
 
 -- More useful API
 

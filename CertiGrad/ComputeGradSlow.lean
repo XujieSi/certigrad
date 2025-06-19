@@ -45,7 +45,7 @@ lemma compute_grad_slow_correct {costs : List ID} :
       simp [env.get_insert_same, T.grad_id]
     case h.inr H_neq =>
       simp [λ (x : T tgt.2) => env.get_insert_diff x inputs (Ne.symm H_neq), H_neq, T.grad_const]
-
+| (⟨ref, parents, Operator.rand op⟩ :: nodes), inputs, tgt => by sorry
 | (⟨ref, parents, Operator.det op⟩ :: nodes), inputs, tgt => by
       intro H_wf H_gs_exist H_pdfs_exist H_gdiff H_nabla_gint H_grad_gint H_diff_under_int
       let θ := env.get tgt inputs
@@ -65,10 +65,8 @@ lemma compute_grad_slow_correct {costs : List ID} :
            simp [env.get_ks_insert_diff H_ref_notin_parents]
 
       have H_get_ref_next : env.get ref next_inputs = op.f (env.getKs parents inputs) := by
-          unfold next_inputs
-          -- dsimp
-          sorry
-          -- simp [env.get_insert_same]
+          unfold next_inputs x
+          simp [env.get_insert_same]
 
 
 
@@ -144,154 +142,93 @@ lemma compute_grad_slow_correct {costs : List ID} :
       have H_almost_tgt := (Eq.symm (compute_grad_slow_correct H_wfs.left H_gs_exist_tgt H_pdfs_exist_next H_gdiff.right.right.left H_nabla_gint_tgt H_grad_gint_tgt H_diff_under_int.left))
       rw [env.get_insert_diff _ _ H_tgt_neq_ref] at H_almost_tgt
       erw [H_almost_tgt]
-      -- dsimp
-      simp only [next_inputs]
-      simp [λ (θ : T tgt.2) => env.insert_insert_flip x θ inputs (Ne.symm H_tgt_neq_ref)]
+
+      have H₁:
+        ∇ (fun θ₀ => g (env.getKs parents inputs) θ₀) θ =
+        ∇ (fun θ₀ => E (graph.toDist (fun m => sumCosts m costs ::: Dvec.dnil)
+            (env.insert tgt θ₀ next_inputs) nodes) Dvec.head)
+            (env.get tgt inputs):= by
+            sorry
+      simp only [H₁]
+      apply congr_arg
+      apply (congr_arg sumr)
+      apply map_filter_congr
+      intros idx H_idx_in_riota H_tgt_dnth_parents_idx
+      have H_tgt_at_idx : at_idx parents idx tgt := ⟨in_riota_lt H_idx_in_riota, H_tgt_dnth_parents_idx⟩
+      have H_tshape_at_idx : at_idx parents.p2 idx tgt.2 := at_idx_p2 H_tgt_at_idx
+      have H_tgt_in_parents : tgt ∈ parents := mem_of_at_idx H_tgt_at_idx
+
+      dsimp only [g]
+      rw [T.grad_chain_rule
+              (λ (θ : T tgt.2) =>
+                op.f (dvec.update_at θ (env.getKs parents inputs) idx))
+              (λ (x : T ref.2) =>
+                E
+                  (graph.toDist
+                      (λ (m : Env) => sumCosts m costs ::: Dvec.dnil)
+                        (env.insert ref x (env.insert tgt θ inputs)) nodes)
+                      Dvec.head)
+              θ
+              ]
+      rw [env.insert_get_same H_wf.m_contains_tgt]
+      have H_swap_m_for_inputs :
+        graph.toDist (λ (m : Env) =>
+                   ⟦op.pb (env.getKs parents m)
+                           (env.get ref m)
+                           (computeGradSlow costs nodes m ref)
+                           idx
+                           tgt.2⟧)
+                next_inputs
+                nodes
+          =
+          (graph.toDist (λ (m : Env) =>
+                              ⟦op.pb (env.getKs parents next_inputs)
+                                      x
+                                      (computeGradSlow costs nodes m ref)
+                                      idx
+                                      tgt.2⟧)
+                          next_inputs
+                          nodes) := by sorry
+      rw [H_swap_m_for_inputs]
+      have H_f_pre : op.pre (env.getKs parents next_inputs) := Eq.recOn (Eq.symm H_get_ks_next_inputs) (H_gs_exist.right H_tgt_in_parents).left
+      simp [λ (m : Env) => op.pb_correct (env.getKs parents next_inputs) x (by rw [H_get_ks_next_inputs]) (computeGradSlow costs nodes m ref) H_tshape_at_idx H_f_pre]
+      simp [E.E_k_tmulT, H_get_ks_next_inputs, env.dvec_get_get_ks inputs H_tgt_at_idx]
       apply congr_arg
 
-    -- 3. Time for the second term: get rid of sum and use map_filter_congr
-    apply (congr_arg sumr),
-    apply map_filter_congr,
-    intros idx H_idx_in_riota H_tgt_dnth_parents_idx,
-    assertv H_tgt_at_idx : at_idx parents idx tgt := ⟨in_riota_lt H_idx_in_riota, H_tgt_dnth_parents_idx⟩,
-    assertv H_tshape_at_idx : at_idx parents^.p2 idx tgt.2 := at_idx_p2 H_tgt_at_idx,
-    assertv H_tgt_in_parents : tgt ∈ parents := mem_of_at_idx H_tgt_at_idx,
+      have H_op_called : isGintegrable (λ m => ⟦det.op.pb op (env.getKs parents m) (env.get ref m) (computeGradSlow costs nodes m ref) idx tgt.2⟧)
+                                    next_inputs nodes Dvec.head :=
+        is_gintegrable_of_sumr_map (λ m idx => det.op.pb op (env.getKs parents m) (env.get ref m) (computeGradSlow costs nodes m ref) idx (tgt.snd))
+                                    next_inputs nodes _ H_grad_gint₂ idx (List.mem_filter_of_mem H_idx_in_riota (decide_eq_true H_tgt_dnth_parents_idx))
 
-    -- 4. Put the LHS in terms of T.tmulT
-    rw (T.grad_chain_rule (λ (θ : T tgt.2), det.op.f op (dvec.update_at θ (env.get_ks parents inputs) idx))
-                          (λ (x : T ref.2), E (graph.to_dist (λ (m : env), ⟦sum_costs m costs⟧)
-                                                            (env.insert ref x inputs)
-                                                            nodes)
-                                              dvec.head))
+      have H_gs_exist_ref : gradsExistAt nodes next_inputs ref := (H_gs_exist.right H_tgt_in_parents).right
+      have H_grad_gint_ref : isGintegrable (λ m => ⟦computeGradSlow costs nodes m ref⟧) next_inputs nodes Dvec.head := by sorry
+      have H_op_called_swap : isGintegrable (λ m => ⟦det.op.pb op (env.getKs parents next_inputs) x (computeGradSlow costs nodes m ref) idx tgt.2⟧)
+                                         next_inputs nodes Dvec.head := by
+          apply isGintegrableK_congr _ _ _ _ _ H_wfs.right.uids _ H_op_called
+          intros m H_envs_match
+          have H_parents_match : env.getKs parents m = env.getKs parents next_inputs := by
+            apply env.get_ks_env_eq
+            intros parent H_parent_in_parents
+            apply H_envs_match
+            apply env.hasKey_insert
+            exact (H_wf.psInEnv.left parent H_parent_in_parents)
+          have H_ref_matches : env.get ref m = x := by
+            have H_env_has_key_ref : env.hasKey ref next_inputs := env.hasKey_insert_same _ _
+            rw [H_envs_match ref H_env_has_key_ref, env.get_insert_same]
+          simp only [H_parents_match, H_ref_matches]
 
-      -- rw [env.insert_get_same H_wf.m_contains_tgt]
+      have H_gdiff_ref : isGdifferentiable (λ m => ⟦sumCosts m costs⟧) ref next_inputs nodes Dvec.head := by sorry
+      have H_nabla_gint_ref : isNablaGintegrable (λ m => ⟦sumCosts m costs⟧) ref next_inputs nodes Dvec.head := by
+        exact H_nabla_gint.right H_idx_in_riota H_tgt_dnth_parents_idx
 
-      -- pose H_almost_tgt := (eq.symm (compute_grad_slow_correct H_wfs^.left H_gs_exist_tgt H_pdfs_exist_next H_gdiff^.right^.right^.left H_nabla_gint_tgt H_grad_gint_tgt H_diff_under_int^.left)),
-      -- rw (env.get_insert_diff _ _ H_tgt_neq_ref) at H_almost_tgt,
-      -- erw H_almost_tgt,
-      -- dsimp,
-      -- simp [λ (θ : T tgt.2), env.insert_insert_flip x θ inputs (ne.symm H_tgt_neq_ref)],
-      -- apply congr_arg,
+      have H_correct_ref := compute_grad_slow_correct H_wfs.right H_gs_exist_ref H_pdfs_exist_next
+                                                H_gdiff_ref H_nabla_gint_ref H_grad_gint_ref (H_diff_under_int.right H_tgt_in_parents)
+      simp  [H_get_ref_next] at H_correct_ref
+      unfold next_inputs at H_correct_ref
+      simp [env.insert_insert_same] at H_correct_ref
+      unfold θ next_inputs
+      simp [env.dvec_update_at_env inputs H_tgt_at_idx]
+      exact H_correct_ref
 
-      -- -- 3. Time for the second term: get rid of sum and use map_filter_congr
-      -- apply (congr_arg sumr),
-      -- apply map_filter_congr,
-      -- intros idx H_idx_in_riota H_tgt_dnth_parents_idx,
-      -- assertv H_tgt_at_idx : at_idx parents idx tgt := ⟨in_riota_lt H_idx_in_riota, H_tgt_dnth_parents_idx⟩,
-      -- assertv H_tshape_at_idx : at_idx parents^.p2 idx tgt.2 := at_idx_p2 H_tgt_at_idx,
-      -- assertv H_tgt_in_parents : tgt ∈ parents := mem_of_at_idx H_tgt_at_idx,
-
-      -- -- 4. Put the LHS in terms of T.tmulT
-      -- rw (T.grad_chain_rule (λ (θ : T tgt.2), det.op.f op (dvec.update_at θ (env.get_ks parents inputs) idx))
-      --                       (λ (x : T ref.2), E (graph.to_dist (λ (m : env), ⟦sum_costs m costs⟧)
-      --                                                         (env.insert ref x inputs)
-      --                                                         nodes)
-      --                                           dvec.head)),
-
-      -- -- 5. Replace `m` with `inputs`/`next_inputs` so that we can use `pb_correct`
-      -- assert H_swap_m_for_inputs :
-      -- graph.to_dist (λ (m : env),
-      --                   ⟦op^.pb (env.get_ks parents m)
-      --                           (env.get ref m)
-      --                           (compute_grad_slow costs nodes m ref)
-      --                           idx
-      --                           tgt.2⟧)
-      --                 next_inputs
-      --                 nodes
-      -- =
-      -- (graph.to_dist (λ (m : env),
-      --                     ⟦op^.pb (env.get_ks parents next_inputs)
-      --                             x
-      --                             (compute_grad_slow costs nodes m ref)
-      --                             idx
-      --                             tgt.2⟧)
-      --                 next_inputs
-      --                 nodes),
-      -- begin
-      --   apply graph.to_dist_congr,
-      --   exact H_wfs^.right^.uids,
-      --   dsimp,
-      --   intros m H_envs_match,
-      --   apply dvec.singleton_congr,
-      --   assert H_parents_match : env.get_ks parents m = env.get_ks parents next_inputs,
-      --   begin
-      --     apply env.get_ks_env_eq,
-      --     intros parent H_parent_in_parents,
-      --     apply H_envs_match,
-      --     apply env.has_key_insert,
-      --     exact (H_wf^.ps_in_env^.left parent H_parent_in_parents)
-      --   end,
-      --   assert H_ref_matches : env.get ref m = x,
-      --   begin
-      --     assertv H_env_has_key_ref : env.has_key ref next_inputs := env.has_key_insert_same _ _,
-      --     rw [H_envs_match ref H_env_has_key_ref, env.get_insert_same]
-      --   end,
-      --   simp [H_parents_match, H_ref_matches],
-      -- end,
-
-      -- rw H_swap_m_for_inputs,
-      -- clear H_swap_m_for_inputs,
-
-      -- -- 6. Use pb_correct
-      -- assertv H_f_pre : op^.pre (env.get_ks parents next_inputs) := eq.rec_on (eq.symm H_get_ks_next_inputs) (H_gs_exist^.right H_tgt_in_parents)^.left,
-      -- simp [λ (m : env), op^.pb_correct (env.get_ks parents next_inputs) x (by rw H_get_ks_next_inputs) (compute_grad_slow costs nodes m ref) H_tshape_at_idx H_f_pre],
-
-      -- -- 7. Push E over tmulT and cancel the first terms
-      -- simp [E.E_k_tmulT, H_get_ks_next_inputs, env.dvec_get_get_ks inputs H_tgt_at_idx],
-      -- apply congr_arg,
-
-      -- -- 8. Final recursive case
-      -- assertv H_gs_exist_ref : grads_exist_at nodes next_inputs ref := (H_gs_exist^.right H_tgt_in_parents)^.right,
-
-      -- assert H_grad_gint_ref : is_gintegrable (λ m, ⟦compute_grad_slow costs nodes m ref⟧) next_inputs nodes dvec.head,
-      -- begin
-      -- assertv H_op_called : is_gintegrable (λ m, ⟦det.op.pb op (env.get_ks parents m) (env.get ref m) (compute_grad_slow costs nodes m ref) idx (tgt.snd)⟧)
-      --                                     next_inputs nodes dvec.head :=
-      --   is_gintegrable_of_sumr_map (λ m idx, det.op.pb op (env.get_ks parents m) (env.get ref m) (compute_grad_slow costs nodes m ref) idx (tgt.snd))
-      --                                     next_inputs nodes _ H_grad_gint₂ idx (in_filter _ _ _ H_idx_in_riota H_tgt_dnth_parents_idx),
-
-      -- assert H_op_called_swap : is_gintegrable (λ m, ⟦det.op.pb op (env.get_ks parents next_inputs) x (compute_grad_slow costs nodes m ref) idx (tgt.snd)⟧)
-      --                                         next_inputs nodes dvec.head,
-      -- {
-      -- apply is_gintegrable_k_congr _ _ _ _ _ H_wfs^.right^.uids _ H_op_called,
-      -- intros m H_envs_match,
-      -- -- TODO(dhs): this is copy-pasted from above
-      -- assert H_parents_match : env.get_ks parents m = env.get_ks parents next_inputs,
-      -- begin
-      --   apply env.get_ks_env_eq,
-      --   intros parent H_parent_in_parents,
-      --   apply H_envs_match,
-      --   apply env.has_key_insert,
-      --   exact (H_wf^.ps_in_env^.left parent H_parent_in_parents)
-      -- end,
-      -- assert H_ref_matches : env.get ref m = x,
-      -- begin
-      --   assertv H_env_has_key_ref : env.has_key ref next_inputs := env.has_key_insert_same _ _,
-      --   rw [H_envs_match ref H_env_has_key_ref, env.get_insert_same]
-      -- end,
-      -- simp only [H_parents_match, H_ref_matches],
-      -- },
-
-      -- simp only [λ (m : env), op^.pb_correct (env.get_ks parents next_inputs) x (by rw H_get_ks_next_inputs) (compute_grad_slow costs nodes m ref) H_tshape_at_idx H_f_pre] at H_op_called_swap,
-      -- exact iff.mpr (is_gintegrable_tmulT _ _ _ _) H_op_called_swap
-      -- end,
-
-      -- assert H_gdiff_ref : is_gdifferentiable (λ m, ⟦sum_costs m costs⟧) ref next_inputs nodes dvec.head,
-      --   { exact H_gdiff^.right^.right^.right H_idx_in_riota H_tgt_dnth_parents_idx },
-
-      -- assert H_nabla_gint_ref : is_nabla_gintegrable (λ m, ⟦sum_costs m costs⟧) ref next_inputs nodes dvec.head,
-      --   { exact H_nabla_gint^.right H_idx_in_riota H_tgt_dnth_parents_idx },
-
-      -- pose H_correct_ref := compute_grad_slow_correct H_wfs^.right H_gs_exist_ref H_pdfs_exist_next
-      --                                                 H_gdiff_ref H_nabla_gint_ref H_grad_gint_ref (H_diff_under_int^.right H_tgt_in_parents),
-
-      -- simp [H_get_ref_next] at H_correct_ref,
-      -- dsimp at H_correct_ref,
-      -- simp [env.insert_insert_same] at H_correct_ref,
-      -- dsimp,
-      -- simp [env.dvec_update_at_env inputs H_tgt_at_idx],
-      -- exact H_correct_ref
-      -- end
-| (⟨ref, parents, Operator.rand op⟩ :: nodes), inputs, tgt => by sorry
 end theorems
 end certigrad
