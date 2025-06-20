@@ -33,9 +33,9 @@
 
      132 examples.nolean
 
-      49 backprop_correct.lean  <--- g4: final goal, just one theorem
+To Do
+      49 backprop_correct.lean  <--- g3: final goal, just one theorem
      556 prove_model_ok.lean  <--- g2
-       
      482 kl.lean                         <--- g1
      
      

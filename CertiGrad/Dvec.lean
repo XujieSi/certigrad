@@ -38,11 +38,9 @@ macro_rules
   | `(⟦$x⟧) => `(Dvec.dcons $x Dvec.dnil) -- this is necessary, otherwise the parse will fail
   | `(⟦$x, $xs:term,*⟧) => `(Dvec.dcons $x ⟦$xs,*⟧)
 
--- def x0 := ⟦1, 2, 3⟧
 
-def Dvec.head {X : Type} {Y : X → Type} {x : X} {xs : List X}  (l : Dvec Y (x::xs)) : Y x :=
-  match l with
-  | (dcons y ys) => y
+def Dvec.head {X : Type} {Y : X → Type} {x : X} {xs : List X} : Dvec Y (x::xs) → Y x
+| (dcons y ys)  =>  y
 
 def Dvec.tail {X : Type} {Y : X → Type} {x : X} {xs : List X} : Dvec Y (x::xs) → Dvec Y xs
 | (dcons y ys) => ys
