@@ -11,7 +11,7 @@
       95 ComputeGrad.lean
      233 Program.lean
       47 Optim.lean
-      86 Tvec.lean    -- The lemma get_fromEnv is not proved
+      86 Tvec.lean   
     199  Graph.lean
       52 Sprog.lean
     1205 Ops.lean   

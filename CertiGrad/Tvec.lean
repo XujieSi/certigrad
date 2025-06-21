@@ -97,32 +97,21 @@ open List
 -- open certigrad.env (get)
 -- and that at_idx, elem_at_idx, elem_at_idx_of_at_idx are defined or imported
 
-lemma get_fromEnv {refs : List Reference} {idx : Nat} {ref : Reference}
-  (H_at_idx : refs[idx]? = ref) (m : Env) :
-  dvec.get _ _ (fromEnv refs m) idx =  env.get ref m := Quotient.inductionOn m fun m' => by
-  sorry
+open List
+open util_list
+lemma get_from_env {refs : List Reference} {idx : ℕ} {ref : Reference} (H_at_idx : at_idx refs idx ref) (m : Env) :
+  dvec.get ref.2 _ (fromEnv refs m) idx = env.get ref m := by
+  have H_elem_at_idx : elem_at_idx refs idx ref := elem_at_idx_of_at_idx H_at_idx
+  induction H_elem_at_idx with
+  | base xs x=>
+    unfold fromEnv
+    erw [dvec.get]
+    simp
+  | step xs x y idx' H_elem_at_idx IH =>
+     unfold fromEnv
+     erw [dvec.get]
+     exact IH (at_idx_of_cons H_at_idx)
 
-  -- unfold fromEnv
--- --  [List.map]
---   simp [dvec.get, List.map, env.get]
-
-
-  -- clear m
-  -- unfold  fromEnv
-  -- simp [dvec.get, env.get]
-  -- cases H_at_idx with
-  -- | refl =>
-  --   simp
-  -- | cons xs x xs idx' x y H_elem_at_idx IH =>
-  --   unfold dvec.get
-  --   simp [H_elem_at_idx]
-  --   -- use IH to prove the recursive case
-  --   simp [IH (at_idx_of_cons H_at_idx)]
-  -- -- apply Quotient.sound
-  -- cases H_get: Std.DHashMap.get? m' ref with
-  -- | none =>
-  --       simp
-  -- | some x => simp [H_get]
 
 end tvec
 end certigrad
