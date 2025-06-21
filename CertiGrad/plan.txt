@@ -1,3 +1,4 @@
+      49 BackpropCorrect.lean  
      482 Kl.lean  
      223 LemmasExtra.lean    
      435 ComputeGradSlowCorrect.lean  
@@ -34,9 +35,8 @@
 
      132 examples.nolean
 
-To Do
-      49 backprop_correct.lean  <--- g2: final goal, just one theorem
-     556 prove_model_ok.lean  <--- g1
+      
+     556 prove_model_ok.lean  --- Not needed
                            
      
      
