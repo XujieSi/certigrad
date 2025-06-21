@@ -266,8 +266,35 @@ E (graph.toDist (λ env₀ => ⟦sumCosts env₀ (eloss::costs)⟧) inputs nodes
             (env.get (σ, shape) inputs) x.head :::
           Dvec.dnil).head
       (env.insert (z, shape) x.head inputs)
-  have H_rhs_kint₁: ∀ (x : Dvec T [shape]), isGintegrable (λ m => k₁ m ::: Dvec.dnil) (m_rhs_k_add x) nodes (Dvec.head) := by sorry
-  have H_rhs_kint₂: ∀ (x : Dvec T [shape]), isGintegrable (λ m => k₂ m ::: Dvec.dnil) (m_rhs_k_add x) nodes (Dvec.head) := by sorry
+
+
+  simp only [isGintegrable, integrate_mvn_kl, Dvec.head] at H_gint
+  simp only [det.op.f, ops.mvn_kl, ops.mvn_kl.f, Dvec.head, env.getKs, sumCosts] at H_gint
+  simp only [env.get_insert_same] at H_gint
+  simp only  [env.get_insert_diff _ _ H_μ_neq_z] at H_gint
+  simp only  [env.get_insert_diff _ _ H_σ_neq_z] at H_gint
+  simp only [ @env.insert_insert_flip _ _ _ _ inputs H_eloss_neq_z] at H_gint
+
+
+  have H_rhs_kint₁: ∀ (x : Dvec T [shape]), isGintegrable (λ m => k₁ m ::: Dvec.dnil) (m_rhs_k_add x) nodes (Dvec.head) := by
+      intro x
+      unfold m_rhs_k_add
+      cases x with
+      | dcons x xnil =>
+        cases xnil with
+        | dnil =>
+          simp only [λ a1 a2 a3 => @env.insert_insert_flip (eloss, []) (z, shape) a1 a2 a3 H_eloss_neq_z]
+          exact ((is_gintegrable_k_add _ _ _ _).mpr (H_gint.right x)).left
+  have H_rhs_kint₂: ∀ (x : Dvec T [shape]), isGintegrable (λ m => k₂ m ::: Dvec.dnil) (m_rhs_k_add x) nodes (Dvec.head) := by
+      intro x
+      unfold m_rhs_k_add
+      cases x with
+      | dcons x xnil =>
+        cases xnil with
+        | dnil =>
+          simp only [λ a1 a2 a3 => @env.insert_insert_flip (eloss, []) (z, shape) a1 a2 a3 H_eloss_neq_z]
+
+          exact ((is_gintegrable_k_add _ _ _ _).mpr (H_gint.right x)).right
 
   conv =>
     rhs
@@ -290,30 +317,42 @@ E (graph.toDist (λ env₀ => ⟦sumCosts env₀ (eloss::costs)⟧) inputs nodes
   =
   E (graph.toDist (λ (m : Env) => ⟦k₁ m⟧)
               (env.insert (z, shape) x
-                          (env.insert (eloss, @nil ℕ) (T.mvn_kl (env.get (μ, shape) inputs : T shape) (env.get (σ, shape) inputs : T shape)) inputs))
+                          (env.insert (eloss, []) (T.mvn_kl (env.get (μ, shape) inputs : T shape) (env.get (σ, shape) inputs : T shape)) inputs))
               nodes)
         Dvec.head
   +
   E (graph.toDist (λ (m : Env) => ⟦k₂ m⟧)
               (env.insert (z, shape) x
-                          (env.insert (eloss, @nil ℕ) (T.mvn_kl (env.get (μ, shape) inputs : T shape) (env.get (σ, shape) inputs : T shape)) inputs))
+                          (env.insert (eloss, []) (T.mvn_kl (env.get (μ, shape) inputs : T shape) (env.get (σ, shape) inputs : T shape)) inputs))
               nodes)
         Dvec.head := by
           intro x
           exact E.E_k_add k₁ k₂ _ _ ((is_gintegrable_k_add _ _ _ _).mpr (H_kl_gint.right x)).left ((is_gintegrable_k_add _ _ _ _).mpr (H_kl_gint.right x)).right
 
   have H_lhs_eint₁ : E.is_eintegrable d_base lhs_f₁ := by
-      sorry
-      -- unfold E.is_eintegrable lhs_f₁ m_lhs_k_add
-      -- unfold integrate_mvn_kl isGintegrable at H_kl_gint
-      -- simp only [λ a1 a2 a3 => @env.insert_insert_flip (eloss, []) (z, shape) a1 a2 a3 H_eloss_neq_z]
-      -- simp only [det.op.f, ops.mvn_kl, p1, p2, ops.mvn_kl.f, Dvec.head, env.getKs, sumCosts] at H_kl_gint
-      -- -- dsimp only [det.op.f, ops.mvn_kl, p1, p2, ops.mvn_kl.f, Dvec.head, env.getKs, sumCosts] at H_kl_gint
-      -- -- simp only [env.get_insert_diff, env.get_insert_same, H_σ_neq_eloss, H_μ_neq_eloss, H_eloss_neq_z] at H_kl_gint
-      -- -- unfold  ops.mvn_kl ops.mvn_kl.f sumr map Dvec.head Dvec.head2 Dvec.head3 at H_kl_gint
-      -- simp only [H_E_kl_add] at H_kl_gint
-      -- exact ((T.is_integrable_add_middle _ _ _).mpr H_kl_gint.left).left
-  have H_lhs_eint₂ : E.is_eintegrable d_base lhs_f₂ := by sorry
+      dsimp [E.is_eintegrable, Dvec.head, d_base, lhs_f₁, m_lhs_k_add]
+      dsimp [integrate_mvn_kl, isGintegrable] at H_kl_gint
+      simp only [λ a1 a2 a3 => @env.insert_insert_flip (eloss, []) (z, shape) a1 a2 a3 H_eloss_neq_z]
+      simp only [det.op.f, ops.mvn_kl, p1, p2, ops.mvn_kl.f, Dvec.head, env.getKs, sumCosts, sumr, map] at H_kl_gint
+      dsimp only [Dvec.head2] at H_kl_gint
+      simp only [env.get_insert_diff _ _ H_σ_neq_eloss] at H_kl_gint
+      simp only [env.get_insert_diff _ _ H_μ_neq_eloss] at H_kl_gint
+      conv at H_kl_gint =>
+        pattern (E _ Dvec.head)
+        rw [H_E_kl_add]
+      exact ((T.is_integrable_add_middle _ _ _).mpr H_kl_gint.left).left
+  have H_lhs_eint₂ : E.is_eintegrable d_base lhs_f₂ := by
+    dsimp [E.is_eintegrable, Dvec.head, d_base, lhs_f₂, m_lhs_k_add]
+    dsimp [integrate_mvn_kl, isGintegrable] at H_kl_gint
+    simp only [λ a1 a2 a3 => @env.insert_insert_flip (eloss, []) (z, shape) a1 a2 a3 H_eloss_neq_z]
+    simp only [det.op.f, ops.mvn_kl, p1, p2, ops.mvn_kl.f, Dvec.head, env.getKs, sumCosts, sumr, map] at H_kl_gint
+    dsimp only [Dvec.head2] at H_kl_gint
+    simp only [env.get_insert_diff _ _ H_σ_neq_eloss] at H_kl_gint
+    simp only [env.get_insert_diff _ _ H_μ_neq_eloss] at H_kl_gint
+    conv at H_kl_gint =>
+      pattern (E _ Dvec.head)
+      rw [H_E_kl_add]
+    exact ((T.is_integrable_add_middle _ _ _).mpr H_kl_gint.left).right
 
   erw [E.E_add d_base lhs_f₁ lhs_f₂ H_lhs_eint₁ H_lhs_eint₂]
 
@@ -324,8 +363,60 @@ E (graph.toDist (λ env₀ => ⟦sumCosts env₀ (eloss::costs)⟧) inputs nodes
   simp only [E.E_bind, E.E_ret, det.op.f, Dvec.head, env.getKs, sumCosts] at H_gint
   simp only [env.get_insert_diff, env.get_insert_same, H_σ_neq_eloss, H_μ_neq_eloss, H_eloss_neq_z] at H_gint
 
-  have H_rhs_eint₁ : E.is_eintegrable d_base rhs_f₁ := by sorry
-  have H_rhs_eint₂ : E.is_eintegrable d_base rhs_f₂ := by sorry
+
+  have H_E_add : ∀ x,E
+         (graph.toDist
+            (λ (m : Env) => ⟦(env.get (eloss, []) m ) + sumr (map (λ (cost : ID) => (env.get (cost, []) m )) costs)⟧)
+            (env.insert (eloss, [])
+               (T.mvn_empirical_kl (env.get (μ, shape) inputs : T shape) (env.get (σ, shape) inputs : T shape) x)
+               (env.insert (z, shape) x inputs))
+            nodes)
+         Dvec.head
+=
+E
+         (graph.toDist
+            (λ (m : Env) => ⟦k₁ m⟧)
+            (env.insert (eloss, [])
+               (T.mvn_empirical_kl (env.get (μ, shape) inputs : T shape) (env.get (σ, shape) inputs : T shape) x)
+               (env.insert (z, shape) x inputs))
+            nodes)
+         Dvec.head
++
+E
+         (graph.toDist
+            (λ (m : Env) => ⟦k₂ m⟧)
+            (env.insert (eloss, [])
+               (T.mvn_empirical_kl (env.get (μ, shape) inputs : T shape) (env.get (σ, shape) inputs : T shape) x)
+               (env.insert (z, shape) x inputs))
+            nodes)
+         Dvec.head := by
+          intro x
+          simp only [ @env.insert_insert_flip _ _ _ _ inputs (Ne.symm H_eloss_neq_z)] at H_gint
+          exact E.E_k_add k₁ k₂ _ _ ((is_gintegrable_k_add _ _ _ _).mpr (H_gint.right x)).left ((is_gintegrable_k_add _ _ _ _).mpr (H_gint.right x)).right
+
+  have H_rhs_eint₁ : E.is_eintegrable d_base rhs_f₁ := by
+    dsimp [E.is_eintegrable, Dvec.head, rhs_f₁]
+    dsimp only [sumr, map, Dvec.head, Dvec.head2, Dvec.head3] at H_gint
+    simp only [env.get_insert_diff _ _ H_σ_neq_z] at H_gint
+    simp only [env.get_insert_diff _ _ H_μ_neq_z] at H_gint
+
+    conv at H_gint =>
+      pattern (E _ Dvec.head)
+      simp only [ @env.insert_insert_flip _ _ _ _ inputs (Ne.symm H_eloss_neq_z)]
+      rw [H_E_add]
+    exact ((T.is_integrable_add_middle _ _ _).mpr H_gint.left).left
+
+  have H_rhs_eint₂ : E.is_eintegrable d_base rhs_f₂ := by
+      dsimp [E.is_eintegrable, Dvec.head, rhs_f₂]
+      dsimp only [sumr, map, Dvec.head, Dvec.head2, Dvec.head3] at H_gint
+      simp only [env.get_insert_diff _ _ H_σ_neq_z] at H_gint
+      simp only [env.get_insert_diff _ _ H_μ_neq_z] at H_gint
+
+      conv at H_gint =>
+        pattern (E _ Dvec.head)
+        simp only [ @env.insert_insert_flip _ _ _ _ inputs (Ne.symm H_eloss_neq_z)]
+        rw [H_E_add]
+      exact ((T.is_integrable_add_middle _ _ _).mpr H_gint.left).right
 
   erw [E.E_add d_base rhs_f₁ rhs_f₂ H_rhs_eint₁ H_rhs_eint₂]
 

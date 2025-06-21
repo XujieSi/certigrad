@@ -1,3 +1,4 @@
+     482 Kl.lean  
      223 LemmasExtra.lean    
      435 ComputeGradSlowCorrect.lean  
      143 memoize_correct.lean          
@@ -34,9 +35,9 @@
      132 examples.nolean
 
 To Do
-      49 backprop_correct.lean  <--- g3: final goal, just one theorem
-     556 prove_model_ok.lean  <--- g2
-     482 kl.lean                         <--- g1
+      49 backprop_correct.lean  <--- g2: final goal, just one theorem
+     556 prove_model_ok.lean  <--- g1
+                           
      
      
      
